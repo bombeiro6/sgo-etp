@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>SGO – Emergência Terminal Parauapebas</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- PDF Generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+:root{
+  --red:#FF3B30;--red2:#C0392B;--red-dim:rgba(255,59,48,0.12);
+  --amber:#FF9500;--amber2:#E67E00;--amber-dim:rgba(255,149,0,0.12);
+  --green:#34C759;--green2:#248A3D;--green-dim:rgba(52,199,89,0.12);
+  --blue:#0A84FF;--blue2:#0060DF;--blue-dim:rgba(10,132,255,0.12);
+  --white:#F2F2F7;--gray1:#8E8E93;--gray2:#3A3A3C;--gray3:#2C2C2E;
+  --bg:#0A0A0F;--bg2:#111118;--bg3:#18181F;--bg4:#1F1F28;--bg5:#26262F;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--border-acc:rgba(255,149,0,0.3);
+  --ff-h:'Exo 2',sans-serif;--ff-m:'IBM Plex Mono',monospace;
+  --sw:222px;--th:58px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:15px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:var(--ff-h);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--gray2);border-radius:3px}
+
+/* ── LOGIN SCREEN ─────────────────────────────────── */
+#loginScreen{
+  position:fixed;inset:0;z-index:900;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.login-box{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:16px;
+  padding:36px 32px;width:100%;max-width:400px;
+  box-shadow:0 0 60px rgba(255,149,0,0.08);
+}
+.login-emblem{display:flex;justify-content:center;margin-bottom:20px}
+.login-title{font-size:20px;font-weight:800;text-align:center;letter-spacing:.5px;margin-bottom:4px}
+.login-sub{font-family:var(--ff-m);font-size:9px;color:var(--amber);letter-spacing:2px;text-align:center;text-transform:uppercase;margin-bottom:28px}
+.login-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.login-label{font-family:var(--ff-m);font-size:9px;color:var(--amber);letter-spacing:1.5px;text-transform:uppercase}
+.login-input{
+  background:rgba(0,0,0,.3);border:1px solid var(--border2);border-radius:8px;
+  padding:12px 14px;color:var(--white);font-family:var(--ff-h);font-size:14px;
+  outline:none;transition:border-color .2s;width:100%;
+}
+.login-input:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,149,0,.08)}
+.login-btn{
+  width:100%;padding:13px;border-radius:8px;border:none;cursor:pointer;
+  background:var(--amber);color:#000;font-family:var(--ff-h);
+  font-size:15px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  margin-top:6px;transition:all .2s;
+}
+.login-btn:hover{background:var(--amber2);color:#fff}
+.login-btn:disabled{opacity:.5;cursor:not-allowed}
+.login-err{
+  background:rgba(255,59,48,.1);border:1px solid rgba(255,59,48,.3);
+  color:#FF8A80;border-radius:7px;padding:10px 14px;font-size:12px;
+  margin-top:10px;display:none;text-align:center;
+}
+.login-demo{
+  margin-top:18px;padding:12px;border-radius:8px;
+  background:rgba(10,132,255,.07);border:1px solid rgba(10,132,255,.2);
+}
+.login-demo-title{font-family:var(--ff-m);font-size:9px;color:var(--blue);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.login-demo p{font-family:var(--ff-m);font-size:10px;color:var(--gray1);line-height:1.8}
+.login-demo span{color:var(--white)}
+.setup-warn{
+  background:rgba(255,149,0,.07);border:1px solid rgba(255,149,0,.2);
+  color:#FFD180;border-radius:8px;padding:12px;font-size:11px;
+  margin-bottom:16px;line-height:1.6;display:none;
+}
+.setup-warn strong{display:block;color:var(--amber);margin-bottom:4px}
+
+/* ── TOPBAR ──────────────────────────────────────── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:300;height:var(--th);
+  background:rgba(10,10,15,.97);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;gap:14px;padding:0 20px;
+}
+.topbar-logo{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.topbar-name{font-size:15px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.topbar-sub{font-family:var(--ff-m);font-size:9px;color:var(--amber);letter-spacing:2px;text-transform:uppercase}
+.topbar-center{flex:1;display:flex;justify-content:center}
+.topbar-time{font-family:var(--ff-m);font-size:18px;font-weight:600;letter-spacing:2px;text-align:center}
+.topbar-date{font-family:var(--ff-m);font-size:9px;color:var(--gray1);letter-spacing:1.5px;text-align:center;margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.pront-pill{
+  display:flex;align-items:center;gap:7px;
+  background:var(--green-dim);border:1px solid rgba(52,199,89,.3);
+  border-radius:20px;padding:5px 12px;
+  font-family:var(--ff-m);font-size:10px;color:var(--green);white-space:nowrap;
+}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.user-chip{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg4);border:1px solid var(--border2);border-radius:8px;
+  padding:5px 10px;cursor:pointer;
+}
+.user-avatar{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,var(--amber2),var(--amber));
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#000;
+}
+.user-name{font-family:var(--ff-m);font-size:10px;color:var(--gray1)}
+.notif-btn{
+  position:relative;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:8px;width:36px;height:36px;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;font-size:16px;transition:border-color .2s;
+}
+.notif-btn:hover{border-color:var(--border-acc)}
+.notif-count{
+  position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;
+  background:var(--red);color:#fff;font-family:var(--ff-m);font-size:9px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+}
+.ham-btn{display:none;background:none;border:none;color:var(--white);font-size:22px;cursor:pointer;padding:4px}
+
+/* ── LAYOUT ──────────────────────────────────────── */
+.layout{display:flex;padding-top:var(--th);min-height:100vh;position:relative;z-index:1}
+
+/* ── SIDEBAR ─────────────────────────────────────── */
+.sidebar{
+  width:var(--sw);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);
+  position:fixed;top:var(--th);left:0;bottom:0;overflow-y:auto;
+  display:flex;flex-direction:column;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:200;
+}
+.sidebar-section{padding:8px 0}
+.sidebar-label{font-family:var(--ff-m);font-size:8px;font-weight:600;color:var(--gray2);letter-spacing:2.5px;text-transform:uppercase;padding:6px 16px 3px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;
+  border-left:3px solid transparent;font-size:13px;font-weight:500;color:var(--gray1);
+  transition:all .15s;user-select:none;
+}
+.nav-item:hover{color:var(--white);background:rgba(255,255,255,.04);border-left-color:var(--gray2)}
+.nav-item.active{color:var(--amber);background:rgba(255,149,0,.08);border-left-color:var(--amber);font-weight:700}
+.nav-item .ni{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{
+  margin-left:auto;background:var(--red);color:#fff;
+  font-family:var(--ff-m);font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;
+}
+.sidebar-footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--border);font-family:var(--ff-m);font-size:9px;color:var(--gray2);line-height:1.8}
+.sidebar-footer strong{color:var(--green)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:199;backdrop-filter:blur(2px)}
+
+/* ── MAIN ────────────────────────────────────────── */
+.main{flex:1;margin-left:var(--sw);padding:24px;max-width:100%}
+
+/* ── PAGES ───────────────────────────────────────── */
+.page{display:none}
+.page.active{display:block;animation:pageIn .25s ease}
+@keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:800;letter-spacing:.3px}
+.page-title small{display:block;font-size:10px;color:var(--gray1);font-weight:400;margin-top:2px;font-family:var(--ff-m);letter-spacing:.5px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;cursor:pointer;font-family:var(--ff-h);font-size:12px;font-weight:700;border:none;transition:all .15s;letter-spacing:.3px}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-amber{background:var(--amber);color:#000}
+.btn-amber:hover:not(:disabled){background:var(--amber2);color:#000}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover:not(:disabled){background:var(--red2)}
+.btn-ghost{background:var(--bg4);color:var(--gray1);border:1px solid var(--border2)}
+.btn-ghost:hover:not(:disabled){border-color:var(--border-acc);color:var(--white)}
+.btn-green{background:var(--green2);color:#fff}
+.btn-blue{background:var(--blue2);color:#fff}
+
+/* ── GRID ────────────────────────────────────────── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+
+/* ── KPI ─────────────────────────────────────────── */
+.kpi{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+.kpi-accent{position:absolute;top:0;left:0;right:0;height:2px}
+.ka-amber{background:linear-gradient(90deg,var(--amber2),var(--amber))}
+.ka-red{background:linear-gradient(90deg,var(--red2),var(--red))}
+.ka-green{background:linear-gradient(90deg,var(--green2),var(--green))}
+.ka-blue{background:linear-gradient(90deg,var(--blue2),var(--blue))}
+.ka-gray{background:linear-gradient(90deg,var(--gray2),var(--gray1))}
+.kpi-label{font-family:var(--ff-m);font-size:9px;color:var(--gray1);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px;display:block}
+.kpi-val{font-size:34px;font-weight:900;line-height:1;display:block;transition:all .5s}
+.kv-green{color:var(--green);text-shadow:0 0 20px rgba(52,199,89,.3)}
+.kv-amber{color:var(--amber);text-shadow:0 0 20px rgba(255,149,0,.3)}
+.kv-red{color:var(--red);text-shadow:0 0 20px rgba(255,59,48,.3)}
+.kv-blue{color:var(--blue)}
+.kv-white{color:var(--white)}
+.kpi-sub{font-size:11px;color:var(--gray1);margin-top:5px;display:block}
+.kpi-icon{position:absolute;bottom:10px;right:12px;font-size:24px;opacity:.1}
+
+/* ── PANEL ───────────────────────────────────────── */
+.panel{background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.panel:last-child{margin-bottom:0}
+.panel-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.2)}
+.panel-title{font-size:13px;font-weight:700;letter-spacing:.3px}
+.panel-body{padding:16px}
+
+/* ── BADGES ──────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-family:var(--ff-m);font-size:10px;font-weight:600}
+.b-green{background:var(--green-dim);color:var(--green);border:1px solid rgba(52,199,89,.2)}
+.b-amber{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,149,0,.2)}
+.b-red{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,59,48,.2)}
+.b-blue{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(10,132,255,.2)}
+.b-gray{background:rgba(142,142,147,.1);color:var(--gray1);border:1px solid rgba(142,142,147,.15)}
+
+/* ── PROGRESS ────────────────────────────────────── */
+.prog-wrap{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.prog-bar{height:100%;border-radius:3px;transition:width 1s ease}
+.pb-green{background:linear-gradient(90deg,var(--green2),var(--green))}
+.pb-amber{background:linear-gradient(90deg,var(--amber2),var(--amber))}
+.pb-red{background:linear-gradient(90deg,var(--red2),var(--red))}
+.pb-blue{background:linear-gradient(90deg,var(--blue2),var(--blue))}
+.prog-row{margin-bottom:12px}
+.prog-row:last-child{margin-bottom:0}
+.prog-meta{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px}
+.prog-name{color:var(--white);font-weight:500}
+.prog-pct{font-family:var(--ff-m);font-size:11px}
+.pct-green{color:var(--green)}.pct-amber{color:var(--amber)}.pct-red{color:var(--red)}
+
+/* ── STATUS DOT ──────────────────────────────────── */
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sd-g{background:var(--green);box-shadow:0 0 8px var(--green)}
+.sd-a{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.sd-r{background:var(--red);box-shadow:0 0 8px var(--red)}
+.sd-gray{background:var(--gray2)}
+
+/* ── TABLE ───────────────────────────────────────── */
+.dtable{width:100%;border-collapse:collapse;font-size:12px}
+.dtable th{text-align:left;padding:9px 14px;font-family:var(--ff-m);font-size:9px;color:var(--gray2);letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)}
+.dtable td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--gray1);vertical-align:middle}
+.dtable tr:hover td{background:rgba(255,255,255,.025)}
+.dtable tr:last-child td{border-bottom:none}
+
+/* ── ALERT ───────────────────────────────────────── */
+.alert{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12px;font-weight:500}
+.alert-r{background:rgba(255,59,48,.08);border:1px solid rgba(255,59,48,.25);color:#FF8A80}
+.alert-a{background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.25);color:#FFD180}
+.alert-g{background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);color:#B9F6CA}
+.alert-b{background:rgba(10,132,255,.08);border:1px solid rgba(10,132,255,.25);color:#80D8FF}
+.alert strong{display:block;margin-bottom:2px}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+
+/* ── CHECKLIST ───────────────────────────────────── */
+.ck-item{display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s}
+.ck-item:last-child{border-bottom:none}
+.ck-item:hover{background:rgba(255,255,255,.025)}
+.ck-box{width:24px;height:24px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;transition:all .2s;border:2px solid var(--border2);background:transparent;margin-top:1px}
+.ck-box.ok{background:var(--green);border-color:var(--green);color:#000;box-shadow:0 0 10px rgba(52,199,89,.3)}
+.ck-box.nok{background:var(--red);border-color:var(--red);color:#fff}
+.ck-content{flex:1}
+.ck-label{font-size:13px;font-weight:600;color:var(--white);margin-bottom:2px}
+.ck-sub{font-size:11px;color:var(--gray1)}
+.ck-label.fail{color:var(--red)}
+.ck-tag{font-family:var(--ff-m);font-size:9px;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,.06);color:var(--gray1);flex-shrink:0;margin-top:3px}
+.ck-section-head{padding:8px 16px;background:rgba(0,0,0,.3);font-family:var(--ff-m);font-size:9px;color:var(--amber);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+
+/* ── BAR CHART ───────────────────────────────────── */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:80px;padding:4px 0}
+.bc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bc-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;transition:height .8s ease}
+.bc-bar.g{background:var(--green);opacity:.75}
+.bc-bar.a{background:var(--amber);opacity:.75}
+.bc-bar.r{background:var(--red);opacity:.75}
+.bc-bar.b{background:var(--blue);opacity:.75}
+.bc-val{font-family:var(--ff-m);font-size:9px;color:var(--gray1)}
+.bc-lbl{font-family:var(--ff-m);font-size:9px;color:var(--gray2)}
+
+/* ── FORMS ───────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f-field{display:flex;flex-direction:column;gap:5px}
+.f-field.full{grid-column:1/-1}
+.f-label{font-family:var(--ff-m);font-size:9px;color:var(--amber);letter-spacing:1.5px;text-transform:uppercase}
+.f-input{background:rgba(0,0,0,.3);border:1px solid var(--border2);border-radius:7px;padding:10px 12px;color:var(--white);font-family:var(--ff-h);font-size:13px;outline:none;appearance:none;transition:border-color .2s;width:100%}
+.f-input:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,149,0,.08)}
+textarea.f-input{min-height:80px;resize:vertical}
+select.f-input{cursor:pointer}
+
+/* ── UPLOAD ──────────────────────────────────────── */
+.upload-zone{
+  background:rgba(0,0,0,.2);border:2px dashed var(--border2);border-radius:8px;
+  padding:16px;text-align:center;cursor:pointer;transition:border-color .2s;
+}
+.upload-zone:hover{border-color:var(--amber)}
+.upload-zone input[type=file]{display:none}
+.upload-label{font-size:12px;color:var(--gray1);margin-top:6px;display:block}
+.upload-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.upload-thumb{
+  width:56px;height:56px;border-radius:6px;object-fit:cover;
+  border:1px solid var(--border2);
+}
+.upload-progress{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-top:8px;display:none}
+.upload-progress-bar{height:100%;background:var(--amber);border-radius:2px;width:0;transition:width .3s}
+
+/* ── OVERLAY / DRAWER ────────────────────────────── */
+.overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:none;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.drawer{background:var(--bg2);border-radius:16px 16px 0 0;border-top:1px solid var(--border2);width:100%;max-width:660px;max-height:88vh;overflow-y:auto;padding-bottom:30px;animation:drawerUp .3s cubic-bezier(.4,0,.2,1)}
+@keyframes drawerUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.drawer-handle{width:36px;height:4px;background:var(--gray2);border-radius:2px;margin:12px auto 0}
+.drawer-head{padding:14px 20px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.drawer-title{font-size:16px;font-weight:800;letter-spacing:.3px}
+.drawer-close{background:none;border:none;color:var(--gray1);font-size:22px;cursor:pointer;padding:4px;transition:color .2s}
+.drawer-close:hover{color:var(--red)}
+.drawer-body{padding:18px 20px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+
+/* ── LOADING SPINNER ─────────────────────────────── */
+.spinner{
+  width:18px;height:18px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;
+  border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ───────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  background:var(--bg3);border:1px solid var(--green);border-radius:10px;
+  padding:12px 20px;display:flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;color:var(--green);
+  z-index:800;opacity:0;transition:opacity .3s,transform .3s;
+  pointer-events:none;min-width:260px;white-space:nowrap;
+  box-shadow:0 0 30px rgba(52,199,89,.15);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+/* ── PRONTIDÃO HERO ──────────────────────────────── */
+.pront-hero{background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:24px;display:flex;align-items:center;gap:28px;position:relative;overflow:hidden;margin-bottom:14px}
+.pront-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(255,149,0,.07) 0%,transparent 60%);pointer-events:none}
+.ph-ring{width:110px;height:110px;flex-shrink:0;position:relative}
+.ph-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ph-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ph-pct{font-size:28px;font-weight:900;color:var(--green);text-shadow:0 0 20px rgba(52,199,89,.4);transition:all .5s}
+.ph-pct-sub{font-family:var(--ff-m);font-size:8px;color:var(--gray1);letter-spacing:1px}
+.ph-info{flex:1}
+.ph-label{font-family:var(--ff-m);font-size:9px;color:var(--amber);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.ph-status{font-size:26px;font-weight:900;letter-spacing:1px;color:var(--green)}
+.ph-sub{font-size:12px;color:var(--gray1);margin-top:4px}
+.ph-meta{font-family:var(--ff-m);font-size:10px;color:var(--gray2);margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;gap:20px;flex-wrap:wrap}
+.ph-meta span{color:var(--gray1)}
+.ph-meta strong{color:var(--amber);transition:all .3s}
+
+/* ── TST ROWS ────────────────────────────────────── */
+.tst-row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s}
+.tst-row:hover{background:rgba(255,255,255,.025)}
+.tst-row:last-child{border-bottom:none}
+.tst-main{flex:1}
+.tst-name{font-size:13px;font-weight:600;color:var(--white)}
+.tst-meta{font-family:var(--ff-m);font-size:10px;color:var(--gray1);margin-top:2px}
+.tst-right{text-align:right;flex-shrink:0}
+.tst-days{font-family:var(--ff-m);font-size:12px;font-weight:600}
+
+/* ── NC CARDS ────────────────────────────────────── */
+.nc-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;overflow:hidden;margin-bottom:10px}
+.nc-card:last-child{margin-bottom:0}
+.nc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.nc-card.critica::before{background:var(--red);box-shadow:0 0 12px var(--red)}
+.nc-card.moderada::before{background:var(--amber)}
+.nc-card.baixa::before{background:var(--blue)}
+.nc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.nc-id{font-family:var(--ff-m);font-size:10px;color:var(--amber)}
+.nc-title{font-size:14px;font-weight:600;margin-bottom:3px}
+.nc-area{font-family:var(--ff-m);font-size:10px;color:var(--gray1)}
+.nc-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.05)}
+.nc-resp{font-size:11px;color:var(--gray1)}
+.nc-date{font-family:var(--ff-m);font-size:10px}
+.nc-date.urgent{color:var(--red)}
+.nc-date.ok{color:var(--green)}
+
+/* ── OP ACTIONS ──────────────────────────────────── */
+.op-action{display:flex;align-items:center;gap:12px;background:var(--bg4);border:1px solid var(--border);border-radius:8px;padding:13px;cursor:pointer;transition:border-color .2s;margin-bottom:10px}
+.op-action:last-child{margin-bottom:0}
+.op-action:hover{border-color:var(--border2)}
+.op-icon{font-size:22px;flex-shrink:0}
+.op-text{flex:1}
+.op-title{font-size:13px;font-weight:600}
+.op-sub{font-family:var(--ff-m);font-size:10px;color:var(--gray1);margin-top:2px}
+.op-status{font-family:var(--ff-m);font-size:11px;font-weight:600}
+
+/* ── BOAS PRÁTICAS ───────────────────────────────── */
+.bp-card{background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;gap:14px;align-items:flex-start;margin-bottom:10px}
+.bp-card:last-child{margin-bottom:0}
+.bp-icon{font-size:26px;flex-shrink:0}
+.bp-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.bp-text{font-size:12px;color:var(--gray1);line-height:1.6}
+.bp-tag{display:inline-block;margin-top:8px;font-family:var(--ff-m);font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,149,0,.1);color:var(--amber);border:1px solid rgba(255,149,0,.2)}
+
+/* ── TIMELINE ────────────────────────────────────── */
+.timeline{padding:4px 0}
+.tl-item{display:flex;gap:12px;padding-bottom:16px;position:relative}
+.tl-item::before{content:'';position:absolute;left:9px;top:20px;bottom:0;width:1px;background:var(--border)}
+.tl-item:last-child::before{display:none}
+.tl-dot{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid;z-index:1}
+.tl-dot.g{background:rgba(52,199,89,.15);border-color:var(--green);color:var(--green)}
+.tl-dot.a{background:rgba(255,149,0,.15);border-color:var(--amber);color:var(--amber)}
+.tl-dot.r{background:rgba(255,59,48,.15);border-color:var(--red);color:var(--red)}
+.tl-content{flex:1;padding-top:1px}
+.tl-title{font-size:13px;font-weight:600}
+.tl-meta{font-family:var(--ff-m);font-size:10px;color:var(--gray1);margin-top:2px}
+
+/* ── VIATURA CARDS ───────────────────────────────── */
+.viatura-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.vc{background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative}
+.vc-stripe{position:absolute;left:0;top:0;bottom:0;width:4px}
+.vc-stripe.g{background:var(--green);box-shadow:2px 0 12px rgba(52,199,89,.3)}
+.vc-stripe.a{background:var(--amber);box-shadow:2px 0 12px rgba(255,149,0,.3)}
+.vc-stripe.r{background:var(--red);box-shadow:2px 0 12px rgba(255,59,48,.3)}
+.vc-body{padding:14px 14px 14px 20px}
+.vc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.vc-name{font-size:15px;font-weight:800;letter-spacing:.3px}
+.vc-model{font-family:var(--ff-m);font-size:10px;color:var(--gray1);margin-top:2px}
+.vc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px}
+.vc-stat{background:rgba(0,0,0,.2);border-radius:5px;padding:7px 8px}
+.vc-stat-l{font-family:var(--ff-m);font-size:8px;color:var(--gray2);text-transform:uppercase;letter-spacing:.8px}
+.vc-stat-v{font-size:14px;font-weight:700;margin-top:2px}
+.sv-g{color:var(--green)}.sv-a{color:var(--amber)}.sv-r{color:var(--red)}.sv-w{color:var(--white)}
+.vc-obs{background:rgba(0,0,0,.2);border-radius:5px;padding:7px 10px;margin-top:8px;font-size:11px;color:var(--gray1);border-left:2px solid var(--amber)}
+
+/* ── EFETIVO ─────────────────────────────────────── */
+.ef-card{background:var(--bg4);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px}
+.ef-avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;letter-spacing:.5px}
+.ea-amber{background:linear-gradient(135deg,var(--amber2),var(--amber));color:#000}
+.ea-green{background:linear-gradient(135deg,var(--green2),var(--green));color:#fff}
+.ea-blue{background:linear-gradient(135deg,var(--blue2),var(--blue));color:#fff}
+.ef-info{flex:1}
+.ef-name{font-size:13px;font-weight:700}
+.ef-role{font-size:11px;color:var(--gray1);margin-top:1px}
+.ef-shift{font-family:var(--ff-m);font-size:9px;color:var(--amber);margin-top:4px;letter-spacing:.5px}
+
+/* ── TAB BAR ─────────────────────────────────────── */
+.tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.tab-btn{padding:8px 16px;cursor:pointer;white-space:nowrap;font-size:12px;font-weight:600;color:var(--gray1);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--ff-h);transition:all .15s}
+.tab-btn:hover{color:var(--white)}
+.tab-btn.active{color:var(--amber);border-bottom-color:var(--amber)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* ── SECTION TITLE ───────────────────────────────── */
+.sec-title{font-family:var(--ff-m);font-size:9px;font-weight:600;color:var(--amber);letter-spacing:2.5px;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── SEARCH ──────────────────────────────────────── */
+.search-bar{display:flex;align-items:center;gap:10px;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;margin-bottom:14px}
+.search-bar input{flex:1;background:none;border:none;outline:none;color:var(--white);font-family:var(--ff-h);font-size:13px}
+.search-bar input::placeholder{color:var(--gray2)}
+
+/* ── EMPTY STATE ─────────────────────────────────── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--gray1)}
+.empty-state .es-icon{font-size:36px;margin-bottom:10px}
+.empty-state .es-title{font-size:14px;font-weight:600;color:var(--white);margin-bottom:6px}
+.empty-state .es-sub{font-size:12px}
+
+/* ── SUPABASE CONFIG WARNING ─────────────────────── */
+.config-banner{
+  background:rgba(255,149,0,.07);border:1px solid rgba(255,149,0,.25);
+  border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:12px;color:#FFD180;
+  display:none;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────── */
+@media(max-width:960px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .ham-btn{display:block}
+  .topbar-center{display:none}
+  .grid-4{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+  .pront-hero{flex-direction:column;text-align:center}
+  .ph-meta{justify-content:center}
+}
+@media(max-width:580px){
+  .main{padding:14px}
+  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr}
+  .viatura-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .page-title{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ═══════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-emblem">
+      <svg width="52" height="52" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="20,2 38,12 38,28 20,38 2,28 2,12" fill="none" stroke="#FF9500" stroke-width="1.5"/>
+        <rect x="16" y="8" width="8" height="24" rx="2" fill="#FF3B30"/>
+        <rect x="8" y="16" width="24" height="8" rx="2" fill="#FF3B30"/>
+        <ellipse cx="20" cy="19" rx="3.5" ry="4.5" fill="#FF9500" opacity=".9"/>
+        <ellipse cx="20" cy="20.5" rx="2" ry="2.5" fill="#FFD600" opacity=".9"/>
+      </svg>
+    </div>
+    <div class="login-title">Emergência Terminal Parauapebas</div>
+    <div class="login-sub">SGO · Sistema de Gestão Operacional · VALE</div>
+    <div class="setup-warn" id="setupWarn">
+      <strong>⚙️ Configuração necessária</strong>
+      Edite as variáveis SUPABASE_URL e SUPABASE_KEY no início do JavaScript com os dados do seu projeto Supabase antes de usar o sistema.
+    </div>
+    <div class="login-field">
+      <label class="login-label">E-mail</label>
+      <input class="login-input" id="loginEmail" type="email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label class="login-label">Senha</label>
+      <input class="login-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="fazerLogin()">
+      <span id="loginBtnText">ENTRAR NO SISTEMA</span>
+    </button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-demo">
+      <div class="login-demo-title">🔧 Primeiros passos</div>
+      <p>
+        1. Crie seu projeto em <span>supabase.com</span><br>
+        2. Copie a URL e a Anon Key<br>
+        3. Cole nas variáveis do código<br>
+        4. Execute o SQL das tabelas<br>
+        5. Crie usuários em Authentication
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOPBAR ══════════════════════════════════════ -->
+<div class="topbar" id="mainApp" style="display:none">
+  <button class="ham-btn" onclick="toggleSidebar()">☰</button>
+  <div class="topbar-logo">
+    <svg width="36" height="36" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="20,2 38,12 38,28 20,38 2,28 2,12" fill="none" stroke="#FF9500" stroke-width="1.5"/>
+      <rect x="16" y="8" width="8" height="24" rx="2" fill="#FF3B30"/>
+      <rect x="8" y="16" width="24" height="8" rx="2" fill="#FF3B30"/>
+      <ellipse cx="20" cy="19" rx="3.5" ry="4.5" fill="#FF9500" opacity=".9"/>
+      <ellipse cx="20" cy="20.5" rx="2" ry="2.5" fill="#FFD600" opacity=".9"/>
+    </svg>
+    <div>
+      <div class="topbar-name">Emergência Terminal Parauapebas</div>
+      <div class="topbar-sub">SGO · Gestão Operacional · VALE</div>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <div class="topbar-time" id="clkTime">--:--:--</div>
+    <div class="topbar-date" id="clkDate">--/--/----</div>
+  </div>
+  <div class="topbar-right">
+    <div class="pront-pill"><span class="live-dot"></span><span id="turnoLabel">TURNO A · ONLINE</span></div>
+    <div class="notif-btn" onclick="openDrawer('drawerNotif')">🔔<span class="notif-count" id="notifCount">0</span></div>
+    <div class="user-chip" onclick="fazerLogout()">
+      <div class="user-avatar" id="userInitials">--</div>
+      <span class="user-name" id="userName">Carregando...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LAYOUT ══════════════════════════════════════ -->
+<div class="layout" id="appLayout" style="display:none">
+
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Visão Geral</div>
+    <div class="nav-item active" onclick="nav('dashboard')"><span class="ni">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="nav('indicadores')"><span class="ni">📈</span>Indicadores</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Inspeções</div>
+    <div class="nav-item" onclick="nav('ext')"><span class="ni">🧯</span>Extintores</div>
+    <div class="nav-item" onclick="nav('mang')"><span class="ni">🌀</span>Mangueiras</div>
+    <div class="nav-item" onclick="nav('hidr')"><span class="ni">🔴</span>Hidrantes</div>
+    <div class="nav-item" onclick="nav('bomba')"><span class="ni">⚙️</span>Casa de Bomba</div>
+    <div class="nav-item" onclick="nav('valv')"><span class="ni">🔧</span>Válvulas da Rede</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Operacional</div>
+    <div class="nav-item" onclick="nav('viaturas')"><span class="ni">🚒</span>Viaturas</div>
+    <div class="nav-item" onclick="nav('efetivo')"><span class="ni">👥</span>Efetivo</div>
+    <div class="nav-item" onclick="nav('plano')"><span class="ni">🔥</span>Plano Operacional</div>
+    <div class="nav-item" onclick="nav('boas')"><span class="ni">⭐</span>Boas Práticas</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Controle</div>
+    <div class="nav-item" onclick="nav('tst')"><span class="ni">📋</span>TST / Documentação<span class="nav-badge" id="tstBadge" style="display:none">0</span></div>
+    <div class="nav-item" onclick="nav('ncs')"><span class="ni">⚠️</span>Não Conformidades<span class="nav-badge" id="ncsBadge" style="display:none">0</span></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Relatórios</div>
+    <div class="nav-item" onclick="nav('relatorios')"><span class="ni">📄</span>Relatórios PDF</div>
+  </div>
+  <div class="sidebar-footer">
+    Sincronizado: <strong id="syncTime">--</strong><br>
+    Base: Terminal Parauapebas<br>
+    Versão 3.1 · 2026
+  </div>
+</nav>
+
+<!-- ══ MAIN ════════════════════════════════════════ -->
+<main class="main">
+
+<!-- ─── DASHBOARD ──────────────────────────────── -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div class="page-title">Dashboard Operacional<small id="dashSubtitle">CARREGANDO...</small></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="nav('relatorios')">📄 Relatório</button>
+      <button class="btn btn-amber" onclick="openDrawer('drawerInsp')">➕ Nova Inspeção</button>
+    </div>
+  </div>
+  <div class="config-banner" id="configBanner">
+    ⚙️ <strong>Configure o Supabase:</strong> Edite SUPABASE_URL e SUPABASE_KEY no código para ativar o banco de dados. Os dados abaixo são demonstrativos.
+  </div>
+  <div id="alertsContainer"></div>
+  <div class="pront-hero">
+    <div class="ph-ring">
+      <svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/><circle id="prontRing" cx="55" cy="55" r="46" fill="none" stroke="#34C759" stroke-width="8" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" style="transition:stroke-dashoffset 1.5s ease;filter:drop-shadow(0 0 6px #34C759)"/></svg>
+      <div class="ph-center"><span class="ph-pct" id="prontPct">--</span><span class="ph-pct-sub">PRONTIDÃO</span></div>
+    </div>
+    <div class="ph-info">
+      <div class="ph-label">● Índice de Prontidão Operacional</div>
+      <div class="ph-status" id="prontStatus">CARREGANDO</div>
+      <div class="ph-sub">Emergência Terminal Parauapebas · Monitoramento Contínuo</div>
+      <div class="ph-meta">
+        <span>Efetivo: <strong id="metaEfetivo">--</strong></span>
+        <span>Viaturas: <strong id="metaViaturas">--</strong></span>
+        <span>NCs: <strong id="metaNcs" style="color:var(--red)">--</strong></span>
+        <span>Inspeções Hoje: <strong id="metaInsp">--</strong></span>
+        <span>TST: <strong id="metaTst" style="color:var(--amber)">--</strong></span>
+      </div>
+    </div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Viaturas OK</span><span class="kpi-val kv-green" id="kpiViaturas">--</span><span class="kpi-sub" id="kpiViaturasub">Carregando...</span><span class="kpi-icon">🚒</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Efetivo</span><span class="kpi-val kv-amber" id="kpiEfetivo">--</span><span class="kpi-sub" id="kpiEfetivoSub">Carregando...</span><span class="kpi-icon">👥</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">NCs Abertas</span><span class="kpi-val kv-red" id="kpiNcs">--</span><span class="kpi-sub" id="kpiNcsSub">Carregando...</span><span class="kpi-icon">⚠️</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">TST Pendentes</span><span class="kpi-val kv-amber" id="kpiTst">--</span><span class="kpi-sub">ASO / Docs / Integração</span><span class="kpi-icon">📋</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Inspeções Hoje</span><span class="kpi-val kv-green" id="kpiInsp">--</span><span class="kpi-sub" id="kpiInspSub">Carregando...</span><span class="kpi-icon">✅</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformidade</span><span class="kpi-val kv-green" id="kpiConf">--%</span><span class="kpi-sub">Média das inspeções</span><span class="kpi-icon">📊</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Ext. Conformes</span><span class="kpi-val kv-blue" id="kpiExt">--</span><span class="kpi-sub">Total de extintores OK</span><span class="kpi-icon">🧯</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Hidrantes OK</span><span class="kpi-val kv-green" id="kpiHidr">--</span><span class="kpi-sub">Em operação</span><span class="kpi-icon">🔴</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">📍 Conformidade por Ativo – Últimos 7 dias</span><span class="badge b-green">↺ Auto</span></div>
+      <div class="panel-body">
+        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Extintores</span><span class="prog-pct pct-green" id="confExt">--%</span></div><div class="prog-wrap"><div class="prog-bar pb-green" id="barExt" style="width:0%"></div></div></div>
+        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Mangueiras</span><span class="prog-pct pct-amber" id="confMang">--%</span></div><div class="prog-wrap"><div class="prog-bar pb-amber" id="barMang" style="width:0%"></div></div></div>
+        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Hidrantes</span><span class="prog-pct pct-green" id="confHidr">--%</span></div><div class="prog-wrap"><div class="prog-bar pb-green" id="barHidr" style="width:0%"></div></div></div>
+        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Casa de Bomba</span><span class="prog-pct pct-green" id="confBomba">--%</span></div><div class="prog-wrap"><div class="prog-bar pb-green" id="barBomba" style="width:0%"></div></div></div>
+        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Válvulas</span><span class="prog-pct pct-amber" id="confValv">--%</span></div><div class="prog-wrap"><div class="prog-bar pb-amber" id="barValv" style="width:0%"></div></div></div>
+        <div class="bar-chart" style="margin-top:14px" id="barChart7d">
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc0"></div><span class="bc-val" id="bv0">0</span><span class="bc-lbl" id="bl0">--</span></div>
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc1"></div><span class="bc-val" id="bv1">0</span><span class="bc-lbl" id="bl1">--</span></div>
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc2"></div><span class="bc-val" id="bv2">0</span><span class="bc-lbl" id="bl2">--</span></div>
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc3"></div><span class="bc-val" id="bv3">0</span><span class="bc-lbl" id="bl3">--</span></div>
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc4"></div><span class="bc-val" id="bv4">0</span><span class="bc-lbl" id="bl4">--</span></div>
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc5"></div><span class="bc-val" id="bv5">0</span><span class="bc-lbl" id="bl5">--</span></div>
+          <div class="bc-col"><div class="bc-bar g" style="height:0%" id="bc6"></div><span class="bc-val" id="bv6">0</span><span class="bc-lbl" id="bl6">Hj</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">🔄 Atividade Recente</span></div>
+      <div class="panel-body"><div id="timelineContainer"><div class="empty-state"><div class="es-icon">⏳</div><div class="es-title">Carregando</div><div class="es-sub">Buscando atividades...</div></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── INDICADORES ────────────────────────────── -->
+<div class="page" id="page-indicadores">
+  <div class="page-header">
+    <div class="page-title">Indicadores Estratégicos<small>KPIs GERENCIAIS · DESEMPENHO OPERACIONAL</small></div>
+    <button class="btn btn-ghost" onclick="gerarPDF('executivo')">📊 Exportar PDF</button>
+  </div>
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="panel"><div class="panel-head"><span class="panel-title">📈 Conformidade Geral – 6 meses</span></div><div class="panel-body"><div class="bar-chart" style="height:120px" id="chartConf6m"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div></div>
+    <div class="panel"><div class="panel-head"><span class="panel-title">⚠️ NCs por Mês – 6 meses</span></div><div class="panel-body"><div class="bar-chart" style="height:120px" id="chartNcs6m"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div></div>
+  </div>
+  <div class="grid-3">
+    <div class="panel"><div class="panel-head"><span class="panel-title">🎯 Metas vs Realizado</span></div><div class="panel-body" id="metasContainer"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div>
+    <div class="panel"><div class="panel-head"><span class="panel-title">🚒 Disponibilidade Frota</span></div><div class="panel-body" style="text-align:center"><div id="frotaVal" class="kpi-val kv-amber" style="font-size:52px">--%</div><div id="frotaSub" style="font-size:12px;color:var(--gray1);margin:4px 0 14px">Carregando...</div><div class="prog-wrap"><div class="prog-bar pb-amber" id="frotaBar" style="width:0%"></div></div></div></div>
+    <div class="panel"><div class="panel-head"><span class="panel-title">⏱️ Tempo de Resposta</span></div><div class="panel-body" style="text-align:center"><div class="kpi-val kv-amber" style="font-size:52px">3'47"</div><div style="font-size:12px;color:var(--gray1);margin:4px 0">Média últimos 30 dias</div><div class="alert alert-g" style="margin-top:12px;justify-content:center">✅ Dentro da meta (&lt; 5 min)</div></div></div>
+  </div>
+</div>
+
+<!-- ─── INSPEÇÃO: EXTINTORES ───────────────────── -->
+<div class="page" id="page-ext">
+  <div class="page-header">
+    <div class="page-title">🧯 Inspeção – Extintores<small>CHECKLIST OPERACIONAL · REGISTRO DE CONDIÇÕES</small></div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="carregarHistoricoInsp('extintor')">📋 Histórico</button><button class="btn btn-amber" onclick="abrirInspEspecifica('extintor')">➕ Nova Inspeção</button></div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="extTotal">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformes</span><span class="kpi-val kv-green" id="extOK">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Ag. Recarga</span><span class="kpi-val kv-amber" id="extNC">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-gray"></div><span class="kpi-label">Últ. Inspeção</span><span class="kpi-val kv-white" style="font-size:18px" id="extUlt">--</span></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">Checklist – Extintores</span><div style="display:flex;gap:8px;align-items:center"><span style="font-family:var(--ff-m);font-size:11px;color:var(--green)" id="extConf">--%</span><span class="badge b-amber">Interativo</span></div></div>
+    <div class="ck-section-head">● IDENTIFICAÇÃO E LOCALIZAÇÃO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-1"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Extintores identificados com número/código</div><div class="ck-sub">Verificar plaqueta de identificação em todos os pontos</div></div><span class="ck-tag">ID</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-2"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Sinalização de localização visível</div><div class="ck-sub">Placa fotoluminescente e acesso desobstruído (1,5m)</div></div><span class="ck-tag">SINALIZ.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-3"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Suporte/gancho em bom estado e fixação segura</div><div class="ck-sub">Extintor na altura correta (1,6m máx. para base)</div></div><span class="ck-tag">ESTRUTURA</span></div>
+    <div class="ck-section-head">● CONDIÇÃO OPERACIONAL</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-4"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Manômetro na faixa verde (pressurizado)</div><div class="ck-sub">Ponteiro entre as marcas verdes do manômetro</div></div><span class="ck-tag">PRESSÃO</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-5"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Lacre/selo de inviolabilidade intacto</div><div class="ck-sub">Pino de segurança com lacre original</div></div><span class="ck-tag">LACRE</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-6"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Corpo do extintor sem amassados ou corrosão</div><div class="ck-sub">Verificar integridade física do cilindro e válvula</div></div><span class="ck-tag">FÍSICO</span></div>
+    <div class="ck-section-head">● VALIDADE E DOCUMENTAÇÃO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-7"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Prazo de validade dentro do limite</div><div class="ck-sub">Verificar data da última recarga na etiqueta</div></div><span class="ck-tag">VALIDADE</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-8"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Etiqueta de manutenção atualizada</div><div class="ck-sub">Empresa credenciada, data e responsável técnico</div></div><span class="ck-tag">MANUT.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="ext-9"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Instrução de uso visível e legível no rótulo</div><div class="ck-sub">Rótulo com instruções de operação sem danos</div></div><span class="ck-tag">USO</span></div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" onclick="saveInsp('extintor')">💾 Salvar Inspeção</button>
+      <button class="btn btn-red" onclick="openDrawer('drawerNC')">⚠️ Abrir NC</button>
+      <div class="upload-zone" onclick="document.getElementById('fotoExt').click()" style="flex:1;min-width:120px;padding:8px">
+        <input type="file" id="fotoExt" accept="image/*" multiple onchange="previewFotos(this,'prevExt')">
+        <div style="font-size:16px">📸</div><div class="upload-label">Evidência</div>
+      </div>
+      <div id="prevExt" class="upload-preview"></div>
+    </div>
+    <div id="historicoExt" style="display:none">
+      <div class="ck-section-head">● HISTÓRICO DE INSPEÇÕES</div>
+      <div style="padding:14px" id="historicoExtBody"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── INSPEÇÃO: MANGUEIRAS ───────────────────── -->
+<div class="page" id="page-mang">
+  <div class="page-header">
+    <div class="page-title">🌀 Inspeção – Mangueiras<small>CHECKLIST OPERACIONAL · REDE CONTRA INCÊNDIO</small></div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="carregarHistoricoInsp('mangueira')">📋 Histórico</button><button class="btn btn-amber" onclick="abrirInspEspecifica('mangueira')">➕ Nova Inspeção</button></div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="mangTotal">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformes</span><span class="kpi-val kv-green" id="mangOK">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Com NC</span><span class="kpi-val kv-red" id="mangNC">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Últ. Inspeção</span><span class="kpi-val kv-white" style="font-size:18px" id="mangUlt">--</span></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">Checklist – Mangueiras</span><span class="badge b-amber">Interativo</span></div>
+    <div class="ck-section-head">● INTEGRIDADE FÍSICA</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-1"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Mangueiras sem bolhas, ondulações ou deformações</div><div class="ck-sub">Verificação visual ao longo de todo o comprimento</div></div><span class="ck-tag">FÍSICO</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-2"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Sem pontos de vazamento visíveis</div><div class="ck-sub">Inspecionar emendas, roscas e corpo da mangueira</div></div><span class="ck-tag">VAZAM.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-3"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Roscas de engate sem danos ou corrosão</div><div class="ck-sub">Engate storz ou rosca padrão ABNT – verificar vedação</div></div><span class="ck-tag">ROSCA</span></div>
+    <div class="ck-section-head">● ACONDICIONAMENTO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-4"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Mangueiras enroladas corretamente (ziguezague)</div><div class="ck-sub">Método correto evita torções e facilita o desdobramento</div></div><span class="ck-tag">ACONDIT.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-5"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Abrigo de mangueira (DCI) fechado e identificado</div><div class="ck-sub">Tampa fechada, plaqueta visível, acesso desobstruído</div></div><span class="ck-tag">DCI</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-6"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Requinte / esguicho presente e funcional</div><div class="ck-sub">Verificar abertura, fechamento e regulagem do jato</div></div><span class="ck-tag">ESGUICHO</span></div>
+    <div class="ck-section-head">● VALIDADE E TESTE HIDROSTÁTICO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-7"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Etiqueta de teste hidrostático dentro do prazo</div><div class="ck-sub">Teste obrigatório a cada 2 anos (ABNT NBR 12779)</div></div><span class="ck-tag">HIDROST.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="mang-8"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Registro da inspeção na ficha individual</div><div class="ck-sub">Data, responsável e resultado da inspeção</div></div><span class="ck-tag">REGISTRO</span></div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" onclick="saveInsp('mangueira')">💾 Salvar</button>
+      <button class="btn btn-red" onclick="openDrawer('drawerNC')">⚠️ Abrir NC</button>
+      <div class="upload-zone" onclick="document.getElementById('fotoMang').click()" style="flex:1;min-width:120px;padding:8px">
+        <input type="file" id="fotoMang" accept="image/*" multiple onchange="previewFotos(this,'prevMang')">
+        <div style="font-size:16px">📸</div><div class="upload-label">Evidência</div>
+      </div>
+      <div id="prevMang" class="upload-preview"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── HIDRANTES / BOMBA / VÁLVULAS (compact) ── -->
+<div class="page" id="page-hidr">
+  <div class="page-header"><div class="page-title">🔴 Inspeção – Hidrantes<small>CHECKLIST OPERACIONAL</small></div><div class="btn-row"><button class="btn btn-amber" onclick="abrirInspEspecifica('hidrante')">➕ Nova Inspeção</button></div></div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="hidrTotal">9</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="hidrOK">8</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Manutenção</span><span class="kpi-val kv-amber" id="hidrNC">1</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Pressão Média</span><span class="kpi-val kv-green" style="font-size:20px" id="hidrPress">-- bar</span></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">Checklist – Hidrantes</span><span class="badge b-green">Interativo</span></div>
+    <div class="ck-section-head">● CONDIÇÕES DE ACESSO E SINALIZAÇÃO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="hidr-1"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Área ao redor desobstruída (raio de 1,5m)</div><div class="ck-sub">Nenhum material, veículo ou obstáculo no entorno</div></div><span class="ck-tag">ACESSO</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="hidr-2"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Sinalização e pintura (vermelho) em bom estado</div><div class="ck-sub">Identificação visível e padronizada</div></div><span class="ck-tag">SINALIZ.</span></div>
+    <div class="ck-section-head">● CONDIÇÃO OPERACIONAL</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="hidr-3"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Tampas de proteção presentes e sem danos</div><div class="ck-sub">Tampas roscadas ou com trava, sem oxidação excessiva</div></div><span class="ck-tag">TAMPAS</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="hidr-4"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Válvulas de abertura operacionais (sem travamento)</div><div class="ck-sub">Abertura e fechamento manual com chave tipo T</div></div><span class="ck-tag">VÁLVULAS</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="hidr-5"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Pressão estática dentro do limite (≥ 5 bar)</div><div class="ck-sub">Verificação com manômetro portátil – registrar leitura</div></div><span class="ck-tag">PRESSÃO</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="hidr-6"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Corpo sem oxidação avançada</div><div class="ck-sub">Verificar estado geral do corpo, base e saídas</div></div><span class="ck-tag">FÍSICO</span></div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" onclick="saveInsp('hidrante')">💾 Salvar</button>
+      <button class="btn btn-red" onclick="openDrawer('drawerNC')">⚠️ NC</button>
+      <div class="upload-zone" onclick="document.getElementById('fotoHidr').click()" style="flex:1;min-width:100px;padding:8px">
+        <input type="file" id="fotoHidr" accept="image/*" multiple onchange="previewFotos(this,'prevHidr')"><div style="font-size:16px">📸</div>
+      </div>
+      <div id="prevHidr" class="upload-preview"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-bomba">
+  <div class="page-header"><div class="page-title">⚙️ Inspeção – Casa de Bomba<small>SISTEMA DE PRESSURIZAÇÃO</small></div><div class="btn-row"><button class="btn btn-amber" onclick="abrirInspEspecifica('casa_de_bomba')">➕ Nova Inspeção</button></div></div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Bomba Principal</span><span class="kpi-val kv-green" id="bombaP">OK</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Bomba Reserva</span><span class="kpi-val kv-green" id="bombaR">OK</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Pressão Sistema</span><span class="kpi-val kv-green" style="font-size:20px" id="bombaPress">-- bar</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Última Inspeção</span><span class="kpi-val kv-white" style="font-size:18px" id="bombaUlt">--</span></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">Checklist – Casa de Bomba</span><span class="badge b-green">Interativo</span></div>
+    <div class="ck-section-head">● BOMBAS E MOTORES</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="bomba-1"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Bomba principal funcionando normalmente</div><div class="ck-sub">Verificar ruídos, vibrações e temperatura do motor</div></div><span class="ck-tag">PRINC.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="bomba-2"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Bomba reserva pronta para acionamento</div><div class="ck-sub">Teste de partida automática e manual OK</div></div><span class="ck-tag">RESERVA</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="bomba-3"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Nível de óleo dos motores verificado</div><div class="ck-sub">Dentro do limite marcado no visor de nível</div></div><span class="ck-tag">ÓLEO</span></div>
+    <div class="ck-section-head">● PAINEL E PRESSÃO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="bomba-4"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Painel de controle sem alarmes ativos</div><div class="ck-sub">Nenhum LED de falha ou alarme sonoro ativo</div></div><span class="ck-tag">PAINEL</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="bomba-5"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Pressão de saída dentro do especificado (≥ 5,5 bar)</div><div class="ck-sub">Registrar leitura atual no campo de observações</div></div><span class="ck-tag">PRESSÃO</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="bomba-6"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Válvula de alívio e registros operacionais</div><div class="ck-sub">Abertura e fechamento sem travamentos</div></div><span class="ck-tag">VÁLVULA</span></div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" onclick="saveInsp('casa_de_bomba')">💾 Salvar</button>
+      <div class="upload-zone" onclick="document.getElementById('fotoBomba').click()" style="flex:1;min-width:100px;padding:8px">
+        <input type="file" id="fotoBomba" accept="image/*" multiple onchange="previewFotos(this,'prevBomba')"><div style="font-size:16px">📸</div>
+      </div>
+      <div id="prevBomba" class="upload-preview"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-valv">
+  <div class="page-header"><div class="page-title">🔧 Inspeção – Válvulas da Rede<small>REDE DE HIDRANTES</small></div><div class="btn-row"><button class="btn btn-amber" onclick="abrirInspEspecifica('valvula')">➕ Nova Inspeção</button></div></div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total Válvulas</span><span class="kpi-val kv-white" id="valvTotal">15</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="valvOK">12</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Atenção</span><span class="kpi-val kv-amber" id="valvAt">2</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Com NC</span><span class="kpi-val kv-red" id="valvNC">1</span></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">Checklist – Válvulas</span><span class="badge b-amber">Interativo</span></div>
+    <div class="ck-section-head">● VÁLVULAS SECCIONADORAS</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="valv-1"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Válvulas seccionadoras abertas (posição normal)</div><div class="ck-sub">Todas as válvulas de bloqueio devem estar abertas em operação</div></div><span class="ck-tag">SECC.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="valv-2"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Volantes e alavancas sem danos ou travamento</div><div class="ck-sub">Acionamento manual suave, sem esforço excessivo</div></div><span class="ck-tag">ACION.</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="valv-3"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Sem vazamento nas gaxetas</div><div class="ck-sub">Verificar gotejamento na vedação de todas as válvulas</div></div><span class="ck-tag">VEDAÇÃO</span></div>
+    <div class="ck-section-head">● CÂMARAS DE GOVERNO</div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="valv-4"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Câmaras de governo identificadas e acessíveis</div><div class="ck-sub">Acesso desobstruído e plaqueta de identificação</div></div><span class="ck-tag">CÂMARA</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="valv-5"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Visor de fluxo sem turbilhonamento em repouso</div><div class="ck-sub">Em condição normal: sem fluxo visível no visor</div></div><span class="ck-tag">FLUXO</span></div>
+    <div class="ck-item" onclick="toggleCk(this)" data-id="valv-6"><div class="ck-box"></div><div class="ck-content"><div class="ck-label">Válvulas identificadas com estado (aberta/fechada)</div><div class="ck-sub">Plaqueta ou tag indicando estado normal de operação</div></div><span class="ck-tag">ID</span></div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" onclick="saveInsp('valvula')">💾 Salvar</button>
+      <button class="btn btn-red" onclick="openDrawer('drawerNC')">⚠️ NC</button>
+      <div class="upload-zone" onclick="document.getElementById('fotoValv').click()" style="flex:1;min-width:100px;padding:8px">
+        <input type="file" id="fotoValv" accept="image/*" multiple onchange="previewFotos(this,'prevValv')"><div style="font-size:16px">📸</div>
+      </div>
+      <div id="prevValv" class="upload-preview"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── VIATURAS ─────────────────────────────── -->
+<div class="page" id="page-viaturas">
+  <div class="page-header">
+    <div class="page-title">🚒 Status das Viaturas<small>CONTROLE OPERACIONAL · TERMINAL PARAUAPEBAS</small></div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="carregarViaturas()">↺ Atualizar</button><button class="btn btn-amber" onclick="openDrawer('drawerViatura')">➕ Registrar Ocorrência</button></div>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="vOp">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Com Alteração</span><span class="kpi-val kv-amber" id="vAlt">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Manutenção</span><span class="kpi-val kv-red" id="vMan">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Km Total (mês)</span><span class="kpi-val kv-blue" style="font-size:22px" id="vKm">--</span></div>
+  </div>
+  <div class="viatura-grid" id="viaturasContainer">
+    <div class="empty-state" style="grid-column:1/-1"><div class="es-icon">🚒</div><div class="es-title">Carregando viaturas...</div><div class="es-sub">Buscando dados do banco</div></div>
+  </div>
+</div>
+
+<!-- ─── EFETIVO ──────────────────────────────── -->
+<div class="page" id="page-efetivo">
+  <div class="page-header">
+    <div class="page-title">👥 Efetivo Operacional<small>CONTROLE DE PESSOAL · 18 COLABORADORES</small></div>
+    <button class="btn btn-amber" onclick="openDrawer('drawerEfetivo')">➕ Registrar</button>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Total Efetivo</span><span class="kpi-val kv-amber" id="efTotal">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="efOp">--</span><span class="kpi-sub">Incl. Supervisor</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Administrativos</span><span class="kpi-val kv-blue" id="efAdm">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Bloqueados</span><span class="kpi-val kv-red" id="efBlq">--</span><span class="kpi-sub">ASO / Integração</span></div>
+  </div>
+  <div class="sec-title">Equipe Operacional</div>
+  <div class="grid-auto" id="efetivoOpContainer" style="margin-bottom:14px">
+    <div class="empty-state" style="grid-column:1/-1"><div class="es-sub">Carregando efetivo...</div></div>
+  </div>
+  <div class="sec-title">Administrativo</div>
+  <div class="grid-auto" id="efetivoAdmContainer">
+    <div class="empty-state" style="grid-column:1/-1"><div class="es-sub">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- ─── PLANO OPERACIONAL ────────────────────── -->
+<div class="page" id="page-plano">
+  <div class="page-header">
+    <div class="page-title">🔥 Plano Operacional<small>MONITORAMENTO E ROTINAS · TERMINAL PARAUAPEBAS</small></div>
+    <button class="btn btn-amber" onclick="openDrawer('drawerRonda')">➕ Registrar Ronda</button>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Rondas Hoje</span><span class="kpi-val kv-green" id="rondasHoje">--</span><span class="kpi-sub">Meta: 4/turno</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Focos de Fumaça</span><span class="kpi-val kv-green" id="focosAtivos">--</span><span class="kpi-sub">Monitoramento ativo</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Res. 1 – Nível</span><span class="kpi-val kv-green" style="font-size:22px" id="res1Nivel">--%</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Res. 2 – Nível</span><span class="kpi-val kv-amber" style="font-size:22px" id="res2Nivel">--%</span></div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="sec-title">Ações Operacionais – Turno Atual</div>
+      <div class="op-action"><span class="op-icon">🚒</span><div class="op-text"><div class="op-title">Inspeção do Caminhão AHQ</div><div class="op-sub">Verificar água, espuma, mangueiras e equipamentos</div></div><span class="op-status" style="color:var(--amber)" id="ahqStatus">--</span></div>
+      <div class="op-action"><span class="op-icon">⛽</span><div class="op-text"><div class="op-title">Abastecimento das Viaturas</div><div class="op-sub" id="abastSub">SE-11 · RE-02 · AHQ · Hilux</div></div><span class="op-status" style="color:var(--green)" id="abastStatus">--</span></div>
+      <div class="op-action"><span class="op-icon">🚛</span><div class="op-text"><div class="op-title">Caminhão-Pipa de Apoio</div><div class="op-sub">Canal 4 · Verificar localização e disponibilidade</div></div><span class="op-status" style="color:var(--green)" id="pipaStatus">--</span></div>
+      <div class="op-action"><span class="op-icon">📻</span><div class="op-text"><div class="op-title">Comunicação Rádio – Bombeiro / Pipa</div><div class="op-sub">Canal 4 · Frequência: 30 min</div></div><span class="op-status" style="color:var(--green)" id="radioStatus">✓ Ativo</span></div>
+      <div class="op-action"><span class="op-icon">🔥</span><div class="op-text"><div class="op-title">Monitoramento de Focos de Fumaça</div><div class="op-sub" id="focoSub">Última varredura: --</div></div><span class="op-status" style="color:var(--green)" id="focoStatus">--</span></div>
+      <div class="op-action"><span class="op-icon">🌿</span><div class="op-text"><div class="op-title">Inspeção nos Aceiros</div><div class="op-sub">Verificação de aceiros e perímetro</div></div><span class="op-status" style="color:var(--amber)" id="aceiroStatus">--</span></div>
+    </div>
+    <div>
+      <div class="sec-title">Registro de Rondas</div>
+      <div class="panel">
+        <table class="dtable" id="rondasTable">
+          <thead><tr><th>Hora</th><th>Rota</th><th>Responsável</th><th>Status</th></tr></thead>
+          <tbody id="rondasBody"><tr><td colspan="4" style="text-align:center;color:var(--gray1);padding:20px">Carregando rondas...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-head"><span class="panel-title">💧 Vistorias dos Reservatórios</span></div>
+        <div class="panel-body" id="reservatoriosContainer">
+          <div class="empty-state"><div class="es-sub">Carregando dados dos reservatórios...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── BOAS PRÁTICAS ────────────────────────── -->
+<div class="page" id="page-boas">
+  <div class="page-header"><div class="page-title">⭐ Boas Práticas Operacionais<small>PADRÕES DE EXCELÊNCIA · TERMINAL PARAUAPEBAS</small></div></div>
+  <div class="alert alert-b"><span class="alert-icon">ℹ️</span><div><strong>Referência Operacional</strong>Estas boas práticas devem ser seguidas por toda a equipe durante o turno, garantindo segurança, eficiência e rastreabilidade perante a gestão VALE.</div></div>
+  <div class="grid-2">
+    <div>
+      <div class="bp-card"><span class="bp-icon">📻</span><div><div class="bp-title">Comunicação Preventiva Via Rádio</div><div class="bp-text">Manter comunicação constante com o operador do caminhão-pipa via rádio (Canal 4). Reportar a cada 30 minutos durante o turno ou imediatamente em caso de qualquer alteração operacional. Confirmar contato no início e final de cada ronda.</div><span class="bp-tag">COMUNICAÇÃO · PRIORIDADE ALTA</span></div></div>
+      <div class="bp-card"><span class="bp-icon">🚛</span><div><div class="bp-title">Apoio e Posicionamento do Caminhão-Pipa</div><div class="bp-text">O caminhão-pipa de apoio deve ser pré-posicionado estrategicamente no início do turno, próximo à área de maior risco identificada. O bombeiro responsável deve conhecer a localização exata e o nome do operador de plantão antes do início da ronda.</div><span class="bp-tag">OPERACIONAL · PREVENÇÃO</span></div></div>
+      <div class="bp-card"><span class="bp-icon">🔥</span><div><div class="bp-title">Monitoramento Contínuo das Áreas Críticas</div><div class="bp-text">Realizar monitoramento visual dos aceiros, reservatórios e áreas de vegetação a cada ronda. Em períodos de estiagem ou ventos fortes, aumentar a frequência de varreduras. Registrar qualquer foco de fumaça imediatamente, mesmo que já extinto.</div><span class="bp-tag">MONITORAMENTO · ROTINA</span></div></div>
+    </div>
+    <div>
+      <div class="bp-card"><span class="bp-icon">👥</span><div><div class="bp-title">Controle Operacional das Equipes</div><div class="bp-text">O supervisor deve confirmar a presença e aptidão de todos os colaboradores no início do turno. Verificar TST, ASO e bloqueios antes de designar funções. Nunca alocar colaborador com documentação vencida em funções de risco ou operação de viaturas.</div><span class="bp-tag">GESTÃO · SEGURANÇA</span></div></div>
+      <div class="bp-card"><span class="bp-icon">📋</span><div><div class="bp-title">Registro das Ações Preventivas do Turno</div><div class="bp-text">Toda ação preventiva realizada durante o turno deve ser registrada no sistema: rondas, inspeções, comunicações, abastecimentos e vistorias. O registro garante rastreabilidade, evidência para auditorias e base para o relatório gerencial apresentado à VALE.</div><span class="bp-tag">DOCUMENTAÇÃO · RASTREABILIDADE</span></div></div>
+      <div class="bp-card"><span class="bp-icon">⚠️</span><div><div class="bp-title">Protocolo de Abertura de NC</div><div class="bp-text">Ao identificar qualquer inconformidade, registrar NC imediatamente no sistema com foto, localização e gravidade. NCs críticas exigem comunicação verbal imediata ao supervisor e à gestão VALE. Nunca aguardar o final do turno para registrar NC crítica.</div><span class="bp-tag">NC · PROTOCOLO OBRIGATÓRIO</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TST / DOCUMENTAÇÃO ───────────────────── -->
+<div class="page" id="page-tst">
+  <div class="page-header">
+    <div class="page-title">📋 TST / Documentação<small>CONTROLE PREVENTIVO DE VENCIMENTOS</small></div>
+    <button class="btn btn-amber" onclick="openDrawer('drawerTST')">➕ Atualizar Documento</button>
+  </div>
+  <div id="tstAlertsContainer"></div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">ASO Vencido</span><span class="kpi-val kv-red" id="tstAsoV">--</span><span class="kpi-sub">Ação imediata</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Trein. Vencendo</span><span class="kpi-val kv-amber" id="tstTreinV">--</span><span class="kpi-sub">Próximos 30 dias</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Integrações</span><span class="kpi-val kv-amber" id="tstIntegV">--</span><span class="kpi-sub">Pendentes</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Documentos OK</span><span class="kpi-val kv-green" id="tstOK">--%</span></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab(this,'tab-aso')">🏥 ASO</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-trein')">📚 Treinamentos</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-integ')">🔗 Integrações</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-docs')">📄 Documentos</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-bloq')">🔒 Bloqueios</button>
+  </div>
+  <div class="tab-content active" id="tab-aso">
+    <div class="panel"><div class="panel-head"><span class="panel-title">Atestado de Saúde Ocupacional</span></div><div id="asoContainer"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div>
+  </div>
+  <div class="tab-content" id="tab-trein">
+    <div class="panel"><div class="panel-head"><span class="panel-title">Treinamentos Obrigatórios</span></div><div id="treinContainer"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div>
+  </div>
+  <div class="tab-content" id="tab-integ">
+    <div class="panel"><div class="panel-head"><span class="panel-title">Integrações de Segurança VALE</span></div><div id="integContainer"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div>
+  </div>
+  <div class="tab-content" id="tab-docs">
+    <div class="panel"><div class="panel-head"><span class="panel-title">Documentos Obrigatórios</span></div><div id="docsContainer"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div>
+  </div>
+  <div class="tab-content" id="tab-bloq">
+    <div class="panel"><div class="panel-head"><span class="panel-title">Bloqueios Operacionais Ativos</span></div><div id="bloqContainer"><div class="empty-state"><div class="es-sub">Carregando...</div></div></div></div>
+  </div>
+</div>
+
+<!-- ─── NÃO CONFORMIDADES ─────────────────────── -->
+<div class="page" id="page-ncs">
+  <div class="page-header">
+    <div class="page-title">⚠️ Não Conformidades<small>REGISTRO, TRATAMENTO E PLANOS DE AÇÃO</small></div>
+    <button class="btn btn-red" onclick="openDrawer('drawerNC')">⚠️ Registrar NC</button>
+  </div>
+  <div class="grid-4" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Abertas</span><span class="kpi-val kv-red" id="ncAberta">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Em Tratamento</span><span class="kpi-val kv-amber" id="ncTrat">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Encerradas/mês</span><span class="kpi-val kv-green" id="ncEnc">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Prazo Médio</span><span class="kpi-val kv-blue" style="font-size:22px" id="ncPrazo">--</span><span class="kpi-sub">Meta: 3 dias</span></div>
+  </div>
+  <div class="search-bar"><span>🔍</span><input type="text" id="ncBusca" placeholder="Buscar por área, responsável, tipo de NC..." oninput="buscarNCs(this.value)"></div>
+  <div id="ncsContainer"><div class="empty-state"><div class="es-icon">⚠️</div><div class="es-title">Carregando NCs...</div><div class="es-sub">Buscando dados do banco</div></div></div>
+</div>
+
+<!-- ─── RELATÓRIOS ───────────────────────────── -->
+<div class="page" id="page-relatorios">
+  <div class="page-header">
+    <div class="page-title">📄 Relatórios PDF<small>GERAÇÃO AUTOMÁTICA · DADOS REAIS · ASSINATURA DIGITAL</small></div>
+  </div>
+  <div class="alert alert-b"><span class="alert-icon">📊</span><div><strong>Relatórios com dados reais do banco</strong>Gerados automaticamente com KPIs, gráficos de desempenho, histórico de inspeções e assinatura digital do supervisor. Prontos para apresentação à gestão VALE.</div></div>
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="panel" style="cursor:pointer" onclick="gerarPDF('diario')"><div class="panel-head"><span class="panel-title">📋 Relatório Diário</span></div><div class="panel-body"><div style="font-size:12px;color:var(--gray1);margin-bottom:12px;line-height:1.7">Resumo completo do turno com inspeções, NCs, efetivo, status de viaturas e ocorrências do dia</div><div style="font-size:11px;color:var(--gray1);margin-bottom:14px;display:flex;flex-direction:column;gap:4px"><span>✅ Checklists concluídos</span><span>✅ NCs abertas e status</span><span>✅ Efetivo e bloqueios TST</span><span>✅ Ações realizadas no turno</span></div><button class="btn btn-amber" style="width:100%;justify-content:center">📥 Gerar – Hoje</button></div></div>
+    <div class="panel" style="cursor:pointer" onclick="gerarPDF('semanal')"><div class="panel-head"><span class="panel-title">📈 Relatório Semanal</span></div><div class="panel-body"><div style="font-size:12px;color:var(--gray1);margin-bottom:12px;line-height:1.7">Desempenho consolidado da semana com gráficos de conformidade por ativo e tendências operacionais</div><div style="font-size:11px;color:var(--gray1);margin-bottom:14px;display:flex;flex-direction:column;gap:4px"><span>✅ Conformidade por ativo</span><span>✅ Histórico de inspeções</span><span>✅ Gráficos de tendência</span><span>✅ Planos de ação NCs</span></div><button class="btn btn-amber" style="width:100%;justify-content:center">📥 Gerar – Semana</button></div></div>
+    <div class="panel" style="cursor:pointer;border-color:rgba(255,149,0,.2)" onclick="gerarPDF('executivo')"><div class="panel-head"><span class="panel-title">🏆 Relatório Executivo</span></div><div class="panel-body"><div style="font-size:12px;color:var(--gray1);margin-bottom:12px;line-height:1.7">KPIs estratégicos para apresentação à gestão VALE com assinatura digital do supervisor responsável</div><div style="font-size:11px;color:var(--gray1);margin-bottom:14px;display:flex;flex-direction:column;gap:4px"><span>✅ KPIs estratégicos</span><span>✅ Prontidão operacional</span><span>✅ Status TST/Docs</span><span>✅ Assinatura digital</span></div><button class="btn btn-amber" style="width:100%;justify-content:center">⭐ Gerar Executivo</button></div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span class="panel-title">📁 Histórico de Relatórios</span><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="carregarHistoricoRelatorios()">↺</button></div>
+    <table class="dtable"><thead><tr><th>Data/Hora</th><th>Tipo</th><th>Gerado por</th><th>Págs</th><th>Status</th><th></th></tr></thead>
+    <tbody id="relatoriosBody"><tr><td colspan="6" style="text-align:center;color:var(--gray1);padding:20px">Carregando histórico...</td></tr></tbody></table>
+  </div>
+</div>
+
+</main>
+</div><!-- /layout -->
+
+<!-- ══ DRAWERS ══════════════════════════════════════ -->
+
+<!-- Nova Inspeção (genérica) -->
+<div class="overlay" id="drawerInsp" onclick="closeDrawerOut(event,'drawerInsp')">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head"><span class="drawer-title" id="drawerInspTitle">📋 Nova Inspeção</span><button class="drawer-close" onclick="closeDrawer('drawerInsp')">✕</button></div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="f-field"><label class="f-label">Tipo de Inspeção</label>
+          <select class="f-input" id="insp-tipo">
+            <option value="extintor">Extintores – Rotina Diária</option>
+            <option value="mangueira">Mangueiras – Verificação</option>
+            <option value="hidrante">Hidrantes – Rotina</option>
+            <option value="casa_de_bomba">Casa de Bomba</option>
+            <option value="valvula">Válvulas da Rede</option>
+            <option value="viatura_se11">Ambulância SE-11</option>
+            <option value="viatura_re02">Ambulância RE-02</option>
+            <option value="viatura_ahq">AHQ – Auto Hidro Químico</option>
+            <option value="viatura_hilux">Auto Rápido – Hilux</option>
+            <option value="reservatorio_1">Reservatório 1</option>
+            <option value="reservatorio_2">Reservatório 2</option>
+            <option value="aceiro">Aceiro – Vistoria</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Área / Local</label>
+          <select class="f-input" id="insp-area">
+            <option value="area_norte">Área Norte</option>
+            <option value="area_sul">Área Sul</option>
+            <option value="garagem">Garagem de Viaturas</option>
+            <option value="casa_bomba">Casa de Bomba</option>
+            <option value="reservatorio_1">Reservatório 1</option>
+            <option value="reservatorio_2">Reservatório 2</option>
+            <option value="aceiro_a1">Aceiro A1</option>
+            <option value="aceiro_a2">Aceiro A2</option>
+            <option value="perimetro_norte">Perímetro Norte</option>
+            <option value="perimetro_sul">Perímetro Sul</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Turno</label>
+          <select class="f-input" id="insp-turno">
+            <option value="A">Turno A – 07h às 19h</option>
+            <option value="B">Turno B – 19h às 07h</option>
+            <option value="C">Turno C - 07h às 19h</option>
+            <option value="D">Turno D - 19h às 07h</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Condição Operacional</label>
+          <select class="f-input" id="insp-condicao">
+            <option value="conforme">Conforme – Sem irregularidades</option>
+            <option value="atencao">Atenção – Monitorar</option>
+            <option value="nao_conforme">Não Conforme – NC registrada</option>
+          </select>
+        </div>
+        <div class="f-field full"><label class="f-label">Observações</label>
+          <textarea class="f-input" id="insp-obs" placeholder="Descreva observações relevantes..."></textarea>
+        </div>
+        <div class="f-field full">
+          <label class="f-label">📸 Evidências Fotográficas</label>
+          <div class="upload-zone" onclick="document.getElementById('inspFotos').click()">
+            <input type="file" id="inspFotos" accept="image/*" multiple onchange="previewFotos(this,'inspPrev')">
+            <div style="font-size:24px">📸</div>
+            <div class="upload-label">Toque para adicionar fotos ou evidências</div>
+          </div>
+          <div class="upload-progress" id="inspUploadProg"><div class="upload-progress-bar" id="inspUploadBar"></div></div>
+          <div id="inspPrev" class="upload-preview"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDrawer('drawerInsp')">Cancelar</button>
+        <button class="btn btn-amber" id="btnSaveInsp" onclick="saveInsp(document.getElementById('insp-tipo').value)">
+          <span id="btnSaveInspText">💾 Salvar Inspeção</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nova NC -->
+<div class="overlay" id="drawerNC" onclick="closeDrawerOut(event,'drawerNC')">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head"><span class="drawer-title">⚠️ Registrar Não Conformidade</span><button class="drawer-close" onclick="closeDrawer('drawerNC')">✕</button></div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="f-field"><label class="f-label">Classificação</label>
+          <select class="f-input" id="nc-criticidade">
+            <option value="critica">🔴 Crítica – Parar operação imediatamente</option>
+            <option value="moderada">🟡 Moderada – Resolver em 24h</option>
+            <option value="baixa">🔵 Baixa – Monitorar</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Ativo / Equipamento</label>
+          <select class="f-input" id="nc-ativo">
+            <option value="Extintor">Extintor</option>
+            <option value="Mangueira">Mangueira</option>
+            <option value="Hidrante">Hidrante</option>
+            <option value="Casa de Bomba">Casa de Bomba</option>
+            <option value="Válvula da Rede">Válvula da Rede</option>
+            <option value="Ambulância SE-11">Ambulância SE-11</option>
+            <option value="Ambulância RE-02">Ambulância RE-02</option>
+            <option value="AHQ">AHQ – Auto Hidro Químico</option>
+            <option value="Auto Rápido – Hilux">Auto Rápido – Hilux</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Área / Local</label>
+          <select class="f-input" id="nc-area">
+            <option value="Área Norte">Área Norte</option>
+            <option value="Área Sul">Área Sul</option>
+            <option value="Garagem">Garagem de Viaturas</option>
+            <option value="Casa de Bomba">Casa de Bomba</option>
+            <option value="Almoxarifado">Almoxarifado</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Prazo para Resolução</label>
+          <input type="date" class="f-input" id="nc-prazo">
+        </div>
+        <div class="f-field full"><label class="f-label">Descrição da Não Conformidade</label>
+          <textarea class="f-input" id="nc-descricao" placeholder="Descreva detalhadamente a não conformidade encontrada..." required></textarea>
+        </div>
+        <div class="f-field full"><label class="f-label">Ação Corretiva Proposta</label>
+          <textarea class="f-input" id="nc-acao" placeholder="Descreva a ação corretiva a ser implementada..."></textarea>
+        </div>
+        <div class="f-field full">
+          <label class="f-label">📸 Foto da Não Conformidade</label>
+          <div class="upload-zone" onclick="document.getElementById('ncFoto').click()">
+            <input type="file" id="ncFoto" accept="image/*" onchange="previewFotos(this,'ncPrev')">
+            <div style="font-size:24px">📸</div>
+            <div class="upload-label">Anexar evidência fotográfica da NC</div>
+          </div>
+          <div id="ncPrev" class="upload-preview"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDrawer('drawerNC')">Cancelar</button>
+        <button class="btn btn-red" id="btnSaveNC" onclick="saveNC()">
+          <span id="btnSaveNCText">⚠️ Registrar NC</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ocorrência Viatura -->
+<div class="overlay" id="drawerViatura" onclick="closeDrawerOut(event,'drawerViatura')">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head"><span class="drawer-title">🚒 Atualizar Viatura</span><button class="drawer-close" onclick="closeDrawer('drawerViatura')">✕</button></div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="f-field"><label class="f-label">Viatura</label>
+          <select class="f-input" id="vt-prefixo">
+            <option value="SE-11">Ambulância SE-11</option>
+            <option value="RE-02">Ambulância RE-02</option>
+            <option value="AHQ">AHQ – Auto Hidro Químico</option>
+            <option value="HILUX">Auto Rápido – Hilux</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Status Operacional</label>
+          <select class="f-input" id="vt-status">
+            <option value="operacional">✅ Operacional</option>
+            <option value="alteracao">⚠️ Com Alteração</option>
+            <option value="manutencao">🔧 Em Manutenção</option>
+            <option value="reserva">📦 Reserva</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">KM Atual</label>
+          <input type="number" class="f-input" id="vt-km" placeholder="Ex: 47320">
+        </div>
+        <div class="f-field"><label class="f-label">Combustível (%)</label>
+          <input type="number" class="f-input" id="vt-combustivel" min="0" max="100" placeholder="0-100">
+        </div>
+        <div class="f-field full"><label class="f-label">Observações / Alterações</label>
+          <textarea class="f-input" id="vt-obs" placeholder="Descreva qualquer alteração, pendência ou observação..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDrawer('drawerViatura')">Cancelar</button>
+        <button class="btn btn-amber" onclick="saveViatura()">💾 Atualizar Viatura</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Registrar Ronda -->
+<div class="overlay" id="drawerRonda" onclick="closeDrawerOut(event,'drawerRonda')">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head"><span class="drawer-title">🔍 Registrar Ronda</span><button class="drawer-close" onclick="closeDrawer('drawerRonda')">✕</button></div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="f-field"><label class="f-label">Rota</label>
+          <select class="f-input" id="ronda-rota">
+            <option value="Perímetro Norte">Perímetro Norte</option>
+            <option value="Perímetro Sul">Perímetro Sul</option>
+            <option value="Perímetro Leste">Perímetro Leste</option>
+            <option value="Perímetro Oeste">Perímetro Oeste</option>
+            <option value="Reservatório 1 e 2">Reservatório 1 e 2</option>
+            <option value="Aceiros A1-A4">Aceiros A1-A4</option>
+            <option value="Área Norte – Garagem">Área Norte – Garagem</option>
+            <option value="Área Sul">Área Sul</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Turno</label>
+          <select class="f-input" id="ronda-turno">
+            <option value="A">Turno A</option>
+            <option value="B">Turno B</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Focos de Fumaça?</label>
+          <select class="f-input" id="ronda-focos">
+            <option value="false">Não – Área limpa</option>
+            <option value="true">Sim – Foco detectado</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Status</label>
+          <select class="f-input" id="ronda-status">
+            <option value="ok">✅ OK – Sem ocorrências</option>
+            <option value="ocorrencia">⚠️ Com Ocorrência</option>
+          </select>
+        </div>
+        <div class="f-field full"><label class="f-label">Observações</label>
+          <textarea class="f-input" id="ronda-obs" placeholder="Registre observações da ronda..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDrawer('drawerRonda')">Cancelar</button>
+        <button class="btn btn-green" onclick="saveRonda()">✅ Registrar Ronda</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TST / Documento -->
+<div class="overlay" id="drawerTST" onclick="closeDrawerOut(event,'drawerTST')">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head"><span class="drawer-title">📋 Atualizar Documento TST</span><button class="drawer-close" onclick="closeDrawer('drawerTST')">✕</button></div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="f-field"><label class="f-label">Tipo de Documento</label>
+          <select class="f-input" id="tst-tipo">
+            <option value="aso">ASO – Atestado de Saúde Ocupacional</option>
+            <option value="treinamento">Treinamento Obrigatório</option>
+            <option value="integracao">Integração VALE</option>
+            <option value="documento">Documento Legal</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Status</label>
+          <select class="f-input" id="tst-status">
+            <option value="ok">✅ OK – Válido</option>
+            <option value="vencendo">⚠️ Vencendo em breve</option>
+            <option value="vencido">🔴 Vencido</option>
+            <option value="pendente">⏳ Pendente</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Descrição</label>
+          <input type="text" class="f-input" id="tst-descricao" placeholder="Ex: ASO Periódico – Carlos Mendes">
+        </div>
+        <div class="f-field"><label class="f-label">Data de Vencimento</label>
+          <input type="date" class="f-input" id="tst-vencimento">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDrawer('drawerTST')">Cancelar</button>
+        <button class="btn btn-amber" onclick="saveTST()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Efetivo -->
+<div class="overlay" id="drawerEfetivo" onclick="closeDrawerOut(event,'drawerEfetivo')">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head"><span class="drawer-title">👤 Registrar Colaborador</span><button class="drawer-close" onclick="closeDrawer('drawerEfetivo')">✕</button></div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="f-field full"><label class="f-label">Nome Completo</label>
+          <input type="text" class="f-input" id="ef-nome" placeholder="Nome do colaborador">
+        </div>
+        <div class="f-field"><label class="f-label">Função</label>
+          <input type="text" class="f-input" id="ef-funcao" placeholder="Ex: Bombeiro Civil">
+        </div>
+        <div class="f-field"><label class="f-label">Tipo</label>
+          <select class="f-input" id="ef-tipo">
+            <option value="operacional">Operacional</option>
+            <option value="administrativo">Administrativo</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Turno</label>
+          <select class="f-input" id="ef-turno">
+            <option value="A">Turno A</option>
+            <option value="B">Turno B</option>
+            <option value="C">Turno C</option>
+            <option value="D">Turno D</option>
+            <option value="">(Adm.)</option>
+          </select>
+        </div>
+        <div class="f-field"><label class="f-label">Vencimento ASO</label>
+          <input type="date" class="f-input" id="ef-aso">
+        </div>
+        <div class="f-field full"><label class="f-label">E-mail (para login)</label>
+          <input type="email" class="f-input" id="ef-email" placeholder="email@vale.com.br">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeDrawer('drawerEfetivo')">Cancelar</button>
+        <button class="btn btn-amber" onclick="saveEfetivo()">💾 Registrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notificações -->
+<div class="overlay" id="drawerNotif" onclick="closeDrawerOut(event,'drawerNotif')" style="align-items:flex-start;justify-content:flex-end;padding:68px 16px 0">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:100%;max-width:360px;overflow:hidden;animation:pageIn .2s ease">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.2)">
+      <span style="font-size:14px;font-weight:700">⚡ Alertas Ativos</span>
+      <button class="btn btn-ghost" style="padding:3px 8px;font-size:10px" onclick="closeDrawer('drawerNotif')">Fechar</button>
+    </div>
+    <div id="notifBody" style="max-height:400px;overflow-y:auto">
+      <div class="empty-state" style="padding:30px"><div class="es-sub">Carregando alertas...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toastEl"><span id="toastMsg">✅ Operação realizada!</span></div>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  SGO – EMERGÊNCIA TERMINAL PARAUAPEBAS · VALE  v3.2
+//  100% Funcional – Supabase integrado + Modo Demo completo
+// ══════════════════════════════════════════════════════════════
+
+// ─── CONFIGURAÇÃO ──────────────────────────────────────────
+const SUPABASE_URL = 'https://wcyftjpsbifyvuqzxmbs.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM'
+
+// ─── ESTADO GLOBAL ─────────────────────────────────────────
+let db = null, currentUser = null, currentPerfil = null
+let supabaseOK = false, refreshTimer = null
+
+// ─── BOOTSTRAP ─────────────────────────────────────────────
+;(function boot() {
+  if (SUPABASE_URL.includes('SEU_PROJETO') || SUPABASE_KEY.includes('SUA_ANON')) {
+    document.getElementById('setupWarn').style.display = 'block'
+    entrarModoDemo(); return
+  }
+  try {
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    supabaseOK = true
+    verificarSessao()
+  } catch(e) { console.error(e); entrarModoDemo() }
+})()
+
+// ─── MODO DEMO ─────────────────────────────────────────────
+function entrarModoDemo() {
+  hide('loginScreen'); show('mainApp'); show('appLayout')
+  currentPerfil = { nome:'Modo Demo', funcao:'Supervisor', turno:'A', id:'demo' }
+  atualizarUIUsuario(); iniciarClock(); iniciarAnimacoes()
+  carregarDadosDemo()
+}
+
+function carregarDadosDemo() {
+  const hoje = new Date()
+  setEl('dashSubtitle', hoje.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}).toUpperCase()+' · TURNO A · DEMONSTRAÇÃO')
+  document.getElementById('configBanner').style.display = 'block'
+
+  // KPIs
+  setEl('kpiViaturas','3/4'); setEl('kpiViaturasub','1 com alteração (AHQ)')
+  setEl('kpiEfetivo','16/18'); setEl('kpiEfetivoSub','2 bloqueados ASO')
+  setEl('kpiNcs','5'); setEl('kpiNcsSub','2 críticas urgentes')
+  setEl('kpiTst','3'); setEl('kpiInsp','18'); setEl('kpiInspSub','↑ meta atingida')
+  setEl('kpiConf','94%'); setEl('kpiExt','22/24'); setEl('kpiHidr','8/9')
+  setEl('metaEfetivo','16/18'); setEl('metaViaturas','3/4 OK')
+  setEl('metaNcs','5'); setEl('metaInsp','18'); setEl('metaTst','3')
+  setEl('prontPct','92%')
+  setEl('ncAberta','5'); setEl('ncTrat','8'); setEl('ncEnc','23'); setEl('ncPrazo','2,4d')
+  setEl('vOp','3'); setEl('vAlt','1'); setEl('vMan','0'); setEl('vKm','3.840')
+  setEl('efTotal','18'); setEl('efOp','16'); setEl('efAdm','2'); setEl('efBlq','2')
+  setEl('rondasHoje','6'); setEl('focosAtivos','0')
+  setEl('res1Nivel','74%'); setEl('res2Nivel','68%')
+  setEl('ahqStatus','⚠️ Atenção'); setEl('abastStatus','✓ OK')
+  setEl('pipaStatus','✓ Disponível'); setEl('radioStatus','✓ Ativo')
+  setEl('focoStatus','✓ Limpo'); setEl('focoSub','Última varredura: 11h15')
+  setEl('aceiroStatus','4/6'); setEl('notifCount','4'); setEl('syncTime','modo demo')
+  setEl('tstAsoV','2'); setEl('tstTreinV','2'); setEl('tstIntegV','1'); setEl('tstOK','89%')
+  setEl('bombaP','OK'); setEl('bombaR','OK'); setEl('bombaPress','6,1 bar'); setEl('bombaUlt','Hoje')
+  setEl('hidrTotal','9'); setEl('hidrOK','8'); setEl('hidrNC','1'); setEl('hidrPress','6,2 bar')
+  setEl('extTotal','24'); setEl('extOK','22'); setEl('extNC','2'); setEl('extUlt','Hoje'); setEl('extConf','91%')
+  setEl('mangTotal','18'); setEl('mangOK','15'); setEl('mangNC','2'); setEl('mangUlt','Hoje')
+  setEl('valvTotal','15'); setEl('valvOK','12'); setEl('valvAt','2'); setEl('valvNC','1')
+  setEl('frotaVal','75%'); setEl('frotaSub','3 de 4 viaturas operacionais')
+  document.getElementById('frotaBar').style.width = '75%'
+
+  atualizarAnel(92)
+
+  // Barras conformidade
+  atualizarBarra('barExt','confExt',91,'g')
+  atualizarBarra('barMang','confMang',83,'a')
+  atualizarBarra('barHidr','confHidr',88,'g')
+  atualizarBarra('barBomba','confBomba',100,'g')
+  atualizarBarra('barValv','confValv',80,'a')
+
+  // Gráfico 7 dias
+  const dias=['Seg','Ter','Qua','Qui','Sex','Sáb','Hj'], vals=[21,25,18,27,23,20,18]
+  dias.forEach((d,i)=>{
+    setEl('bl'+i,d); setEl('bv'+i,vals[i])
+    const b=document.getElementById('bc'+i)
+    if(b){b.style.height=(vals[i]/27*90)+'%';b.className='bc-bar '+(vals[i]<22?'a':'g')}
+  })
+
+  // Timeline
+  setEl('timelineContainer',`<div class="timeline">
+    <div class="tl-item"><div class="tl-dot g">✓</div><div class="tl-content"><div class="tl-title">🧯 Extintores – Inspeção OK</div><div class="tl-meta">C. Mendes · 08h42</div></div></div>
+    <div class="tl-item"><div class="tl-dot a">!</div><div class="tl-content"><div class="tl-title">🌀 Mangueira H-04 NC aberta</div><div class="tl-meta">R. Souza · 09h15</div></div></div>
+    <div class="tl-item"><div class="tl-dot g">✓</div><div class="tl-content"><div class="tl-title">🚒 AHQ abastecido – 2.000L</div><div class="tl-meta">P. Costa · 10h00</div></div></div>
+    <div class="tl-item"><div class="tl-dot g">✓</div><div class="tl-content"><div class="tl-title">🔍 Ronda Área Norte OK</div><div class="tl-meta">L. Oliveira · 11h30</div></div></div>
+    <div class="tl-item"><div class="tl-dot a">!</div><div class="tl-content"><div class="tl-title">📋 ASO Vencido – 2 col.</div><div class="tl-meta">Alerta TST · 12h00</div></div></div>
+  </div>`)
+
+  // Alertas
+  setEl('alertsContainer',`
+    <div class="alert alert-a"><span class="alert-icon">⚙️</span><div><strong>Modo Demonstração Ativo</strong>Configure SUPABASE_URL e SUPABASE_KEY no código para ativar dados reais.</div></div>
+    <div class="alert alert-r"><span class="alert-icon">🔴</span><div><strong>2 Alertas Críticos – DEMO</strong>NC #0041 – Extintor 14-B sem carga · Mangueira H-04 com vazamento</div></div>`)
+
+  carregarNCsDemo()
+  carregarViaturasDemo()
+  carregarEfetivoDemo()
+  carregarRondasDemo()
+  carregarTSTDemo()
+  carregarIndicadoresDemo()
+  carregarReservatoriosDemo()
+  carregarPlanoOperacionalDemo()
+}
+
+// ─── AUTENTICAÇÃO ──────────────────────────────────────────
+async function verificarSessao() {
+  try {
+    const { data:{session} } = await db.auth.getSession()
+    if (!session) { mostrarLogin(); return }
+    currentUser = session.user
+    await carregarPerfil(); mostrarApp()
+  } catch(e) { mostrarLogin() }
+}
+
+function mostrarLogin() { show('loginScreen'); hide('mainApp'); hide('appLayout') }
+
+function mostrarApp() {
+  hide('loginScreen'); show('mainApp'); show('appLayout')
+  atualizarUIUsuario(); iniciarClock(); iniciarAnimacoes()
+  carregarDashboard()
+  if(refreshTimer) clearInterval(refreshTimer)
+  refreshTimer = setInterval(carregarDashboard, 60000)
+}
+
+async function fazerLogin() {
+  if (!supabaseOK) return
+  const email = val('loginEmail'), senha = val('loginPass')
+  const btn = document.getElementById('loginBtn')
+  if (!email||!senha) { mostrarErroLogin('Preencha e-mail e senha.'); return }
+  btn.disabled = true
+  setEl('loginBtnText','<span class="spinner"></span> Entrando...')
+  document.getElementById('loginErr').style.display = 'none'
+  try {
+    const {data,error} = await db.auth.signInWithPassword({email,password:senha})
+    if (error) throw error
+    currentUser = data.user
+    await carregarPerfil(); mostrarApp()
+  } catch(e) {
+    mostrarErroLogin('Credenciais inválidas. Verifique e-mail e senha.')
+    btn.disabled = false; setEl('loginBtnText','ENTRAR NO SISTEMA')
+  }
+}
+
+function mostrarErroLogin(msg) {
+  const e = document.getElementById('loginErr')
+  e.textContent = '❌ '+msg; e.style.display = 'block'
+}
+
+async function fazerLogout() {
+  if (!confirm('Deseja sair do sistema?')) return
+  if (supabaseOK && db) await db.auth.signOut()
+  currentUser = null; currentPerfil = null
+  if(refreshTimer) clearInterval(refreshTimer)
+  mostrarLogin()
+}
+
+async function carregarPerfil() {
+  if (!supabaseOK||!db) return
+  try {
+    const {data} = await db.from('efetivo').select('*').eq('email',currentUser.email).single()
+    currentPerfil = data || { nome:currentUser.email, funcao:'Usuário', turno:'A', id:null }
+  } catch(e) {
+    currentPerfil = { nome:currentUser.email, funcao:'Usuário', turno:'A', id:null }
+  }
+}
+
+function atualizarUIUsuario() {
+  if (!currentPerfil) return
+  const ini = (currentPerfil.nome||'U').split(' ').map(n=>n[0]).slice(0,2).join('')
+  setEl('userInitials',ini)
+  setEl('userName',(currentPerfil.nome||'').split(' ')[0])
+  setEl('turnoLabel',`TURNO ${currentPerfil.turno||'A'} · ONLINE`)
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────
+async function carregarDashboard() {
+  if (!supabaseOK||!db) return
+  const hoje = new Date(); hoje.setHours(0,0,0,0)
+  setEl('dashSubtitle', hoje.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}).toUpperCase())
+  try {
+    const [vt,ef,nc,in_,ts] = await Promise.all([
+      db.from('viaturas').select('status'),
+      db.from('efetivo').select('status,tipo,aso_vencimento'),
+      db.from('nao_conformidades').select('status,criticidade'),
+      db.from('inspecoes').select('conformidade_pct,tipo').gte('created_at',hoje.toISOString()),
+      db.from('tst_documentos').select('vencimento,status')
+    ])
+    const vOp=vt.data?.filter(v=>v.status==='operacional').length||0
+    const vTot=vt.data?.length||4
+    const efOp=ef.data?.filter(e=>e.tipo==='operacional').length||16
+    const efBlq=ef.data?.filter(e=>e.status==='bloqueado').length||0
+    const efTot=ef.data?.length||18
+    const ncAb=nc.data?.filter(n=>n.status==='aberta').length||0
+    const ncCr=nc.data?.filter(n=>n.criticidade==='critica'&&n.status==='aberta').length||0
+    const inHj=in_.data?.length||0
+    const mConf=inHj>0?Math.round(in_.data.reduce((s,i)=>s+i.conformidade_pct,0)/inHj):0
+    const em30=new Date(); em30.setDate(em30.getDate()+30)
+    const tsP=ts.data?.filter(t=>t.status!=='ok'||(t.vencimento&&new Date(t.vencimento)<em30)).length||0
+    const pont=Math.min(100,Math.round((vOp/vTot)*30+((efOp-efBlq)/Math.max(efOp,1))*30+Math.max(0,20-ncAb*3)+(mConf/100)*20))
+
+    setEl('kpiViaturas',`${vOp}/${vTot}`); setEl('kpiViaturasub',`${vTot-vOp} fora de operação`)
+    setEl('kpiEfetivo',`${efOp-efBlq}/${efTot}`); setEl('kpiEfetivoSub',`${efBlq} bloqueado(s)`)
+    setEl('kpiNcs',ncAb); setEl('kpiNcsSub',`${ncCr} crítica(s)`)
+    setEl('kpiTst',tsP); setEl('kpiInsp',inHj); setEl('kpiInspSub',inHj>=4?'↑ meta atingida':'↓ abaixo da meta')
+    setEl('kpiConf',mConf+'%'); setEl('metaEfetivo',`${efOp-efBlq}/${efTot}`)
+    setEl('metaViaturas',`${vOp}/${vTot} OK`); setEl('metaNcs',ncAb); setEl('metaInsp',inHj); setEl('metaTst',tsP)
+    atualizarAnel(pont)
+    if(ncAb>0){show('ncsBadge'); setEl('ncsBadge',ncAb)}
+    if(tsP>0){show('tstBadge'); setEl('tstBadge',tsP)}
+    setEl('notifCount',ncAb+tsP)
+
+    await Promise.all([carregarConformidadePorTipo(), carregarGrafico7d(), carregarTimeline()])
+    setEl('syncTime',new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))
+  } catch(e) { toastMsg('⚠️ Erro dashboard: '+e.message,'var(--amber)') }
+}
+
+async function carregarConformidadePorTipo() {
+  const set7d=new Date(); set7d.setDate(set7d.getDate()-7)
+  const {data}=await db.from('inspecoes').select('tipo,conformidade_pct').gte('created_at',set7d.toISOString())
+  if(!data) return
+  const tipos={extintor:['Ext','g'],mangueira:['Mang','a'],hidrante:['Hidr','g'],casa_de_bomba:['Bomba','g'],valvula:['Valv','a']}
+  Object.entries(tipos).forEach(([tipo,[k,c]])=>{
+    const its=data.filter(i=>i.tipo===tipo)
+    const med=its.length>0?Math.round(its.reduce((s,i)=>s+i.conformidade_pct,0)/its.length):0
+    atualizarBarra('bar'+k,'conf'+k,med,c)
+  })
+}
+
+async function carregarGrafico7d() {
+  const sem=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'], hoje=new Date()
+  for(let i=6;i>=0;i--){
+    const d=new Date(hoje); d.setDate(d.getDate()-i); d.setHours(0,0,0,0)
+    const fim=new Date(d); fim.setHours(23,59,59)
+    const {count}=await db.from('inspecoes').select('*',{count:'exact',head:true}).gte('created_at',d.toISOString()).lte('created_at',fim.toISOString())
+    const idx=6-i
+    setEl('bl'+idx,i===0?'Hj':sem[d.getDay()]); setEl('bv'+idx,count||0)
+    const bar=document.getElementById('bc'+idx)
+    if(bar){bar.style.height=Math.min(100,(((count||0)/30)*90))+'%';bar.className='bc-bar '+((count||0)<5?'r':(count||0)<15?'a':'g')}
+  }
+}
+
+async function carregarTimeline() {
+  const {data}=await db.from('inspecoes').select('tipo,area,created_at,condicao,efetivo(nome)').order('created_at',{ascending:false}).limit(5)
+  if(!data?.length){setEl('timelineContainer','<div class="empty-state"><div class="es-icon">📋</div><div class="es-title">Sem atividades hoje</div></div>');return}
+  const icos={extintor:'🧯',mangueira:'🌀',hidrante:'🔴',casa_de_bomba:'⚙️',valvula:'🔧',viatura_se11:'🚑',viatura_re02:'🚑',viatura_ahq:'🚒',viatura_hilux:'🚙'}
+  setEl('timelineContainer','<div class="timeline">'+data.map(i=>{
+    const ok=i.condicao==='conforme',w=i.condicao==='atencao'
+    const cl=ok?'g':w?'a':'r',ic=ok?'✓':w?'!':'✗'
+    const h=new Date(i.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+    return `<div class="tl-item"><div class="tl-dot ${cl}">${ic}</div><div class="tl-content"><div class="tl-title">${icos[i.tipo]||'✅'} ${i.tipo.replace(/_/g,' ')} – ${i.area.replace(/_/g,' ')}</div><div class="tl-meta">${i.efetivo?.nome||'--'} · ${h}</div></div></div>`
+  }).join('')+'</div>')
+}
+
+// ─── INDICADORES ───────────────────────────────────────────
+async function carregarIndicadores() {
+  if(!supabaseOK||!db){carregarIndicadoresDemo();return}
+  try{
+    // Conformidade últimos 6 meses
+    const meses=[], labels=[]
+    for(let i=5;i>=0;i--){
+      const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i)
+      const fim=new Date(d); fim.setMonth(fim.getMonth()+1); fim.setDate(0)
+      const {data:insp}=await db.from('inspecoes').select('conformidade_pct').gte('created_at',d.toISOString()).lte('created_at',fim.toISOString())
+      const {data:ncs}=await db.from('nao_conformidades').select('id').gte('created_at',d.toISOString()).lte('created_at',fim.toISOString())
+      const med=insp?.length>0?Math.round(insp.reduce((s,i)=>s+i.conformidade_pct,0)/insp.length):0
+      meses.push({conf:med,ncs:ncs?.length||0}); labels.push(d.toLocaleDateString('pt-BR',{month:'short'}))
+    }
+    const maxConf=Math.max(...meses.map(m=>m.conf))||100
+    const maxNcs=Math.max(...meses.map(m=>m.ncs),1)
+    setEl('chartConf6m','<div style="display:flex;align-items:flex-end;gap:6px;height:100%;padding:4px 0">'+meses.map((m,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:100%;border-radius:3px 3px 0 0;background:var(--blue);opacity:.75;height:${(m.conf/maxConf*90)}%" title="${m.conf}%"></div><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray1)">${m.conf}%</span><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">${labels[i]}</span></div>`).join('')+'</div>')
+    setEl('chartNcs6m','<div style="display:flex;align-items:flex-end;gap:6px;height:100%;padding:4px 0">'+meses.map((m,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:100%;border-radius:3px 3px 0 0;background:var(--red);opacity:.75;height:${(m.ncs/maxNcs*90)}%"></div><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray1)">${m.ncs}</span><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">${labels[i]}</span></div>`).join('')+'</div>')
+
+    // Metas
+    const {count:insp30}=await db.from('inspecoes').select('*',{count:'exact',head:true}).gte('created_at',new Date(new Date().setDate(new Date().getDate()-30)).toISOString())
+    const {count:ncAb}=await db.from('nao_conformidades').select('*',{count:'exact',head:true}).eq('status','aberta')
+    const {data:viaturas}=await db.from('viaturas').select('status')
+    const vOp=viaturas?.filter(v=>v.status==='operacional').length||0
+    const vTot=viaturas?.length||4
+    const disp=Math.round((vOp/vTot)*100)
+
+    setEl('metasContainer',`
+      <div class="prog-row"><div class="prog-meta"><span class="prog-name">Inspeções/mês</span><span class="prog-pct pct-${insp30>=200?'green':'amber'}">${insp30}/200</span></div><div class="prog-wrap"><div class="prog-bar pb-${insp30>=200?'green':'amber'}" style="width:${Math.min(100,insp30/200*100)}%"></div></div></div>
+      <div class="prog-row"><div class="prog-meta"><span class="prog-name">NCs Abertas (meta: 0)</span><span class="prog-pct pct-${ncAb===0?'green':'red'}">${ncAb} abertas</span></div><div class="prog-wrap"><div class="prog-bar pb-${ncAb===0?'green':'red'}" style="width:${Math.min(100,(ncAb||0)*10)}%"></div></div></div>
+      <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibilidade Frota</span><span class="prog-pct pct-${disp>=75?'green':'amber'}">${disp}%</span></div><div class="prog-wrap"><div class="prog-bar pb-${disp>=75?'green':'amber'}" style="width:${disp}%"></div></div></div>`)
+
+    setEl('frotaVal',disp+'%')
+    setEl('frotaSub',`${vOp} de ${vTot} viaturas operacionais`)
+    document.getElementById('frotaBar').style.width = disp+'%'
+  } catch(e){carregarIndicadoresDemo()}
+}
+
+function carregarIndicadoresDemo() {
+  const meses=[{c:88,n:14},{c:91,n:11},{c:89,n:13},{c:93,n:9},{c:94,n:5},{c:94,n:5}]
+  const lbs=['Jan','Fev','Mar','Abr','Mai','Jun']
+  setEl('chartConf6m','<div style="display:flex;align-items:flex-end;gap:6px;height:100%;padding:4px 0">'+meses.map((m,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:100%;border-radius:3px 3px 0 0;background:var(--blue);opacity:.75;height:${m.c}%"></div><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray1)">${m.c}%</span><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">${lbs[i]}</span></div>`).join('')+'</div>')
+  setEl('chartNcs6m','<div style="display:flex;align-items:flex-end;gap:6px;height:100%;padding:4px 0">'+meses.map((m,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:100%;border-radius:3px 3px 0 0;background:var(--red);opacity:.7;height:${m.n/14*90}%"></div><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray1)">${m.n}</span><span style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">${lbs[i]}</span></div>`).join('')+'</div>')
+  setEl('metasContainer',`
+    <div class="prog-row"><div class="prog-meta"><span class="prog-name">Inspeções/mês</span><span class="prog-pct pct-green">✓ 234/200</span></div><div class="prog-wrap"><div class="prog-bar pb-green" style="width:100%"></div></div></div>
+    <div class="prog-row"><div class="prog-meta"><span class="prog-name">Conformidade (meta 90%)</span><span class="prog-pct pct-green">94%</span></div><div class="prog-wrap"><div class="prog-bar pb-green" style="width:94%"></div></div></div>
+    <div class="prog-row"><div class="prog-meta"><span class="prog-name">Resolução NC (meta 3d)</span><span class="prog-pct pct-green">2,4d</span></div><div class="prog-wrap"><div class="prog-bar pb-green" style="width:80%"></div></div></div>
+    <div class="prog-row"><div class="prog-meta"><span class="prog-name">Docs TST (meta 100%)</span><span class="prog-pct pct-amber">83%</span></div><div class="prog-wrap"><div class="prog-bar pb-amber" style="width:83%"></div></div></div>`)
+  setEl('frotaVal','75%'); setEl('frotaSub','3 de 4 viaturas operacionais')
+  document.getElementById('frotaBar').style.width='75%'
+}
+
+// ─── INSPEÇÕES ─────────────────────────────────────────────
+async function saveInsp(tipo) {
+  const tipoFinal = tipo || document.getElementById('insp-tipo')?.value
+  const area = document.getElementById('insp-area')?.value || 'area_norte'
+  const turno = document.getElementById('insp-turno')?.value || currentPerfil?.turno || 'A'
+  const condicao = document.getElementById('insp-condicao')?.value || 'conforme'
+  const obs = document.getElementById('insp-obs')?.value || null
+  if(!tipoFinal){toastMsg('❌ Selecione o tipo','var(--red)');return}
+
+  const ckItems=[]
+  document.querySelectorAll('.page.active .ck-item').forEach(item=>{
+    const b=item.querySelector('.ck-box'), lbl=item.querySelector('.ck-label')?.textContent?.trim()||''
+    ckItems.push({id:item.dataset.id||'',label:lbl,status:b.classList.contains('ok')?'ok':b.classList.contains('nok')?'nok':'pendente'})
+  })
+  const tot=ckItems.length, ok=ckItems.filter(i=>i.status==='ok').length
+  const conf=tot>0?Math.round((ok/tot)*100):0
+
+  if(!supabaseOK||!db){
+    closeDrawer('drawerInsp'); toastMsg(`✅ Inspeção salva! Conformidade: ${conf}% (Demo)`); resetCk(); return
+  }
+  const btn=document.getElementById('btnSaveInsp'); btn.disabled=true
+  setEl('btnSaveInspText','<span class="spinner"></span> Salvando...')
+  try{
+    const fotos=await uploadFotos(document.getElementById('inspFotos')?.files,'inspecoes')
+    const {error}=await db.from('inspecoes').insert([{tipo:tipoFinal,area,turno,responsavel_id:currentPerfil?.id,checklist:ckItems,conformidade_pct:conf,condicao,observacoes:obs,evidencias:fotos}])
+    if(error) throw error
+    closeDrawer('drawerInsp'); toastMsg(`✅ Inspeção salva! Conformidade: ${conf}%`); resetCk()
+    await carregarDashboard()
+  }catch(e){toastMsg('❌ Erro: '+e.message,'var(--red)')}
+  finally{btn.disabled=false; setEl('btnSaveInspText','💾 Salvar Inspeção')}
+}
+
+function resetCk(){
+  document.querySelectorAll('.ck-box').forEach(b=>{b.className='ck-box';b.textContent=''})
+  const obs=document.getElementById('insp-obs'); if(obs) obs.value=''
+  const prev=document.getElementById('inspPrev'); if(prev) prev.innerHTML=''
+}
+
+function abrirInspEspecifica(tipo){
+  const el=document.getElementById('insp-tipo'); if(el) el.value=tipo
+  setEl('drawerInspTitle','📋 Nova Inspeção – '+tipo.replace(/_/g,' '))
+  openDrawer('drawerInsp')
+}
+
+async function carregarHistoricoInsp(tipo){
+  const wId='historico'+tipo.charAt(0).toUpperCase()+tipo.slice(1)
+  const bId=wId+'Body'
+  const w=document.getElementById(wId), b=document.getElementById(bId)
+  if(!w||!b) return
+  w.style.display=w.style.display==='none'?'block':'none'
+  if(w.style.display==='none') return
+  if(!supabaseOK||!db){b.innerHTML='<div class="empty-state"><div class="es-sub">Configure Supabase para histórico real</div></div>';return}
+  const {data}=await db.from('inspecoes').select('*,efetivo(nome)').eq('tipo',tipo).order('created_at',{ascending:false}).limit(10)
+  if(!data?.length){b.innerHTML='<div class="empty-state"><div class="es-icon">📋</div><div class="es-title">Sem histórico</div></div>';return}
+  b.innerHTML=`<table class="dtable"><thead><tr><th>Data</th><th>Área</th><th>Responsável</th><th>Conformidade</th><th>Status</th></tr></thead><tbody>`+
+    data.map(i=>`<tr><td style="font-family:var(--ff-m)">${new Date(i.created_at).toLocaleDateString('pt-BR')}</td><td>${i.area.replace(/_/g,' ')}</td><td>${i.efetivo?.nome||'--'}</td><td><span class="badge ${i.conformidade_pct>=90?'b-green':i.conformidade_pct>=70?'b-amber':'b-red'}">${i.conformidade_pct}%</span></td><td><span class="badge ${i.condicao==='conforme'?'b-green':i.condicao==='atencao'?'b-amber':'b-red'}">${i.condicao}</span></td></tr>`).join('')+
+    `</tbody></table>`
+}
+
+// ─── NÃO CONFORMIDADES ─────────────────────────────────────
+async function saveNC(){
+  const crit=val('nc-criticidade'), ativo=val('nc-ativo'), area=val('nc-area')
+  const desc=val('nc-descricao').trim(), acao=val('nc-acao').trim(), prazo=val('nc-prazo')
+  if(!desc){toastMsg('❌ Descrição obrigatória','var(--red)');return}
+  if(!supabaseOK||!db){
+    closeDrawer('drawerNC'); toastMsg('⚠️ NC registrada! (Demo)','var(--amber)'); limparFormNC(); return
+  }
+  const btn=document.getElementById('btnSaveNC'); btn.disabled=true
+  setEl('btnSaveNCText','<span class="spinner"></span> Salvando...')
+  try{
+    const fotos=await uploadFotos(document.getElementById('ncFoto')?.files,'ncs')
+    const {error}=await db.from('nao_conformidades').insert([{ativo_tipo:ativo,area,descricao:desc,criticidade:crit,responsavel_id:currentPerfil?.id,status:'aberta',prazo:prazo||null,acao_corretiva:acao||null,evidencia_url:fotos[0]||null}])
+    if(error) throw error
+    closeDrawer('drawerNC'); toastMsg('⚠️ NC registrada!','var(--amber)'); limparFormNC()
+    await carregarNCs(); await carregarDashboard()
+  }catch(e){toastMsg('❌ Erro: '+e.message,'var(--red)')}
+  finally{btn.disabled=false; setEl('btnSaveNCText','⚠️ Registrar NC')}
+}
+
+function limparFormNC(){
+  const ids=['nc-descricao','nc-acao']
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
+  const prev=document.getElementById('ncPrev');if(prev)prev.innerHTML=''
+}
+
+async function carregarNCs(filtro=''){
+  if(!supabaseOK||!db){carregarNCsDemo();return}
+  const container=document.getElementById('ncsContainer'); if(!container) return
+  let q=db.from('nao_conformidades').select('*,efetivo(nome)').order('created_at',{ascending:false})
+  if(filtro) q=q.or(`descricao.ilike.%${filtro}%,ativo_tipo.ilike.%${filtro}%`)
+  const {data}=await q
+  if(data){
+    setEl('ncAberta',data.filter(n=>n.status==='aberta').length)
+    setEl('ncTrat',data.filter(n=>n.status==='tratamento').length)
+    const m1=new Date();m1.setDate(1)
+    setEl('ncEnc',data.filter(n=>n.status==='encerrada'&&new Date(n.updated_at||n.created_at)>=m1).length)
+  }
+  if(!data?.length){container.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><div class="es-title">Sem NCs</div><div class="es-sub">Nenhuma não conformidade encontrada</div></div>';return}
+  container.innerHTML=data.map(nc=>{
+    const urg=nc.prazo&&new Date(nc.prazo)<=new Date()
+    const ic={critica:'🔴',moderada:'🟡',baixa:'🔵'}[nc.criticidade]||'⚠️'
+    const bc={critica:'b-red',moderada:'b-amber',baixa:'b-blue'}[nc.criticidade]||'b-gray'
+    return `<div class="nc-card ${nc.criticidade}">
+      <div class="nc-top"><span class="nc-id">#${String(nc.numero||'--').padStart(4,'0')} · ${new Date(nc.created_at).toLocaleDateString('pt-BR')}</span><span class="badge ${bc}">${ic} ${nc.criticidade.toUpperCase()}</span></div>
+      <div class="nc-title">${nc.descricao}</div>
+      <div class="nc-area">📍 ${nc.ativo_tipo} · ${nc.area||''}</div>
+      <div class="nc-footer"><span class="nc-resp">👤 ${nc.efetivo?.nome||'Não atribuído'}</span><span class="nc-date ${urg?'urgent':'ok'}">${urg?'⏰ VENCENDO':'📅'} ${nc.prazo?new Date(nc.prazo).toLocaleDateString('pt-BR'):'Sem prazo'}</span></div>
+    </div>`
+  }).join('')
+}
+
+function buscarNCs(v){clearTimeout(window._bT);window._bT=setTimeout(()=>carregarNCs(v),400)}
+
+function carregarNCsDemo(){
+  setEl('ncsContainer',`
+    <div class="nc-card critica"><div class="nc-top"><span class="nc-id">#0041 · ${new Date().toLocaleDateString('pt-BR')}</span><span class="badge b-red">🔴 CRÍTICA</span></div><div class="nc-title">Extintor 14-B sem carga – Área Norte</div><div class="nc-area">📍 Extintor · Área Norte</div><div class="nc-footer"><span class="nc-resp">👤 Roberto Souza</span><span class="nc-date urgent">⏰ HOJE – VENCENDO</span></div></div>
+    <div class="nc-card critica"><div class="nc-top"><span class="nc-id">#0040 · ${new Date().toLocaleDateString('pt-BR')}</span><span class="badge b-red">🔴 CRÍTICA</span></div><div class="nc-title">Mangueira H-04 com ponto de vazamento</div><div class="nc-area">📍 Mangueira · Área Norte</div><div class="nc-footer"><span class="nc-resp">👤 Carlos Mendes</span><span class="nc-date urgent">⏰ AMANHÃ</span></div></div>
+    <div class="nc-card moderada"><div class="nc-top"><span class="nc-id">#0039 · ${new Date().toLocaleDateString('pt-BR')}</span><span class="badge b-amber">🟡 MODERADA</span></div><div class="nc-title">AHQ – Mangueira de espuma ressecada</div><div class="nc-area">📍 AHQ · Garagem</div><div class="nc-footer"><span class="nc-resp">👤 Ana Lima</span><span class="nc-date ok">📅 Em 4 dias</span></div></div>
+    <div class="nc-card moderada"><div class="nc-top"><span class="nc-id">#0038 · ${new Date().toLocaleDateString('pt-BR')}</span><span class="badge b-amber">🟡 MODERADA</span></div><div class="nc-title">Válvula V-08 com vazamento na gaxeta</div><div class="nc-area">📍 Válvula · Rede Hidrantes</div><div class="nc-footer"><span class="nc-resp">👤 Roberto Souza</span><span class="nc-date ok">📅 Em 6 dias</span></div></div>
+    <div class="nc-card baixa"><div class="nc-top"><span class="nc-id">#0037 · ${new Date().toLocaleDateString('pt-BR')}</span><span class="badge b-blue">🔵 BAIXA</span></div><div class="nc-title">Hidrante H-07 com oxidação avançada</div><div class="nc-area">📍 Hidrante · Área Sul</div><div class="nc-footer"><span class="nc-resp">👤 Ana Lima</span><span class="nc-date ok">📅 Em 14 dias</span></div></div>
+    <div class="alert alert-a" style="margin-top:14px"><span class="alert-icon">⚙️</span><div>Configure Supabase para NCs reais</div></div>`)
+}
+
+// ─── VIATURAS ──────────────────────────────────────────────
+async function carregarViaturas(){
+  if(!supabaseOK||!db){carregarViaturasDemo();return}
+  const {data}=await db.from('viaturas').select('*').order('prefixo')
+  const vOp=data?.filter(v=>v.status==='operacional').length||0
+  const vAlt=data?.filter(v=>v.status==='alteracao').length||0
+  const vMan=data?.filter(v=>v.status==='manutencao').length||0
+  setEl('vOp',vOp); setEl('vAlt',vAlt); setEl('vMan',vMan)
+  setEl('vKm',(data?.reduce((s,v)=>s+(v.quilometragem||0),0)||0).toLocaleString('pt-BR'))
+  if(!data?.length){setEl('viaturasContainer','<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">🚒</div><div class="es-title">Sem viaturas cadastradas</div></div>');return}
+  setEl('viaturasContainer',data.map(v=>{
+    const sc=v.status==='operacional'?'g':v.status==='alteracao'?'a':'r'
+    const bc=v.status==='operacional'?'b-green':v.status==='alteracao'?'b-amber':'b-red'
+    const bl=v.status==='operacional'?'OPERACIONAL':v.status==='alteracao'?'COM ALTERAÇÃO':v.status==='manutencao'?'MANUTENÇÃO':'RESERVA'
+    return `<div class="vc"><div class="vc-stripe ${sc}"></div><div class="vc-body">
+      <div class="vc-top"><div><div class="vc-name">${v.modelo||v.prefixo}</div><div class="vc-model">${v.tipo?.toUpperCase()||''}</div></div><span class="badge ${bc}">${bl}</span></div>
+      ${v.observacoes?`<div class="vc-obs">⚠️ ${v.observacoes}</div>`:''}
+      <div class="vc-stats">
+        <div class="vc-stat"><div class="vc-stat-l">KM</div><div class="vc-stat-v sv-w">${(v.quilometragem||0).toLocaleString('pt-BR')}</div></div>
+        <div class="vc-stat"><div class="vc-stat-l">Combustível</div><div class="vc-stat-v ${(v.combustivel_pct||0)>=50?'sv-g':'sv-a'}">${v.combustivel_pct||'--'}%</div></div>
+        <div class="vc-stat"><div class="vc-stat-l">Equipe</div><div class="vc-stat-v sv-g">${v.equipe_atual||'-'}/${v.equipe_total||'-'}</div></div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-ghost" style="flex:1;justify-content:center;font-size:11px" onclick="abrirInspEspecifica('viatura_${v.prefixo.toLowerCase().replace(/[^a-z0-9]/g,'')}')">📋 Checklist</button>
+        <button class="btn btn-ghost" style="font-size:11px" onclick="document.getElementById('vt-prefixo').value='${v.prefixo}';openDrawer('drawerViatura')">✏️</button>
+      </div>
+    </div></div>`
+  }).join(''))
+}
+
+async function saveViatura(){
+  const prefixo=val('vt-prefixo'), status=val('vt-status')
+  const km=parseInt(val('vt-km'))||null, comb=parseInt(val('vt-combustivel'))||null, obs=val('vt-obs').trim()||null
+  if(!supabaseOK||!db){closeDrawer('drawerViatura');toastMsg('✅ Viatura atualizada! (Demo)');return}
+  const {error}=await db.from('viaturas').update({status,quilometragem:km,combustivel_pct:comb,observacoes:obs,ultima_inspecao:new Date().toISOString()}).eq('prefixo',prefixo)
+  if(error){toastMsg('❌ Erro: '+error.message,'var(--red)');return}
+  closeDrawer('drawerViatura'); toastMsg('✅ '+prefixo+' atualizada!')
+  await carregarViaturas(); await carregarDashboard()
+}
+
+function carregarViaturasDemo(){
+  setEl('vOp','3'); setEl('vAlt','1'); setEl('vMan','0'); setEl('vKm','3.840')
+  const vt=[
+    {n:'🚑 Ambulância SE-11',m:'UTI MÓVEL',s:'g',sl:'OPERACIONAL',bc:'b-green',km:'47.320',cb:'82%',eq:'2/2'},
+    {n:'🚑 Ambulância RE-02',m:'RESGATE',s:'g',sl:'OPERACIONAL',bc:'b-green',km:'28.140',cb:'90%',eq:'2/2'},
+    {n:'🚒 AHQ – Auto Hidro Químico',m:'COMBATE INCÊNDIO',s:'a',sl:'COM ALTERAÇÃO',bc:'b-amber',km:'19.800',cb:'61%',eq:'2/2',obs:'⚠️ Mangueira de espuma ressecada'},
+    {n:'🚙 Auto Rápido – Hilux',m:'INTERVENÇÃO RÁPIDA',s:'g',sl:'OPERACIONAL',bc:'b-green',km:'63.200',cb:'75%',eq:'1/2'}
+  ]
+  setEl('viaturasContainer',vt.map(v=>`<div class="vc"><div class="vc-stripe ${v.s}"></div><div class="vc-body">
+    <div class="vc-top"><div><div class="vc-name">${v.n}</div><div class="vc-model">${v.m}</div></div><span class="badge ${v.bc}">${v.sl}</span></div>
+    ${v.obs?`<div class="vc-obs">${v.obs}</div>`:''}
+    <div class="vc-stats"><div class="vc-stat"><div class="vc-stat-l">KM</div><div class="vc-stat-v sv-w">${v.km}</div></div><div class="vc-stat"><div class="vc-stat-l">Combustível</div><div class="vc-stat-v sv-g">${v.cb}</div></div><div class="vc-stat"><div class="vc-stat-l">Equipe</div><div class="vc-stat-v sv-g">${v.eq}</div></div></div>
+    <div style="margin-top:8px;font-family:var(--ff-m);font-size:9px;color:var(--gray2)">DEMO – Configure Supabase</div>
+  </div></div>`).join(''))
+}
+
+// ─── EFETIVO ───────────────────────────────────────────────
+async function carregarEfetivo(){
+  if(!supabaseOK||!db){carregarEfetivoDemo();return}
+  const {data}=await db.from('efetivo').select('*').order('nome')
+  if(!data) return
+  const op=data.filter(e=>e.tipo==='operacional')
+  const adm=data.filter(e=>e.tipo==='administrativo')
+  setEl('efTotal',data.length); setEl('efOp',op.length); setEl('efAdm',adm.length)
+  setEl('efBlq',data.filter(e=>e.status==='bloqueado').length)
+  const card=e=>{
+    const ini=e.nome.split(' ').map(n=>n[0]).slice(0,2).join('')
+    const blq=e.status==='bloqueado', asoV=e.aso_vencimento&&new Date(e.aso_vencimento)<new Date()
+    return `<div class="ef-card" style="${blq?'opacity:.7;border-color:rgba(255,59,48,.3)':''}">
+      <div class="ef-avatar ea-${e.tipo==='administrativo'?'':'green'}" style="${e.tipo==='administrativo'?'background:var(--bg5);color:var(--gray1)':''}${blq?'background:linear-gradient(135deg,var(--red2),var(--red));color:#fff':''}">${ini}</div>
+      <div class="ef-info"><div class="ef-name">${e.nome}</div><div class="ef-role">${e.funcao||''}</div>
+      <div class="ef-shift" style="${blq?'color:var(--red)':asoV?'color:var(--amber)':''}">${blq?'🔴 BLOQUEADO – '+(e.motivo_bloqueio||''):asoV?'⚠️ ASO vencido':'● TURNO '+(e.turno||'-')}</div></div>
+    </div>`
+  }
+  setEl('efetivoOpContainer',op.map(card).join('')||'<div class="empty-state"><div class="es-sub">Nenhum operacional</div></div>')
+  setEl('efetivoAdmContainer',adm.map(card).join('')||'<div class="empty-state"><div class="es-sub">Nenhum administrativo</div></div>')
+}
+
+async function saveEfetivo(){
+  const nome=val('ef-nome').trim(),funcao=val('ef-funcao').trim(),tipo=val('ef-tipo'),turno=val('ef-turno')||null,aso=val('ef-aso')||null,email=val('ef-email').trim()||null
+  if(!nome){toastMsg('❌ Nome obrigatório','var(--red)');return}
+  if(!supabaseOK||!db){closeDrawer('drawerEfetivo');toastMsg('✅ Colaborador registrado! (Demo)');return}
+  const {error}=await db.from('efetivo').insert([{nome,funcao,tipo,turno,aso_vencimento:aso,email,status:'ativo',integracao_ok:false}])
+  if(error){toastMsg('❌ Erro: '+error.message,'var(--red)');return}
+  closeDrawer('drawerEfetivo'); toastMsg('✅ '+nome+' cadastrado!')
+  ;['ef-nome','ef-funcao','ef-email'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''})
+  await carregarEfetivo()
+}
+
+function carregarEfetivoDemo(){
+  setEl('efTotal','18'); setEl('efOp','16'); setEl('efAdm','2'); setEl('efBlq','2')
+  const op=[['CM','Carlos Mendes','Supervisor','ea-amber',false,'A'],['AL','Ana Lima','Técnica Seg.','ea-green',false,'A'],['RS','Roberto Souza','Inspetor','ea-green',false,'A'],['MF','Marcos Ferreira','Bombeiro','',true,'A'],['JS','Juliana Santos','Socorrista','ea-blue',false,'A'],['PC','Paulo Costa','Motorista','ea-blue',false,'A'],['LO','Lucas Oliveira','Bombeiro','ea-green',false,'A'],['FA','Fernanda Alves','Socorrista','ea-blue',false,'A'],['DR','Diego Rocha','Motorista','',true,'A'],['TN','Tatiane Nunes','Bombeira','ea-blue',false,'A'],['VB','Victor Barbosa','Inspetor','ea-green',false,'A'],['RN','Renata Nascimento','Socorrista','ea-blue',false,'A'],['FP','Felipe Pires','Bombeiro','ea-green',false,'A'],['GT','Gabriel Torres','Motorista','ea-blue',false,'A'],['MC','Marina Cardoso','Inspetor','ea-green',false,'A'],['BL','Bruno Lima','Bombeiro','ea-green',false,'A']]
+  setEl('efetivoOpContainer',op.map(([i,n,f,c,blq,t])=>`<div class="ef-card" style="${blq?'opacity:.7;border-color:rgba(255,59,48,.3)':''}"><div class="ef-avatar ${c}" style="${!c||blq?'background:linear-gradient(135deg,var(--red2),var(--red));color:#fff':''}">${i}</div><div class="ef-info"><div class="ef-name">${n}</div><div class="ef-role">${f}</div><div class="ef-shift" style="${blq?'color:var(--red)':''}">${blq?'🔴 BLOQUEADO – ASO Vencido':'● TURNO '+t}</div></div></div>`).join(''))
+  setEl('efetivoAdmContainer','<div class="ef-card"><div class="ef-avatar" style="background:var(--bg5);color:var(--gray1)">PA</div><div class="ef-info"><div class="ef-name">Patricia Assis</div><div class="ef-role">Auxiliar Adm.</div><div class="ef-shift" style="color:var(--gray1)">○ ADMINISTRATIVO</div></div></div><div class="ef-card"><div class="ef-avatar" style="background:var(--bg5);color:var(--gray1)">ER</div><div class="ef-info"><div class="ef-name">Eduardo Ribeiro</div><div class="ef-role">Analista Doc.</div><div class="ef-shift" style="color:var(--gray1)">○ ADMINISTRATIVO</div></div></div>')
+}
+
+// ─── RONDAS / PLANO OPERACIONAL ────────────────────────────
+async function saveRonda(){
+  const rota=val('ronda-rota'), turno=val('ronda-turno'), focos=val('ronda-focos')==='true', status=val('ronda-status'), obs=val('ronda-obs').trim()||null
+  if(!supabaseOK||!db){closeDrawer('drawerRonda');toastMsg('✅ Ronda registrada! (Demo)');carregarRondasDemo();return}
+  const {error}=await db.from('rondas').insert([{rota,turno,responsavel_id:currentPerfil?.id,focos_fumaca:focos,status,observacao:obs}])
+  if(error){toastMsg('❌ Erro: '+error.message,'var(--red)');return}
+  closeDrawer('drawerRonda'); const obs_el=document.getElementById('ronda-obs'); if(obs_el)obs_el.value=''
+  toastMsg('✅ Ronda registrada!'); await carregarRondas(); await carregarDashboard()
+}
+
+async function carregarRondas(){
+  if(!supabaseOK||!db){carregarRondasDemo();return}
+  const hoje=new Date(); hoje.setHours(0,0,0,0)
+  const {data}=await db.from('rondas').select('*,efetivo(nome)').gte('data_hora',hoje.toISOString()).order('data_hora',{ascending:false})
+  setEl('rondasHoje',data?.length||0)
+  setEl('focosAtivos',data?.filter(r=>r.focos_fumaca).length||0)
+  const tbody=document.getElementById('rondasBody')
+  if(!data?.length){if(tbody)tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--gray1);padding:20px">Nenhuma ronda hoje</td></tr>';return}
+  if(tbody)tbody.innerHTML=data.map(r=>`<tr><td style="font-family:var(--ff-m)">${new Date(r.data_hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td><td>${r.rota}</td><td>${r.efetivo?.nome||'--'}</td><td><span class="badge ${r.status==='ok'?'b-green':'b-red'}">${r.status==='ok'?'✅ OK':'⚠️ Ocorrência'}</span></td></tr>`).join('')
+  await carregarReservatorios()
+}
+
+function carregarRondasDemo(){
+  setEl('rondasHoje','6'); setEl('focosAtivos','0')
+  const tbody=document.getElementById('rondasBody')
+  if(tbody)tbody.innerHTML=[['06h30','Perímetro Norte','R. Souza'],['07h00','Reservatórios 1 e 2','C. Mendes'],['08h15','Aceiros A1–A4','L. Oliveira'],['09h30','Área Sul – Garagem','P. Costa'],['10h45','Perímetro Leste','R. Souza'],['12h00','Perímetro Oeste','L. Oliveira']].map(([h,r,p])=>`<tr><td style="font-family:var(--ff-m)">${h}</td><td>${r}</td><td>${p}</td><td><span class="badge b-green">✅ OK</span></td></tr>`).join('')
+  carregarReservatoriosDemo()
+  carregarPlanoOperacionalDemo()
+}
+
+async function carregarReservatorios(){
+  if(!supabaseOK||!db){carregarReservatoriosDemo();return}
+  const {data}=await db.from('plano_seca').select('*').order('data_hora',{ascending:false}).limit(2)
+  if(!data?.length){carregarReservatoriosDemo();return}
+  const r1=data.find(r=>r.reservatorio===1), r2=data.find(r=>r.reservatorio===2)
+  if(r1){setEl('res1Nivel',(r1.nivel_pct||0)+'%');setEl('bombaPress',(r1.pressao_bar||'--')+' bar')}
+  if(r2) setEl('res2Nivel',(r2.nivel_pct||0)+'%')
+  const cont=document.getElementById('reservatoriosContainer')
+  if(cont)cont.innerHTML=[r1,r2].filter(Boolean).map(r=>`<div class="op-action"><span class="op-icon">💧</span><div class="op-text"><div class="op-title">Reservatório ${r.reservatorio}</div><div class="op-sub">Nível: ${r.nivel_pct}% · Pressão: ${r.pressao_bar||'--'} bar · Bomba: ${r.bomba_principal}</div></div><span class="op-status" style="color:${r.nivel_pct>=40?'var(--green)':'var(--red)'}">${r.nivel_pct>=40?'✓ OK':'⚠️ Baixo'}</span></div>`).join('')
+}
+
+function carregarReservatoriosDemo(){
+  const cont=document.getElementById('reservatoriosContainer')
+  if(cont)cont.innerHTML=`
+    <div class="op-action"><span class="op-icon">💧</span><div class="op-text"><div class="op-title">Reservatório 1</div><div class="op-sub">Nível: 74% · Sem vazamentos · Bomba operacional</div></div><span class="op-status" style="color:var(--green)">✓ OK</span></div>
+    <div class="op-action"><span class="op-icon">💧</span><div class="op-text"><div class="op-title">Reservatório 2</div><div class="op-sub">Nível: 68% · Drenos e tampas verificados</div></div><span class="op-status" style="color:var(--green)">✓ OK</span></div>`
+}
+
+function carregarPlanoOperacionalDemo(){
+  setEl('ahqStatus','⚠️ Atenção'); setEl('abastStatus','✓ OK')
+  setEl('pipaStatus','✓ Disponível'); setEl('focoStatus','✓ Limpo')
+  setEl('focoSub','Última varredura: 11h15 · Zero focos')
+  setEl('aceiroStatus','4/6'); setEl('abastSub','SE-11: 82% · RE-02: 90% · AHQ: 61% · Hilux: 75%')
+}
+
+// ─── TST ───────────────────────────────────────────────────
+async function carregarTST(){
+  if(!supabaseOK||!db){carregarTSTDemo();return}
+  const {data}=await db.from('tst_documentos').select('*').order('vencimento')
+  if(!data) return
+  const hoje=new Date(), em30=new Date(); em30.setDate(hoje.getDate()+30)
+  const asos=data.filter(t=>t.tipo==='aso')
+  const treins=data.filter(t=>t.tipo==='treinamento')
+  const integs=data.filter(t=>t.tipo==='integracao')
+  const docs=data.filter(t=>t.tipo==='documento')
+  setEl('tstAsoV',asos.filter(t=>new Date(t.vencimento)<hoje).length)
+  setEl('tstTreinV',treins.filter(t=>new Date(t.vencimento)<em30).length)
+  setEl('tstIntegV',integs.filter(t=>t.status==='pendente').length)
+  const tot=data.length, ok=data.filter(t=>t.status==='ok'&&(!t.vencimento||new Date(t.vencimento)>em30)).length
+  setEl('tstOK',tot>0?Math.round(ok/tot*100)+'%':'--')
+  const renderRows=its=>its.length?its.map(t=>{
+    const v=t.vencimento?new Date(t.vencimento):null
+    const venc=v&&v<hoje, vendo=v&&v>=hoje&&v<=em30
+    const cl=venc?'sd-r':vendo?'sd-a':'sd-g', bc=venc?'b-red':vendo?'b-amber':'b-green'
+    const dias=v?Math.ceil((v-hoje)/(1000*60*60*24)):null
+    const lbl=venc?'VENCIDO':vendo?`${dias}d`:v?'OK':'--'
+    return `<div class="tst-row"><div class="sdot ${cl}"></div><div class="tst-main"><div class="tst-name">${t.descricao}</div><div class="tst-meta">${t.tipo}</div></div><div class="tst-right"><div class="tst-days" style="color:${venc?'var(--red)':vendo?'var(--amber)':'var(--green)'}">${lbl}</div>${v?`<div style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">${v.toLocaleDateString('pt-BR')}</div>`:''}</div><span class="badge ${bc}">${(t.status||'ok').toUpperCase()}</span></div>`
+  }).join(''):'<div class="empty-state"><div class="es-sub">Nenhum registro</div></div>'
+  setEl('asoContainer',renderRows(asos))
+  setEl('treinContainer',renderRows(treins))
+  setEl('integContainer',renderRows(integs))
+  setEl('docsContainer',renderRows(docs))
+  const blqs=data.filter(t=>t.status==='vencido')
+  setEl('bloqContainer',blqs.length?blqs.map(t=>`<div class="tst-row"><div class="sdot sd-r"></div><div class="tst-main"><div class="tst-name">${t.descricao}</div></div><span class="badge b-red">BLOQUEADO</span></div>`).join(''):'<div class="empty-state"><div class="es-sub">Sem bloqueios ✅</div></div>')
+  // Alertas TST
+  const urg=data.filter(t=>t.status==='vencido'||new Date(t.vencimento)<hoje)
+  setEl('tstAlertsContainer',urg.length?`<div class="alert alert-r"><span class="alert-icon">🔴</span><div><strong>${urg.length} pendência(s) crítica(s)</strong>${urg.map(t=>t.descricao).join(' · ')}</div></div>`:'')
+}
+
+async function saveTST(){
+  const tipo=val('tst-tipo'), status=val('tst-status'), desc=val('tst-descricao').trim(), venc=val('tst-vencimento')
+  if(!desc){toastMsg('❌ Descrição obrigatória','var(--red)');return}
+  if(!supabaseOK||!db){closeDrawer('drawerTST');toastMsg('✅ Documento salvo! (Demo)');return}
+  const {error}=await db.from('tst_documentos').insert([{tipo,status,descricao:desc,vencimento:venc||null}])
+  if(error){toastMsg('❌ Erro: '+error.message,'var(--red)');return}
+  closeDrawer('drawerTST'); toastMsg('✅ Documento registrado!'); await carregarTST()
+}
+
+function carregarTSTDemo(){
+  setEl('tstAsoV','2'); setEl('tstTreinV','2'); setEl('tstIntegV','1'); setEl('tstOK','89%')
+  const rows=`
+    <div class="tst-row"><div class="sdot sd-r"></div><div class="tst-main"><div class="tst-name">ASO Periódico – Marcos Ferreira</div></div><div class="tst-right"><div class="tst-days" style="color:var(--red)">VENCIDO</div><div style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">15/05/2026</div></div><span class="badge b-red">VENCIDO</span></div>
+    <div class="tst-row"><div class="sdot sd-r"></div><div class="tst-main"><div class="tst-name">ASO Periódico – Diego Rocha</div></div><div class="tst-right"><div class="tst-days" style="color:var(--red)">VENCIDO</div><div style="font-family:var(--ff-m);font-size:9px;color:var(--gray2)">20/05/2026</div></div><span class="badge b-red">VENCIDO</span></div>
+    <div class="tst-row"><div class="sdot sd-a"></div><div class="tst-main"><div class="tst-name">ASO Periódico – Ana Lima</div></div><div class="tst-right"><div class="tst-days" style="color:var(--amber)">18 dias</div></div><span class="badge b-amber">VENCENDO</span></div>
+    <div class="tst-row"><div class="sdot sd-g"></div><div class="tst-main"><div class="tst-name">ASO Periódico – Carlos Mendes</div></div><div class="tst-right"><div class="tst-days" style="color:var(--green)">180 dias</div></div><span class="badge b-green">OK</span></div>`
+  setEl('asoContainer',rows)
+  setEl('treinContainer',`
+    <div class="tst-row"><div class="sdot sd-a"></div><div class="tst-main"><div class="tst-name">Primeiros Socorros – Carlos Mendes</div></div><div class="tst-right"><div class="tst-days" style="color:var(--amber)">22 dias</div></div><span class="badge b-amber">VENCENDO</span></div>
+    <div class="tst-row"><div class="sdot sd-a"></div><div class="tst-main"><div class="tst-name">Combate a Incêndio – Turma B</div></div><div class="tst-right"><div class="tst-days" style="color:var(--amber)">35 dias</div></div><span class="badge b-amber">VENCENDO</span></div>
+    <div class="tst-row"><div class="sdot sd-g"></div><div class="tst-main"><div class="tst-name">Direção Defensiva – Motoristas</div></div><div class="tst-right"><div class="tst-days" style="color:var(--green)">OK</div></div><span class="badge b-green">OK</span></div>`)
+  setEl('integContainer',`
+    <div class="tst-row"><div class="sdot sd-r"></div><div class="tst-main"><div class="tst-name">Integração VALE – Bruno Lima</div></div><div class="tst-right"><div class="tst-days" style="color:var(--red)">PENDENTE</div></div><span class="badge b-red">PENDENTE</span></div>`)
+  setEl('docsContainer',`
+    <div class="tst-row"><div class="sdot sd-g"></div><div class="tst-main"><div class="tst-name">AVCB – Auto de Vistoria</div></div><div class="tst-right"><div class="tst-days" style="color:var(--green)">Nov/2026</div></div><span class="badge b-green">OK</span></div>
+    <div class="tst-row"><div class="sdot sd-g"></div><div class="tst-main"><div class="tst-name">PEI – Plano de Emergência</div></div><div class="tst-right"><div class="tst-days" style="color:var(--green)">Vigente</div></div><span class="badge b-green">OK</span></div>
+    <div class="tst-row"><div class="sdot sd-a"></div><div class="tst-main"><div class="tst-name">PPRA – Prog. Prev. Riscos</div></div><div class="tst-right"><div class="tst-days" style="color:var(--amber)">45 dias</div></div><span class="badge b-amber">VENCENDO</span></div>`)
+  setEl('bloqContainer',`
+    <div class="tst-row"><div class="sdot sd-r"></div><div class="tst-main"><div class="tst-name">Marcos Ferreira – ASO Vencido</div></div><span class="badge b-red">BLOQUEADO</span></div>
+    <div class="tst-row"><div class="sdot sd-r"></div><div class="tst-main"><div class="tst-name">Diego Rocha – ASO Vencido</div></div><span class="badge b-red">BLOQUEADO</span></div>
+    <div class="tst-row"><div class="sdot sd-a"></div><div class="tst-main"><div class="tst-name">Bruno Lima – Integração Pendente</div></div><span class="badge b-amber">RESTRITO</span></div>`)
+  setEl('tstAlertsContainer',`<div class="alert alert-r"><span class="alert-icon">🔴</span><div><strong>3 Pendências Críticas – DEMO</strong>ASO vencido: Marcos Ferreira e Diego Rocha · Integração pendente: Bruno Lima</div></div>`)
+}
+
+// ─── RELATÓRIOS PDF ─────────────────────────────────────────
+async function gerarPDF(tipo){
+  if(!window.html2pdf){toastMsg('❌ html2pdf não carregou','var(--red)');return}
+  toastMsg('⏳ Gerando PDF...','var(--blue)')
+  let insp=[], ncs_=[], rondas=[]
+  if(supabaseOK&&db){
+    const hoje=new Date(); hoje.setHours(0,0,0,0)
+    const inicio=tipo==='semanal'?new Date(new Date().setDate(new Date().getDate()-7)):hoje
+    const [r1,r2,r3]=await Promise.all([
+      db.from('inspecoes').select('*,efetivo(nome)').gte('created_at',inicio.toISOString()),
+      db.from('nao_conformidades').select('*,efetivo(nome)').eq('status','aberta'),
+      db.from('rondas').select('*,efetivo(nome)').gte('data_hora',inicio.toISOString())
+    ])
+    insp=r1.data||[]; ncs_=r2.data||[]; rondas=r3.data||[]
+  } else {
+    // Demo data para PDF
+    insp=[{tipo:'extintor',area:'area_norte',efetivo:{nome:'C. Mendes'},conformidade_pct:91,condicao:'conforme',created_at:new Date().toISOString()}]
+    ncs_=[{numero:41,descricao:'Extintor 14-B sem carga',ativo_tipo:'Extintor',criticidade:'critica',efetivo:{nome:'R. Souza'},prazo:new Date().toISOString(),created_at:new Date().toISOString()}]
+  }
+  const agora=new Date()
+  const tipos={'diario':'Diário','semanal':'Semanal','executivo':'Executivo'}
+  const html=`<div style="font-family:Arial,sans-serif;padding:32px;color:#111;font-size:13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #FF9500;padding-bottom:14px;margin-bottom:22px">
+      <div>
+        <div style="font-size:20px;font-weight:900;text-transform:uppercase;margin:0">Relatório ${tipos[tipo]||tipo}</div>
+        <div style="font-size:11px;color:#666;margin:3px 0 0">Emergência Terminal Parauapebas · VALE · SGO v3.2</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#888">
+        <div>${agora.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div>
+        <div>Gerado por: ${currentPerfil?.nome||'Sistema'} · Turno ${currentPerfil?.turno||'A'}</div>
+        <div>Horário: ${agora.toLocaleTimeString('pt-BR')}</div>
+        ${supabaseOK?'':`<div style="color:#FF9500;margin-top:4px">⚙️ Modo Demonstração</div>`}
+      </div>
+    </div>
+
+    <h2 style="font-size:12px;color:#FF9500;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px">Inspeções Realizadas (${insp.length})</h2>
+    ${insp.length?`<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:20px">
+      <tr style="background:#f5f5f5"><th style="padding:7px;text-align:left;border:1px solid #ddd">Tipo</th><th style="border:1px solid #ddd;padding:7px">Área</th><th style="border:1px solid #ddd;padding:7px">Responsável</th><th style="border:1px solid #ddd;padding:7px">Conformidade</th><th style="border:1px solid #ddd;padding:7px">Status</th></tr>
+      ${insp.map(i=>`<tr><td style="padding:7px;border:1px solid #eee">${i.tipo.replace(/_/g,' ')}</td><td style="border:1px solid #eee;padding:7px">${i.area.replace(/_/g,' ')}</td><td style="border:1px solid #eee;padding:7px">${i.efetivo?.nome||'--'}</td><td style="border:1px solid #eee;padding:7px;text-align:center;font-weight:700;color:${i.conformidade_pct>=90?'#28a745':'#dc3545'}">${i.conformidade_pct}%</td><td style="border:1px solid #eee;padding:7px;color:${i.condicao==='conforme'?'#28a745':'#FF9500'}">${i.condicao}</td></tr>`).join('')}
+    </table>`:'<p style="color:#888;font-style:italic;margin-bottom:20px">Nenhuma inspeção no período.</p>'}
+
+    <h2 style="font-size:12px;color:#dc3545;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px">Não Conformidades Abertas (${ncs_.length})</h2>
+    ${ncs_.map(n=>`<div style="border-left:4px solid ${n.criticidade==='critica'?'#dc3545':n.criticidade==='moderada'?'#FF9500':'#0A84FF'};padding:8px 14px;margin-bottom:10px;background:#fafafa;border-radius:0 6px 6px 0">
+      <div style="font-weight:700;font-size:12px">#${String(n.numero||0).padStart(4,'0')} – ${n.descricao}</div>
+      <div style="font-size:10px;color:#666;margin-top:4px">Ativo: ${n.ativo_tipo||'--'} · Responsável: ${n.efetivo?.nome||'--'} · Prazo: ${n.prazo?new Date(n.prazo).toLocaleDateString('pt-BR'):'N/A'} · Criticidade: <strong>${n.criticidade?.toUpperCase()}</strong></div>
+    </div>`).join('')||'<p style="color:#888;font-style:italic">Sem NCs abertas ✅</p>'}
+
+    ${rondas.length?`<h2 style="font-size:12px;color:#0A84FF;letter-spacing:2px;text-transform:uppercase;margin:20px 0 10px">Rondas Realizadas (${rondas.length})</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:20px">
+      <tr style="background:#f5f5f5"><th style="padding:7px;border:1px solid #ddd;text-align:left">Horário</th><th style="border:1px solid #ddd;padding:7px">Rota</th><th style="border:1px solid #ddd;padding:7px">Responsável</th><th style="border:1px solid #ddd;padding:7px">Status</th><th style="border:1px solid #ddd;padding:7px">Focos</th></tr>
+      ${rondas.map(r=>`<tr><td style="padding:7px;border:1px solid #eee">${new Date(r.data_hora).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td><td style="border:1px solid #eee;padding:7px">${r.rota}</td><td style="border:1px solid #eee;padding:7px">${r.efetivo?.nome||'--'}</td><td style="border:1px solid #eee;padding:7px">${r.status==='ok'?'✅ OK':'⚠️ Ocorrência'}</td><td style="border:1px solid #eee;padding:7px">${r.focos_fumaca?'⚠️ Sim':'Não'}</td></tr>`).join('')}
+    </table>`:''}
+
+    <div style="margin-top:50px;border-top:1px solid #ddd;padding-top:20px;display:flex;justify-content:space-between;align-items:flex-end">
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:35px">Assinatura do Supervisor Responsável</div>
+        <div style="border-top:1px solid #333;width:240px;padding-top:5px;font-size:11px;font-weight:700">${currentPerfil?.nome||''}</div>
+        <div style="font-size:10px;color:#666">${currentPerfil?.funcao||''} · Emergência Terminal Parauapebas</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:#bbb">SGO – Sistema de Gestão Operacional<br>Emergência Terminal Parauapebas · VALE<br>${agora.toLocaleDateString('pt-BR')} ${agora.toLocaleTimeString('pt-BR')}</div>
+    </div>
+  </div>`
+
+  const el=document.createElement('div'); el.innerHTML=html
+  await html2pdf().set({margin:0,filename:`sgo-relatorio-${tipo}-${agora.toISOString().slice(0,10)}.pdf`,image:{type:'jpeg',quality:.95},html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(el).save()
+  toastMsg('✅ PDF baixado com sucesso!')
+  // Registrar no histórico
+  if(supabaseOK&&db) await db.from('relatorios_historico').insert([{tipo,gerado_por:currentPerfil?.nome,paginas:Math.ceil((insp.length+ncs_.length)/8)+4}]).catch(()=>{})
+  await carregarHistoricoRelatorios()
+}
+
+async function carregarHistoricoRelatorios(){
+  const tbody=document.getElementById('relatoriosBody'); if(!tbody) return
+  if(!supabaseOK||!db){
+    tbody.innerHTML=`
+      <tr><td style="font-family:var(--ff-m)">${new Date().toLocaleString('pt-BR')}</td><td>Diário</td><td>${currentPerfil?.nome||'Sistema'}</td><td style="font-family:var(--ff-m)">6</td><td><span class="badge b-green">✓ Gerado</span></td><td><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="gerarPDF('diario')">📥</button></td></tr>
+      <tr><td style="font-family:var(--ff-m)">${new Date(Date.now()-86400000).toLocaleString('pt-BR')}</td><td>Executivo</td><td>C. Mendes</td><td style="font-family:var(--ff-m)">14</td><td><span class="badge b-green">✓ Gerado</span></td><td><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="gerarPDF('executivo')">📥</button></td></tr>`
+    return
+  }
+  try{
+    const {data}=await db.from('relatorios_historico').select('*').order('created_at',{ascending:false}).limit(10)
+    if(!data?.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--gray1);padding:20px">Nenhum relatório gerado ainda</td></tr>';return}
+    tbody.innerHTML=data.map(r=>`<tr><td style="font-family:var(--ff-m)">${new Date(r.created_at).toLocaleString('pt-BR')}</td><td>${r.tipo}</td><td>${r.gerado_por||'--'}</td><td style="font-family:var(--ff-m)">${r.paginas||'--'}</td><td><span class="badge b-green">✓ Gerado</span></td><td><button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="gerarPDF('${r.tipo}')">📥</button></td></tr>`).join('')
+  }catch(e){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--gray1);padding:20px">Erro ao carregar histórico</td></tr>'}
+}
+
+// ─── UPLOAD ─────────────────────────────────────────────────
+async function uploadFotos(files, pasta){
+  if(!files||files.length===0||!supabaseOK||!db) return []
+  const urls=[]
+  for(const file of files){
+    try{
+      const ext=file.name.split('.').pop()
+      const path=`${pasta}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const {data,error}=await db.storage.from('evidencias').upload(path,file,{upsert:false})
+      if(!error&&data){
+        const {data:u}=db.storage.from('evidencias').getPublicUrl(path)
+        urls.push(u.publicUrl)
+      }
+    }catch(e){console.warn('Upload:',e)}
+  }
+  return urls
+}
+
+function previewFotos(input,prevId){
+  const prev=document.getElementById(prevId); if(!prev) return
+  prev.innerHTML=''
+  Array.from(input.files).forEach(f=>{
+    const r=new FileReader()
+    r.onload=e=>{
+      const img=document.createElement('img')
+      img.src=e.target.result; img.className='upload-thumb'; img.title=f.name
+      prev.appendChild(img)
+    }
+    r.readAsDataURL(f)
+  })
+}
+
+// ─── NOTIFICAÇÕES ───────────────────────────────────────────
+async function atualizarNotificacoes(){
+  const body=document.getElementById('notifBody'); if(!body) return
+  if(!supabaseOK||!db){
+    body.innerHTML=`
+      <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px"><span style="font-size:18px">🔴</span><div><div style="font-size:12px;font-weight:600">ASO Vencido – M. Ferreira e D. Rocha</div><div style="font-size:11px;color:var(--gray1)">Afastar imediatamente</div></div></div>
+      <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px"><span style="font-size:18px">🔴</span><div><div style="font-size:12px;font-weight:600">NC #0041 – Extintor 14-B</div><div style="font-size:11px;color:var(--gray1)">Sem carga – recarga urgente</div></div></div>
+      <div style="padding:10px 14px;display:flex;gap:10px"><span style="font-size:18px">⚙️</span><div><div style="font-size:12px;font-weight:600">Modo Demonstração</div><div style="font-size:11px;color:var(--gray1)">Configure Supabase para alertas reais</div></div></div>`
+    return
+  }
+  const [r1,r2]=await Promise.all([
+    db.from('nao_conformidades').select('descricao,criticidade').eq('status','aberta').order('criticidade'),
+    db.from('tst_documentos').select('descricao').eq('status','vencido')
+  ])
+  const items=[
+    ...(r1.data||[]).map(n=>`<div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px"><span style="font-size:18px">${n.criticidade==='critica'?'🔴':'🟡'}</span><div><div style="font-size:12px;font-weight:600">NC ${n.criticidade==='critica'?'Crítica':'Moderada'}</div><div style="font-size:11px;color:var(--gray1)">${n.descricao.slice(0,55)}...</div></div></div>`),
+    ...(r2.data||[]).map(t=>`<div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px"><span style="font-size:18px">📋</span><div><div style="font-size:12px;font-weight:600">TST Vencido</div><div style="font-size:11px;color:var(--gray1)">${t.descricao}</div></div></div>`)
+  ]
+  body.innerHTML=items.length?items.join(''):'<div class="empty-state" style="padding:30px"><div class="es-icon">✅</div><div class="es-sub">Sem alertas ativos</div></div>'
+  setEl('notifCount',items.length||0)
+}
+
+// ─── NAVEGAÇÃO ──────────────────────────────────────────────
+const PAGES=['dashboard','indicadores','ext','mang','hidr','bomba','valv','viaturas','efetivo','plano','boas','tst','ncs','relatorios']
+
+function nav(id){
+  PAGES.forEach(p=>document.getElementById('page-'+p)?.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'))
+  document.getElementById('page-'+id)?.classList.add('active')
+  document.querySelectorAll('.nav-item').forEach(n=>{ if(n.getAttribute('onclick')?.includes("'"+id+"'")) n.classList.add('active') })
+  closeSidebar(); window.scrollTo({top:0,behavior:'smooth'})
+  const loaders={ncs:carregarNCs, viaturas:carregarViaturas, efetivo:carregarEfetivo, tst:carregarTST, plano:carregarRondas, indicadores:carregarIndicadores, relatorios:carregarHistoricoRelatorios}
+  if(loaders[id]) loaders[id]()
+}
+
+// ─── SIDEBAR ────────────────────────────────────────────────
+function toggleSidebar(){
+  const s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay')
+  s.classList.toggle('open'); o.style.display=s.classList.contains('open')?'block':'none'
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open')
+  document.getElementById('sidebarOverlay').style.display='none'
+}
+
+// ─── DRAWERS ────────────────────────────────────────────────
+function openDrawer(id){ document.getElementById(id)?.classList.add('open'); document.body.style.overflow='hidden' }
+function closeDrawer(id){ document.getElementById(id)?.classList.remove('open'); document.body.style.overflow='' }
+function closeDrawerOut(e,id){ if(e.target===document.getElementById(id)) closeDrawer(id) }
+
+// Interceptar notificações
+const _origOpen = openDrawer
+window.openDrawer = function(id){ _origOpen(id); if(id==='drawerNotif') atualizarNotificacoes() }
+
+// ─── CHECKLIST ──────────────────────────────────────────────
+function toggleCk(item){
+  const b=item.querySelector('.ck-box')
+  const s=b.classList.contains('ok')?'ok':b.classList.contains('nok')?'nok':''
+  const n={'':['ok','✓'],'ok':['nok','✗'],'nok':['','']}[s]
+  b.className='ck-box'+(n[0]?' '+n[0]:''); b.textContent=n[1]
+}
+
+// ─── TABS ───────────────────────────────────────────────────
+function switchTab(btn,tabId){
+  const p=btn.closest('.page')
+  p.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'))
+  p.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'))
+  btn.classList.add('active'); document.getElementById(tabId)?.classList.add('active')
+}
+
+// ─── TOAST ──────────────────────────────────────────────────
+let _tT
+function toastMsg(msg,col){
+  const t=document.getElementById('toastEl')
+  document.getElementById('toastMsg').textContent=msg
+  t.style.borderColor=col||'var(--green)'; t.style.color=col||'var(--green)'
+  t.classList.add('show'); clearTimeout(_tT); _tT=setTimeout(()=>t.classList.remove('show'),3500)
+}
+
+// ─── HELPERS ────────────────────────────────────────────────
+function setEl(id,html){ const el=document.getElementById(id); if(el){ if(html.toString().includes('<')) el.innerHTML=html; else el.textContent=html } }
+function val(id){ return document.getElementById(id)?.value||'' }
+function show(id){ const el=document.getElementById(id); if(el) el.style.display='' }
+function hide(id){ const el=document.getElementById(id); if(el) el.style.display='none' }
+
+function atualizarAnel(pct){
+  const circ=289, offset=circ*(1-pct/100)
+  const ring=document.getElementById('prontRing')
+  const col=pct>=85?'var(--green)':pct>=70?'var(--amber)':'var(--red)'
+  if(ring){ring.style.strokeDashoffset=offset; ring.style.stroke=col.replace('var(','')}
+  const pEl=document.getElementById('prontPct')
+  if(pEl){pEl.style.color=col; pEl.style.textShadow=`0 0 20px ${col}40`}
+  const sEl=document.getElementById('prontStatus')
+  if(sEl){sEl.style.color=col; sEl.textContent=pct>=85?'OPERACIONAL':pct>=70?'ATENÇÃO':'CRÍTICO'}
+}
+
+function atualizarBarra(barId,pctId,v,c){
+  const bar=document.getElementById(barId), pct=document.getElementById(pctId)
+  const cols={g:'green',a:'amber',r:'red'}
+  if(bar){bar.style.width=v+'%'; bar.className='prog-bar pb-'+(cols[c]||c)}
+  if(pct){pct.textContent=v+'%'; pct.className='prog-pct pct-'+(cols[c]||c)}
+}
+
+// ─── RELÓGIO ────────────────────────────────────────────────
+function iniciarClock(){
+  function tick(){
+    setEl('clkTime',new Date().toLocaleTimeString('pt-BR'))
+    setEl('clkDate',new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'}).toUpperCase())
+  }
+  tick(); setInterval(tick,1000)
+}
+
+// ─── ANIMAÇÕES ──────────────────────────────────────────────
+function iniciarAnimacoes(){
+  const ring=document.getElementById('prontRing')
+  if(ring){ring.style.strokeDashoffset='289';setTimeout(()=>{ring.style.transition='stroke-dashoffset 1.5s ease';ring.style.strokeDashoffset='23'},400)}
+  setTimeout(()=>{document.querySelectorAll('.prog-bar').forEach(b=>{const w=b.style.width;b.style.width='0';setTimeout(()=>{b.style.width=w},100)})},300)
+  document.querySelectorAll('.bc-bar').forEach((b,i)=>{const h=b.style.height;b.style.height='0';setTimeout(()=>{b.style.transition='height .6s ease';b.style.height=h},400+i*50)})
+}
+
+// ─── KEYBOARD ───────────────────────────────────────────────
+document.getElementById('loginPass')?.addEventListener('keydown',e=>{if(e.key==='Enter')fazerLogin()})
+document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass')?.focus()})
+</script>
+</body>
+</html>
