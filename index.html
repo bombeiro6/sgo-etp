@@ -704,9 +704,9 @@ select.f-input{cursor:pointer}
     <div class="btn-row"><button class="btn btn-ghost" onclick="carregarHistoricoInsp('extintor')">📋 Histórico</button><button class="btn btn-amber" onclick="abrirInspEspecifica('extintor')">➕ Nova Inspeção</button></div>
   </div>
   <div class="grid-4" style="margin-bottom:14px">
-    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="extTotal">--</span></div>
-    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformes</span><span class="kpi-val kv-green" id="extOK">--</span></div>
-    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Ag. Recarga</span><span class="kpi-val kv-amber" id="extNC">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="extTotal">125</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformes</span><span class="kpi-val kv-green" id="extOK">125</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Ag. Recarga</span><span class="kpi-val kv-amber" id="extNC">0</span></div>
     <div class="kpi"><div class="kpi-accent ka-gray"></div><span class="kpi-label">Últ. Inspeção</span><span class="kpi-val kv-white" style="font-size:18px" id="extUlt">--</span></div>
   </div>
   <div class="panel">
@@ -746,9 +746,9 @@ select.f-input{cursor:pointer}
     <div class="btn-row"><button class="btn btn-ghost" onclick="carregarHistoricoInsp('mangueira')">📋 Histórico</button><button class="btn btn-amber" onclick="abrirInspEspecifica('mangueira')">➕ Nova Inspeção</button></div>
   </div>
   <div class="grid-4" style="margin-bottom:14px">
-    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="mangTotal">--</span></div>
-    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformes</span><span class="kpi-val kv-green" id="mangOK">--</span></div>
-    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Com NC</span><span class="kpi-val kv-red" id="mangNC">--</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="mangTotal">140</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Conformes</span><span class="kpi-val kv-green" id="mangOK">140</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Com NC</span><span class="kpi-val kv-red" id="mangNC">0</span></div>
     <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Últ. Inspeção</span><span class="kpi-val kv-white" style="font-size:18px" id="mangUlt">--</span></div>
   </div>
   <div class="panel">
@@ -780,9 +780,9 @@ select.f-input{cursor:pointer}
 <div class="page" id="page-hidr">
   <div class="page-header"><div class="page-title">🔴 Inspeção – Hidrantes<small>CHECKLIST OPERACIONAL</small></div><div class="btn-row"><button class="btn btn-amber" onclick="abrirInspEspecifica('hidrante')">➕ Nova Inspeção</button></div></div>
   <div class="grid-4" style="margin-bottom:14px">
-    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="hidrTotal">9</span></div>
-    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="hidrOK">8</span></div>
-    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Manutenção</span><span class="kpi-val kv-amber" id="hidrNC">1</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total</span><span class="kpi-val kv-white" id="hidrTotal">35</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="hidrOK">35</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Manutenção</span><span class="kpi-val kv-amber" id="hidrNC">0</span></div>
     <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Pressão Média</span><span class="kpi-val kv-green" style="font-size:20px" id="hidrPress">-- bar</span></div>
   </div>
   <div class="panel">
@@ -837,10 +837,10 @@ select.f-input{cursor:pointer}
 <div class="page" id="page-valv">
   <div class="page-header"><div class="page-title">🔧 Inspeção – Válvulas da Rede<small>REDE DE HIDRANTES</small></div><div class="btn-row"><button class="btn btn-amber" onclick="abrirInspEspecifica('valvula')">➕ Nova Inspeção</button></div></div>
   <div class="grid-4" style="margin-bottom:14px">
-    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total Válvulas</span><span class="kpi-val kv-white" id="valvTotal">15</span></div>
-    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="valvOK">12</span></div>
-    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Atenção</span><span class="kpi-val kv-amber" id="valvAt">2</span></div>
-    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Com NC</span><span class="kpi-val kv-red" id="valvNC">1</span></div>
+    <div class="kpi"><div class="kpi-accent ka-blue"></div><span class="kpi-label">Total Válvulas</span><span class="kpi-val kv-white" id="valvTotal">33</span></div>
+    <div class="kpi"><div class="kpi-accent ka-green"></div><span class="kpi-label">Operacionais</span><span class="kpi-val kv-green" id="valvOK">33</span></div>
+    <div class="kpi"><div class="kpi-accent ka-amber"></div><span class="kpi-label">Atenção</span><span class="kpi-val kv-amber" id="valvAt">0</span></div>
+    <div class="kpi"><div class="kpi-accent ka-red"></div><span class="kpi-label">Com NC</span><span class="kpi-val kv-red" id="valvNC">0</span></div>
   </div>
   <div class="panel">
     <div class="panel-head"><span class="panel-title">Checklist – Válvulas</span><span class="badge b-amber">Interativo</span></div>
