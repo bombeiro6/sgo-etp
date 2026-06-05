@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0a0e14" />
+<title>SGO · Painel de Gestores — Terminal Parauapebas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  :root{
+    --bg:#0a0e14;--card:#131a24;--card2:#161f2b;--line:#1f2937;
+    --txt:#e6edf3;--muted:#8b98a8;--dim:#5b6776;
+    --green:#16a34a;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;
+  }
+  html,body{background:var(--bg);color:var(--txt);font-family:'Hanken Grotesk',sans-serif}
+  body{display:flex;justify-content:center;min-height:100vh}
+  .disp{font-family:'Archivo',sans-serif}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .wrap{width:100%;max-width:480px;padding-bottom:48px}
+  i[data-lucide]{width:1em;height:1em;vertical-align:-2px}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.32}}
+  @keyframes ring{0%{transform:scale(.9);opacity:.7}100%{transform:scale(2.3);opacity:0}}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pulse{animation:pulse 1.6s ease-in-out infinite}
+  .rise{animation:rise .45s ease both}
+  .spin{animation:spin .9s linear infinite}
+
+  header{padding:18px 18px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;
+    background:rgba(10,14,20,.92);backdrop-filter:blur(8px);z-index:20}
+  .hrow{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#16a34a,#0d7a3a);
+    display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
+  .btitle{font-size:16px;font-weight:800;letter-spacing:.3px;line-height:1}
+  .bsub{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .live{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green)}
+  .live.off{color:var(--amber)}
+  .clockrow{display:flex;align-items:baseline;justify-content:space-between;margin-top:12px}
+  .clock{font-size:24px;font-weight:700;letter-spacing:1px}
+  .date{font-size:12px;color:var(--muted);text-transform:capitalize}
+
+  main{padding:16px 14px;display:flex;flex-direction:column;gap:14px}
+
+  .status{border-radius:18px;padding:22px 20px;position:relative;overflow:hidden;border:1px solid}
+  .dot{position:relative;width:14px;height:14px;flex-shrink:0}
+  .dot b{position:absolute;inset:0;border-radius:50%}
+  .dot span{position:absolute;inset:0;border-radius:50%;border:2px solid;animation:ring 1.4s ease-out infinite}
+  .stitle{font-size:11px;letter-spacing:1.5px;color:var(--muted);margin-bottom:3px}
+  .sbig{font-size:30px;font-weight:800;line-height:1}
+  .sdesc{font-size:13px;color:#cbd5e1;margin-top:6px}
+
+  .sect-title{display:flex;align-items:center;gap:7px;color:var(--muted);margin:2px 2px 9px;
+    font-size:12.5px;font-weight:600;letter-spacing:.4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  .empty{padding:18px;display:flex;align-items:center;gap:12px;font-size:14px;color:#cbd5e1}
+  .occ{padding:15px 16px;border-radius:16px;border:1px solid;margin-bottom:10px}
+  .occ:last-child{margin-bottom:0}
+  .occ-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .occ-t{font-size:15px;font-weight:700}
+  .badge{font-size:10px;font-weight:700;border:1px solid;border-radius:6px;padding:2px 8px;letter-spacing:.5px;white-space:nowrap}
+  .occ-l{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:12.5px;color:#cbd5e1}
+
+  .vcard{padding:13px;cursor:pointer;transition:border-color .2s}
+  .vcard:active{border-color:#2c3a4d}
+  .vtop{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+  .vdotc{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .vstat{font-size:11px;font-weight:600}
+  .vname{font-size:12.5px;font-weight:600;line-height:1.3}
+  .vdet{margin-top:9px;padding-top:9px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:none}
+  .vcard.open .vdet{display:block;animation:rise .3s ease both}
+  .vdet div{display:flex;justify-content:space-between;padding:2px 0}
+  .vdet b{color:var(--txt);font-weight:600}
+
+  .kpi{padding:16px}
+  .kpi-h{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;letter-spacing:.5px;margin-bottom:8px}
+  .kpi-v{font-size:28px;font-weight:700}
+  .kpi-s{font-size:11.5px;margin-top:4px}
+
+  .row{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer}
+  .row-l{display:flex;align-items:center;gap:11px;font-size:13.5px}
+  .row-r{display:flex;align-items:center;gap:6px}
+  .row-v{font-size:18px;font-weight:700}
+  .divider{height:1px;background:var(--line);margin:0 14px}
+  .chev{transition:transform .25s}
+  .open>.row .chev{transform:rotate(90deg)}
+  .sub{display:none;padding:0 14px 12px}
+  .open .sub{display:block;animation:rise .3s ease both}
+  .litem{padding:10px 12px;border-radius:10px;background:var(--card2);margin-top:8px;font-size:12.5px}
+  .litem .lt{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .litem .ld{color:var(--muted);margin-top:4px;line-height:1.4}
+  .tag{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px;border:1px solid;white-space:nowrap}
+
+  .res{display:flex;align-items:center;gap:12px;padding:13px 14px}
+  .res .bar{flex:1;height:8px;border-radius:5px;background:#0c1219;overflow:hidden}
+  .res .bar i{display:block;height:100%;border-radius:5px}
+
+  .sync{text-align:center;font-size:11px;color:var(--dim);margin-top:2px}
+  .refresh{display:inline-flex;align-items:center;gap:5px;margin-left:8px;color:var(--green);
+    background:none;border:none;font:inherit;font-size:11px;cursor:pointer}
+
+  .demo{margin-top:6px;border:1px dashed #2c3a4d;border-radius:14px;padding:14px}
+  .demo-h{font-size:11px;color:var(--dim);letter-spacing:.5px;margin-bottom:10px;text-align:center}
+  .demo-b{display:flex;gap:10px}
+  .demo-b button{flex:1;padding:12px 0;border-radius:10px;border:none;color:#fff;
+    font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  button:disabled{background:#334155!important;cursor:default}
+  .skel{color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="hrow">
+      <div class="brand">
+        <div class="logo"><i data-lucide="shield"></i></div>
+        <div>
+          <div class="disp btitle">SGO · GESTORES</div>
+          <div class="bsub">Terminal Parauapebas · VALE</div>
+        </div>
+      </div>
+      <div id="live" class="live"><i data-lucide="wifi"></i><span class="mono pulse">CONECTANDO…</span></div>
+    </div>
+    <div class="clockrow">
+      <span id="clock" class="mono clock">--:--:--</span>
+      <span id="date" class="date">—</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- STATUS -->
+    <section id="statusBox" class="status rise" style="border-color:#1f2937;background:#131a24">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="dot"><b id="sdot" style="background:#8b98a8"></b></div>
+        <div>
+          <div class="stitle">STATUS DA OPERAÇÃO</div>
+          <div id="sbig" class="disp sbig" style="color:#8b98a8">CARREGANDO</div>
+          <div id="sdesc" class="sdesc">Buscando dados do banco…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OCORRÊNCIAS / PONTOS CRÍTICOS -->
+    <section>
+      <div class="sect-title"><i data-lucide="flame"></i> Pontos de atenção · NCs em aberto</div>
+      <div id="occBox"><div class="card empty skel">Carregando…</div></div>
+    </section>
+
+    <!-- VIATURAS -->
+    <section>
+      <div class="sect-title"><i data-lucide="truck"></i> Viaturas <span id="vcount" class="mono" style="margin-left:auto;color:var(--dim)"></span></div>
+      <div id="viatBox" class="grid2"><div class="card kpi skel">Carregando…</div></div>
+    </section>
+
+    <!-- EFETIVO + INSPEÇÕES -->
+    <section class="grid2">
+      <div id="efetCard" class="card kpi" style="cursor:pointer">
+        <div class="kpi-h"><i data-lucide="users"></i> EFETIVO</div>
+        <div class="mono kpi-v" id="efetV">--<span style="font-size:16px;color:var(--muted)">/--</span></div>
+        <div class="kpi-s" id="efetS" style="color:var(--green)">—</div>
+        <div class="sub" id="efetSub"></div>
+      </div>
+      <div class="card kpi">
+        <div class="kpi-h"><i data-lucide="activity"></i> INSPEÇÕES</div>
+        <div class="mono kpi-v" id="inspV" style="color:var(--green)">--%</div>
+        <div class="kpi-s" id="inspS" style="color:var(--muted)">conformidade média</div>
+      </div>
+    </section>
+
+    <!-- PENDÊNCIAS -->
+    <section class="card">
+      <div id="ncWrap">
+        <div class="row" onclick="toggle('ncWrap')">
+          <div class="row-l"><i data-lucide="alert-triangle" id="ncIcon"></i> Não conformidades em aberto</div>
+          <div class="row-r"><span class="mono row-v" id="ncV">--</span><i data-lucide="chevron-right" class="chev"></i></div>
+        </div>
+        <div class="sub" id="ncSub"></div>
+      </div>
+      <div class="divider"></div>
+      <div id="tstWrap">
+        <div class="row" onclick="toggle('tstWrap')">
+          <div class="row-l"><i data-lucide="file-clock" id="tstIcon"></i> Documentos / TST pendentes</div>
+          <div class="row-r"><span class="mono row-v" id="tstV">--</span><i data-lucide="chevron-right" class="chev"></i></div>
+        </div>
+        <div class="sub" id="tstSub"></div>
+      </div>
+    </section>
+
+    <!-- RESERVATÓRIOS -->
+    <section>
+      <div class="sect-title"><i data-lucide="droplet"></i> Reservatórios</div>
+      <div id="resBox" class="card"><div class="empty skel">Carregando…</div></div>
+    </section>
+
+    <div class="sync">
+      <span class="mono" id="syncTxt">aguardando…</span>
+      <button class="refresh" onclick="carregar(true)"><i data-lucide="refresh-cw" id="refIcon"></i>atualizar</button>
+    </div>
+
+    <!-- DEMO -->
+    <section class="demo">
+      <div class="demo-h">🎬 MODO APRESENTAÇÃO — visível só neste aparelho</div>
+      <div class="demo-b">
+        <button id="btnEmerg" style="background:#ef4444" onclick="setEmerg(true)">Simular emergência</button>
+        <button id="btnNorm" style="background:#16a34a" onclick="setEmerg(false)" disabled>Normalizar</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ====== CONEXÃO COM O BANCO ======
+const SUPABASE_URL = 'https://wcyftjpsbifyvuqzxmbs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let emergManual = false;
+let segundosSync = 0;
+
+const $ = id => document.getElementById(id);
+const norm = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+// ---- relógio ----
+function tick(){
+  const a = new Date();
+  $('clock').textContent = a.toLocaleTimeString('pt-BR');
+  $('date').textContent = a.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  segundosSync++;
+  $('syncTxt').textContent = 'atualizado há ' + segundosSync + 's · automático';
+}
+setInterval(tick,1000); tick();
+
+// ---- status geral ----
+const STATUS = {
+  normal:{cor:'#16a34a',bg:'rgba(22,163,74,.12)',rotulo:'NORMAL',desc:'Operação sob controle'},
+  atencao:{cor:'#f59e0b',bg:'rgba(245,158,11,.12)',rotulo:'ATENÇÃO',desc:'Há pontos que exigem acompanhamento'},
+  emergencia:{cor:'#ef4444',bg:'rgba(239,68,68,.14)',rotulo:'EMERGÊNCIA',desc:'Atendimento em andamento'}
+};
+function aplicarStatus(key){
+  const s = STATUS[key];
+  $('statusBox').style.borderColor = s.cor+'55';
+  $('statusBox').style.background = s.bg;
+  $('sdot').style.background = s.cor;
+  const old = $('statusBox').querySelector('.dot span'); if(old) old.remove();
+  if(key!=='normal'){
+    const r=document.createElement('span'); r.style.borderColor=s.cor;
+    $('statusBox').querySelector('.dot').appendChild(r);
+  }
+  $('sbig').textContent = s.rotulo; $('sbig').style.color = s.cor;
+  $('sdesc').textContent = s.desc;
+}
+
+// ---- viatura: mapa de status ----
+const VST = {
+  operacional:{cor:'#16a34a',rotulo:'Disponível'},
+  disponivel:{cor:'#16a34a',rotulo:'Disponível'},
+  alteracao:{cor:'#f59e0b',rotulo:'Com alteração'},
+  manutencao:{cor:'#ef4444',rotulo:'Manutenção'},
+  reserva:{cor:'#3b82f6',rotulo:'Reserva'},
+  atendimento:{cor:'#ef4444',rotulo:'Em atendimento'}
+};
+
+// ---- helpers de toque ----
+function toggle(id){ $(id).classList.toggle('open'); }
+function toggleV(el){ el.classList.toggle('open'); }
+
+function setEmerg(on){
+  emergManual = on;
+  $('btnEmerg').disabled = on; $('btnNorm').disabled = !on;
+  render(window.__dados||{});
+}
+
+// ====== BUSCA DOS DADOS ======
+async function carregar(manual){
+  if(manual){ $('refIcon').classList.add('spin'); }
+  try{
+    const [ef,vi,nc,ts,ins,ps,rd] = await Promise.all([
+      sb.from('efetivo').select('nome,funcao,tipo,status,turno'),
+      sb.from('viaturas').select('prefixo,modelo,tipo,status,quilometragem,combustivel_pct,observacoes,ultima_inspecao').order('prefixo'),
+      sb.from('nao_conformidades').select('numero,ativo_tipo,area,descricao,criticidade,status,prazo').neq('status','encerrada'),
+      sb.from('tst_documentos').select('tipo,descricao,status,vencimento').neq('status','ok'),
+      sb.from('inspecoes').select('conformidade_pct,condicao,created_at'),
+      sb.from('plano_seca').select('reservatorio,nivel_pct,pressao_bar,bomba_principal,bomba_reserva,data_hora').order('data_hora',{ascending:false}),
+      sb.from('rondas').select('data_hora')
+    ]);
+    const dados = {
+      efetivo: ef.data||[], viaturas: vi.data||[], ncs: nc.data||[],
+      tst: ts.data||[], insp: ins.data||[], plano: ps.data||[], rondas: rd.data||[]
+    };
+    window.__dados = dados;
+    segundosSync = 0;
+    $('live').className='live'; $('live').innerHTML='<i data-lucide="wifi"></i><span class="mono pulse">AO VIVO</span>';
+    render(dados);
+  }catch(e){
+    $('live').className='live off'; $('live').innerHTML='<i data-lucide="wifi-off"></i><span class="mono">SEM CONEXÃO</span>';
+    console.error(e);
+  }finally{
+    if(manual) setTimeout(()=>$('refIcon').classList.remove('spin'),600);
+    lucide.createIcons();
+  }
+}
+
+// ====== RENDERIZAÇÃO ======
+function render(d){
+  const ncAbertas = (d.ncs||[]).filter(n=>n.status==='aberta');
+  const ncCriticasAbertas = (d.ncs||[]).filter(n=>n.criticidade==='critica');
+  const viatNaoOp = (d.viaturas||[]).filter(v=>norm(v.status)!=='operacional');
+  const docsVencidos = (d.tst||[]).filter(t=>norm(t.status)==='vencido');
+
+  // ---- status geral ----
+  let st='normal';
+  if(emergManual) st='emergencia';
+  else if(ncCriticasAbertas.length || viatNaoOp.length || docsVencidos.length) st='atencao';
+  aplicarStatus(st);
+
+  // ---- ocorrências / pontos críticos ----
+  const critOrder={critica:0,moderada:1,baixa:2};
+  const pontos=[...(d.ncs||[])].sort((a,b)=>(critOrder[a.criticidade]??9)-(critOrder[b.criticidade]??9));
+  const cCor={critica:'#ef4444',moderada:'#f59e0b',baixa:'#3b82f6'};
+  if(pontos.length===0){
+    $('occBox').innerHTML='<div class="card empty"><i data-lucide="check-circle-2" style="color:#16a34a"></i><span>Nenhuma não conformidade em aberto.</span></div>';
+  }else{
+    $('occBox').innerHTML=pontos.map(n=>{
+      const c=cCor[n.criticidade]||'#8b98a8';
+      return `<div class="occ rise" style="border-color:${c}55;background:${c}11">
+        <div class="occ-top">
+          <div class="occ-t">${esc(n.descricao||n.ativo_tipo||'Não conformidade')}</div>
+          <span class="badge" style="color:${c};border-color:${c}66">${(n.criticidade||'').toUpperCase()}</span>
+        </div>
+        <div class="occ-l"><i data-lucide="map-pin" style="color:var(--muted)"></i> ${esc(n.area||'Área não informada')} · ${esc(n.ativo_tipo||'')}</div>
+        <div class="occ-l"><i data-lucide="clock" style="color:var(--muted)"></i> ${n.status==='tratamento'?'Em tratamento':'Aberta'}${n.prazo?(' · prazo '+fmtData(n.prazo)):''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---- viaturas ----
+  $('vcount').textContent = (d.viaturas||[]).length+' un.';
+  $('viatBox').innerHTML=(d.viaturas||[]).map(v=>{
+    const m=VST[norm(v.status)]||{cor:'#8b98a8',rotulo:v.status||'—'};
+    const pulse = norm(v.status)==='atendimento'?'pulse':'';
+    return `<div class="card vcard" onclick="toggleV(this)">
+      <div class="vtop"><span class="vdotc ${pulse}" style="background:${m.cor}"></span><span class="vstat" style="color:${m.cor}">${m.rotulo}</span></div>
+      <div class="vname">${esc(v.prefixo||v.modelo||'Viatura')}</div>
+      <div class="vdet">
+        <div><span>Modelo</span><b>${esc(v.modelo||'—')}</b></div>
+        <div><span>KM</span><b>${v.quilometragem!=null?Number(v.quilometragem).toLocaleString('pt-BR'):'—'}</b></div>
+        <div><span>Combustível</span><b>${v.combustivel_pct!=null?v.combustivel_pct+'%':'—'}</b></div>
+        ${v.observacoes?`<div style="margin-top:4px;color:var(--muted)">${esc(v.observacoes)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('') || '<div class="card empty">Sem viaturas cadastradas.</div>';
+
+  // ---- efetivo ----
+  const ativo=(d.efetivo||[]).filter(e=>norm(e.status)==='ativo');
+  const oper=(d.efetivo||[]).filter(e=>norm(e.tipo)==='operacional');
+  const adm=(d.efetivo||[]).filter(e=>norm(e.tipo)==='administrativo');
+  const bloq=(d.efetivo||[]).filter(e=>norm(e.status)!=='ativo');
+  $('efetV').innerHTML = ativo.length+'<span style="font-size:16px;color:var(--muted)">/'+(d.efetivo||[]).length+'</span>';
+  $('efetS').textContent = oper.length+' operacionais · '+adm.length+' adm.';
+  $('efetSub').innerHTML = (d.efetivo||[]).map(e=>{
+    const ok=norm(e.status)==='ativo';
+    return `<div class="litem"><div class="lt"><b>${esc(e.nome||'—')}</b>
+      <span class="tag" style="color:${ok?'#16a34a':'#ef4444'};border-color:${(ok?'#16a34a':'#ef4444')}66">${ok?'ativo':esc(e.status||'—')}</span></div>
+      <div class="ld">${esc(e.funcao||'')} · ${esc(e.tipo||'')}${e.turno?(' · turno '+esc(e.turno)):''}</div></div>`;
+  }).join('');
+  $('efetCard').onclick=()=>$('efetCard').classList.toggle('open');
+
+  // ---- inspeções: conformidade média (30d, senão geral) ----
+  const ins=d.insp||[]; const now=Date.now();
+  const d30=ins.filter(i=>i.created_at && (now-new Date(i.created_at).getTime())<=30*864e5);
+  const base=d30.length?d30:ins;
+  const conf=base.length?Math.round(base.reduce((a,i)=>a+(i.conformidade_pct||0),0)/base.length):null;
+  $('inspV').textContent = conf!=null?conf+'%':'—';
+  $('inspV').style.color = conf==null?'#8b98a8':(conf>=90?'#16a34a':conf>=75?'#f59e0b':'#ef4444');
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const inspHoje=ins.filter(i=>i.created_at && new Date(i.created_at).toLocaleDateString('pt-BR')===hoje).length;
+  $('inspS').textContent = (d30.length?'média 30 dias':'média geral')+' · '+inspHoje+' hoje';
+
+  // ---- NCs (linha) ----
+  $('ncV').textContent = ncAbertas.length;
+  $('ncV').style.color = ncAbertas.length?'#f59e0b':'#16a34a';
+  $('ncIcon').style.color = ncAbertas.length?'#f59e0b':'#16a34a';
+  const ncTrat=(d.ncs||[]).filter(n=>n.status==='tratamento');
+  $('ncSub').innerHTML = (d.ncs||[]).length? (d.ncs||[]).map(n=>{
+    const c=cCor[n.criticidade]||'#8b98a8';
+    return `<div class="litem"><div class="lt"><b>${esc(n.descricao||n.ativo_tipo||'NC')}</b>
+      <span class="tag" style="color:${c};border-color:${c}66">${(n.criticidade||'').toUpperCase()}</span></div>
+      <div class="ld">${esc(n.area||'')} · ${n.status==='tratamento'?'em tratamento':'aberta'}${n.prazo?(' · prazo '+fmtData(n.prazo)):''}</div></div>`;
+  }).join('') : '<div class="litem ld">Nenhuma NC em aberto.</div>';
+
+  // ---- TST (linha) ----
+  const tstP=(d.tst||[]);
+  $('tstV').textContent = tstP.length;
+  $('tstV').style.color = docsVencidos.length?'#ef4444':(tstP.length?'#f59e0b':'#16a34a');
+  $('tstIcon').style.color = docsVencidos.length?'#ef4444':(tstP.length?'#f59e0b':'#16a34a');
+  const tCor={vencido:'#ef4444',vencendo:'#f59e0b',pendente:'#3b82f6'};
+  $('tstSub').innerHTML = tstP.length? tstP.map(t=>{
+    const c=tCor[norm(t.status)]||'#8b98a8';
+    return `<div class="litem"><div class="lt"><b>${esc(t.tipo||'Documento')}</b>
+      <span class="tag" style="color:${c};border-color:${c}66">${(t.status||'').toUpperCase()}</span></div>
+      <div class="ld">${esc(t.descricao||'')}${t.vencimento?(' · vence '+fmtData(t.vencimento)):''}</div></div>`;
+  }).join('') : '<div class="litem ld">Todos os documentos em dia.</div>';
+
+  // ---- reservatórios ----
+  const vistos={}; const ult=[];
+  (d.plano||[]).forEach(p=>{ if(!vistos[p.reservatorio]){vistos[p.reservatorio]=1; ult.push(p);} });
+  ult.sort((a,b)=>a.reservatorio-b.reservatorio);
+  $('resBox').innerHTML = ult.length? ult.map((p,i)=>{
+    const n=p.nivel_pct??0; const cor=n>=60?'#16a34a':n>=30?'#f59e0b':'#ef4444';
+    return `${i>0?'<div class="divider"></div>':''}<div class="res">
+      <span style="font-size:12.5px;font-weight:600;min-width:74px">Reserv. ${p.reservatorio}</span>
+      <div class="bar"><i style="width:${Math.max(0,Math.min(100,n))}%;background:${cor}"></i></div>
+      <span class="mono" style="font-size:13px;font-weight:700;color:${cor};min-width:38px;text-align:right">${n}%</span>
+    </div>`;
+  }).join('') : '<div class="empty">Sem leituras de reservatório.</div>';
+
+  lucide.createIcons();
+}
+
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtData(d){ try{return new Date(d+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return d;} }
+
+// ====== INÍCIO ======
+lucide.createIcons();
+carregar();
+setInterval(()=>carregar(false), 30000); // atualiza a cada 30s
+</script>
+</body>
+</html>
