@@ -62,6 +62,27 @@
   .loading{text-align:center;padding:40px;color:var(--muted)}
   .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
   @keyframes s{to{transform:rotate(360deg)}}
+  /* painel educativo */
+  .edu-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:#fff;border:1.5px solid var(--teal);color:var(--teal);border-radius:12px;padding:14px 16px;font-size:14px;font-weight:700;margin-bottom:14px}
+  .edu-toggle #eduArrow{font-size:18px;font-weight:800}
+  .edu{margin-bottom:14px}
+  .edu .card{margin-bottom:10px}
+  .edu h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 10px}
+  .classes{display:flex;flex-direction:column;gap:8px}
+  .cls{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:#f7f9fc;border:1px solid var(--line)}
+  .cls .ic{width:40px;height:40px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+  .cls .letter{font-size:18px;font-weight:800;color:#fff}
+  .cls .txt b{display:block;font-size:14px}
+  .cls .txt span{font-size:12px;color:var(--muted)}
+  .steps{margin:0;padding-left:0;list-style:none;counter-reset:st}
+  .steps li{counter-increment:st;position:relative;padding:8px 0 8px 38px;font-size:14px;line-height:1.35;border-bottom:1px solid var(--line)}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{content:counter(st);position:absolute;left:0;top:7px;width:26px;height:26px;background:var(--teal);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .funciona{font-size:14px;line-height:1.45;color:#2b3a4d}
+  .att{background:var(--ncbg);border-left:4px solid var(--nc);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.4;color:#7a1d1d;font-weight:600}
+  .emerg{text-align:center;font-size:13px;font-weight:700;color:var(--navy);background:var(--warnbg);border-radius:10px;padding:10px;margin-top:4px}
+  .lock-card{text-align:center}
+  .lock-ic{width:62px;height:62px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 12px}
   @media print{header,.tabs,.no-print{display:none}.qr-item{page-break-inside:avoid}}
 </style>
 </head>
@@ -87,9 +108,20 @@
 <script>
 /* ===== CONFIG SGO-ETP ===== */
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
-const SUPABASE_KEY = "sb_publishable_vHGgWaZedn7WvOX6YI8Jag_TZRqQAdS";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const BUCKET = "inspecao-fotos";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let sb = null, DEMO = false;
+try { if (window.supabase) { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } else { DEMO = true; } }
+catch(e){ DEMO = true; }
+
+/* Dados de exemplo para modo demonstração (quando não há conexão — ex.: prévia do chat) */
+const MOCK_EXT = [
+  {id:'demo-1', codigo:'EXT-TERM-001', tipo:'ABC', capacidade:'6 kg', local:'Portaria principal', area:'Terminal', validade_carga:'2027-05-31', validade_hidrostatico:'2031-05-31', status:'ativo'},
+  {id:'demo-2', codigo:'EXT-TERM-002', tipo:'ABC', capacidade:'6 kg', local:'Corredor administrativo', area:'Terminal', validade_carga:'2027-05-31', validade_hidrostatico:'2031-05-31', status:'ativo'},
+  {id:'demo-3', codigo:'EXT-TERM-003', tipo:'CO2', capacidade:'6 kg', local:'Sala elétrica', area:'Terminal', validade_carga:'2026-11-30', validade_hidrostatico:'2030-11-30', status:'ativo'}
+];
+const MOCK_EFETIVO = [{id:'d1',nome:'Brigadista (demo)'},{id:'d2',nome:'Supervisor (demo)'}];
+function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão (a prévia do chat bloqueia o acesso). Publique no GitHub para usar os dados reais.</div>' : ''; }
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
 const ITENS = [
@@ -105,6 +137,8 @@ const ITENS = [
 
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
+let unlocked = false;                  // controla o acesso à inspeção
+const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
@@ -126,17 +160,25 @@ function setView(v){
 }
 
 async function carregarEfetivo(){
-  const { data } = await sb.from('efetivo').select('id,nome').eq('status','ativo').order('nome');
-  state.efetivo = data || [];
+  if(!sb){ DEMO=true; state.efetivo=MOCK_EFETIVO; return; }
+  try{
+    const { data, error } = await sb.from('efetivo').select('id,nome').eq('status','ativo').order('nome');
+    if(error) throw error;
+    state.efetivo = data || [];
+  }catch(e){ DEMO=true; state.efetivo=MOCK_EFETIVO; }
 }
 
 /* ---------- Lista / seleção ---------- */
 async function listaExtintores(){
   app.innerHTML = '<div class="loading"><div class="spin"></div>Buscando extintores…</div>';
-  const { data, error } = await sb.from('extintores').select('*').eq('status','ativo').order('codigo');
-  if(error){ app.innerHTML = erro(error.message); return; }
-  if(!data.length){ app.innerHTML = '<div class="card">Nenhum extintor cadastrado ainda.</div>'; return; }
-  app.innerHTML = '<h2 class="sec">Selecione o extintor</h2>' + data.map(e=>{
+  let data;
+  if(!sb){ DEMO=true; data=MOCK_EXT; }
+  else{
+    try{ const r = await sb.from('extintores').select('*').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
+    catch(e){ DEMO=true; data=MOCK_EXT; }
+  }
+  if(!data.length){ app.innerHTML = bannerDemo()+'<div class="card">Nenhum extintor cadastrado ainda.</div>'; return; }
+  app.innerHTML = bannerDemo()+'<h2 class="sec">Selecione o extintor</h2>' + data.map(e=>{
     const dias = diasAte(e.validade_carga);
     const aviso = dias!==null && dias<0 ? ' · ⚠ carga vencida' : (dias!==null && dias<30 ? ` · vence em ${dias}d` : '');
     return `<div class="list-item" onclick="abrirExtintor('${e.codigo}')">
@@ -148,10 +190,49 @@ async function listaExtintores(){
 /* ---------- Tela de inspeção ---------- */
 async function abrirExtintor(codigo){
   app.innerHTML = '<div class="loading"><div class="spin"></div>Carregando extintor…</div>';
-  const { data, error } = await sb.from('extintores').select('*').eq('codigo',codigo).maybeSingle();
-  if(error || !data){ app.innerHTML = erro(`Extintor "${codigo}" não encontrado.`); return; }
+  let data;
+  if(!sb){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
+  else{
+    try{ const r = await sb.from('extintores').select('*').eq('codigo',codigo).maybeSingle(); if(r.error) throw r.error; data=r.data; }
+    catch(e){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
+  }
+  if(!data){ app.innerHTML = erro(`Extintor "${codigo}" não encontrado.`); return; }
   state.extintor = data; state.respostas = {}; state.foto = null;
   renderInspecao();
+}
+
+/* ---------- Conteúdo educativo (SVG embutido, funciona offline) ---------- */
+const FIRE_CLASSES = {
+  A:{color:'#1f9d57', label:'Classe A — Sólidos', sub:'Madeira, papel, tecido, plástico', svg:'<path d="M12 2c1 3-1 4-1 6 0 1 1 2 2 2 2 0 3-2 3-2 1 2 2 4 2 6a6 6 0 11-12 0c0-3 2-5 3-7 1 2 2 2 3 1 1-2-1-3-1-6z" fill="#fff"/>'},
+  B:{color:'#d63131', label:'Classe B — Líquidos inflamáveis', sub:'Gasolina, óleo, diesel, tinta', svg:'<path d="M12 3s6 7 6 11a6 6 0 11-12 0c0-4 6-11 6-11z" fill="#fff"/>'},
+  C:{color:'#2563c9', label:'Classe C — Elétricos', sub:'Equipamentos energizados', svg:'<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="#fff"/>'}
+};
+const EDU = {
+  ABC:{classes:['A','B','C'], funciona:'Pó químico seco (fosfato monoamônico) que interrompe a reação química do fogo e forma uma camada que abafa as chamas. É o mais versátil — cobre as três classes mais comuns.', atencao:'Deixa resíduo de pó (limpe o equipamento depois) e reduz a visibilidade ao acionar.'},
+  BC:{classes:['B','C'], funciona:'Pó químico à base de bicarbonato que interrompe a reação química do fogo. Não combate fogo em materiais sólidos.', atencao:'Não use em incêndio de papel, madeira ou tecido (classe A) — não é eficaz.'},
+  CO2:{classes:['B','C'], funciona:'Gás carbônico que abafa o fogo retirando o oxigênio e ainda resfria. Não deixa resíduo — ideal para painéis e equipamentos elétricos/eletrônicos.', atencao:'O difusor fica muito gelado — não toque na parte metálica. Evite ambiente fechado sem ventilação (risco de asfixia) e perde eficácia ao ar livre/vento.'},
+  AGUA:{classes:['A'], funciona:'Água sob pressão que resfria o material em combustão abaixo da temperatura de ignição. Indicado apenas para sólidos.', atencao:'NUNCA use em equipamento elétrico energizado (risco de choque) nem em líquidos inflamáveis (espalha o fogo).'},
+  ESPUMA:{classes:['A','B'], funciona:'Forma uma película de espuma que abafa as chamas e isola a superfície de líquidos inflamáveis, evitando a reignição.', atencao:'Não use em equipamento elétrico energizado (risco de choque).'}
+};
+const PASSOS = [
+  'Use o extintor na posição vertical e puxe a trava rompendo o lacre.',
+  'Segure firme na mangueira e aperte o gatilho até o fim.',
+  'Dirija o jato à base do fogo, espalhando — sempre com o vento nas costas.'
+];
+function eduContent(tipo){
+  const e = EDU[tipo] || EDU.ABC;
+  const badges = e.classes.map(c=>{const f=FIRE_CLASSES[c];return `<div class="cls"><div class="ic" style="background:${f.color}"><svg width="22" height="22" viewBox="0 0 24 24">${f.svg}</svg></div><div class="txt"><b>${f.label}</b><span>${f.sub}</span></div></div>`;}).join('');
+  return `
+    <div class="card"><h3>Para que serve</h3><div class="classes">${badges}</div></div>
+    <div class="card"><h3>Como funciona</h3><p class="funciona">${e.funciona}</p></div>
+    <div class="card"><h3>Como usar</h3><ol class="steps">${PASSOS.map(p=>`<li>${p}</li>`).join('')}</ol>
+      <div class="emerg">📞 Central de Emergência: 0800 091 3818</div></div>
+    <div class="card"><h3>Atenção</h3><div class="att">⚠ ${e.atencao}</div></div>`;
+}
+function toggleEdu(){
+  const p=document.getElementById('eduPanel'); const open=p.style.display==='none';
+  p.style.display=open?'block':'none';
+  document.getElementById('eduArrow').textContent=open?'⌄':'›';
 }
 
 function renderInspecao(){
@@ -162,6 +243,7 @@ function renderInspecao(){
   else if(dias!==null && dias<30) alerta = `<div class="alert warn">⏱ Carga vence em ${dias} dia(s) — ${fmtData(e.validade_carga)}</div>`;
 
   app.innerHTML = `
+    ${bannerDemo()}
     <div class="card id-card">
       <div class="id-top"><div class="codigo">${e.codigo}</div><div class="badge">${e.tipo} · ${e.capacidade||''}</div></div>
       <div class="grid2">
@@ -173,6 +255,28 @@ function renderInspecao(){
       ${alerta}
     </div>
 
+    <button class="edu-toggle no-print" onclick="toggleEdu()"><span>ℹ️ Sobre este extintor / Como usar</span><span id="eduArrow">›</span></button>
+    <div id="eduPanel" class="edu" style="display:none">${eduContent(e.tipo)}</div>
+
+    <div id="inspArea">${unlocked ? inspecaoHTML() : lockHTML()}</div>
+    ${getParam('ext')?'':'<button class="ghost no-print" onclick="listaExtintores()">‹ Voltar à lista</button>'}
+  `;
+}
+
+/* Bloqueio da inspeção (piloto: PIN da equipe). A educação acima fica aberta a todos. */
+function lockHTML(){
+  return `
+    <div class="card lock-card">
+      <div class="lock-ic">🔒</div>
+      <h2 style="margin:0 0 4px;font-size:17px">Inspeção restrita à equipe</h2>
+      <p style="color:var(--muted);font-size:14px;margin:0 0 14px">Apenas a equipe de bombeiros. Informe o código da equipe para liberar o checklist.</p>
+      <input id="pin" type="password" inputmode="numeric" placeholder="Código da equipe" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key==='Enter')desbloquear()">
+      <button class="save" style="margin-top:12px" onclick="desbloquear()">Desbloquear inspeção</button>
+    </div>`;
+}
+
+function inspecaoHTML(){
+  return `
     <div class="card">
       <h2 class="sec">Checklist de inspeção</h2>
       ${ITENS.map((it,i)=>`
@@ -206,9 +310,13 @@ function renderInspecao(){
       <textarea id="obs" placeholder="Anote qualquer detalhe (opcional)…"></textarea>
     </div>
 
-    <button id="btnSalvar" class="save" onclick="salvar()">Salvar inspeção</button>
-    ${getParam('ext')?'':'<button class="ghost no-print" onclick="listaExtintores()">‹ Voltar à lista</button>'}
-  `;
+    <button id="btnSalvar" class="save" onclick="salvar()">Salvar inspeção</button>`;
+}
+
+function desbloquear(){
+  const v=(document.getElementById('pin').value||'').trim();
+  if(v===PIN_EQUIPE){ unlocked=true; document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
 function resp(i,ok){
@@ -245,6 +353,15 @@ async function salvar(){
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.classList.add('busy'); btn.textContent='Salvando…';
 
+  // monta checklist e conformidade
+  const checklist=ITENS.map((it,i)=>({item:it, conforme:state.respostas[i]}));
+  const conformes=checklist.filter(c=>c.conforme).length;
+  const pct=Math.round(conformes/total*100);
+  const condicao = pct===100 ? 'conforme' : 'nao_conforme';
+
+  // modo demonstração: não grava, só mostra o resultado
+  if(DEMO || !sb){ setTimeout(()=>telaSucesso(pct, condicao), 400); return; }
+
   try{
     // 1) upload da foto (se houver)
     let evidencias=[];
@@ -253,13 +370,8 @@ async function salvar(){
       const { error:upErr } = await sb.storage.from(BUCKET).upload(nome, state.foto, {contentType:'image/jpeg'});
       if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
     }
-    // 2) monta checklist e conformidade
-    const checklist=ITENS.map((it,i)=>({item:it, conforme:state.respostas[i]}));
-    const conformes=checklist.filter(c=>c.conforme).length;
-    const pct=Math.round(conformes/total*100);
-    const condicao = pct===100 ? 'conforme' : 'nao_conforme';
 
-    // 3) insere na tabela inspecoes existente
+    // 2) insere na tabela inspecoes existente
     const { error:insErr } = await sb.from('inspecoes').insert({
       tipo:'extintor', area:state.extintor.area, extintor_id:state.extintor.id,
       responsavel_id:inspetor, checklist, conformidade_pct:pct, condicao,
@@ -267,7 +379,7 @@ async function salvar(){
     });
     if(insErr) throw insErr;
 
-    // 4) atualiza última inspeção do extintor
+    // 3) atualiza última inspeção do extintor
     await sb.from('extintores').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id);
 
     telaSucesso(pct, condicao);
@@ -291,13 +403,22 @@ function telaSucesso(pct, condicao){
 /* ---------- Aba QR Codes ---------- */
 async function telaQR(){
   app.innerHTML='<div class="loading"><div class="spin"></div>Gerando QR Codes…</div>';
-  const { data } = await sb.from('extintores').select('codigo,tipo,local').eq('status','ativo').order('codigo');
+  let data;
+  if(!sb){ DEMO=true; data=MOCK_EXT; }
+  else{
+    try{ const r = await sb.from('extintores').select('codigo,tipo,local').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
+    catch(e){ DEMO=true; data=MOCK_EXT; }
+  }
   const base = location.href.split('?')[0];
-  app.innerHTML = '<h2 class="sec no-print">Imprima e cole em cada extintor</h2>' +
-    (data||[]).map(e=>`<div class="qr-item"><canvas id="q-${e.codigo}"></canvas>
+  if(typeof QRCode==='undefined'){
+    app.innerHTML = bannerDemo()+'<div class="card"><div class="alert warn">Os QR Codes precisam de internet para serem gerados. Abra a página publicada no GitHub para gerar e imprimir.</div></div>';
+    return;
+  }
+  app.innerHTML = bannerDemo()+'<h2 class="sec no-print">Imprima e cole em cada extintor</h2>' +
+    data.map(e=>`<div class="qr-item"><canvas id="q-${e.codigo}"></canvas>
       <div class="c">${e.codigo}</div><div class="m">${e.tipo} · ${e.local||''}</div></div>`).join('') +
     '<button class="ghost no-print" onclick="window.print()">🖨 Imprimir todos</button>';
-  (data||[]).forEach(e=>{
+  data.forEach(e=>{
     QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?ext=${e.codigo}`, {width:200,margin:1});
   });
 }
