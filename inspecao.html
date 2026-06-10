@@ -197,7 +197,13 @@ async function abrirExtintor(codigo){
     catch(e){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
   }
   if(!data){ app.innerHTML = erro(`Extintor "${codigo}" não encontrado.`); return; }
-  state.extintor = data; state.respostas = {}; state.foto = null;
+  state.extintor = data; state.respostas = {}; state.foto = null; state.ultimaInsp = null;
+  if(sb && !DEMO){
+    try{
+      const r = await sb.from('inspecoes').select('created_at,condicao').eq('extintor_id',data.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+      if(r.data) state.ultimaInsp = {data:(''+r.data.created_at).slice(0,10), condicao:r.data.condicao};
+    }catch(e){}
+  }
   renderInspecao();
 }
 
@@ -237,22 +243,14 @@ function toggleEdu(){
 
 function renderInspecao(){
   const e = state.extintor;
-  const dias = diasAte(e.validade_carga);
-  let alerta = '<div class="alert ok">✓ Carga dentro da validade</div>';
-  if(dias!==null && dias<0) alerta = `<div class="alert nc">⚠ Carga VENCIDA em ${fmtData(e.validade_carga)}</div>`;
-  else if(dias!==null && dias<30) alerta = `<div class="alert warn">⏱ Carga vence em ${dias} dia(s) — ${fmtData(e.validade_carga)}</div>`;
-
   app.innerHTML = `
     ${bannerDemo()}
     <div class="card id-card">
       <div class="id-top"><div class="codigo">${e.codigo}</div><div class="badge">${e.tipo} · ${e.capacidade||''}</div></div>
       <div class="grid2">
         <div class="field"><label>Local</label><span>${e.local||'—'}</span></div>
-        <div class="field"><label>Equipe</label><span>${e.equipe||'—'}</span></div>
-        <div class="field"><label>Validade carga</label><span>${fmtData(e.validade_carga)}</span></div>
-        <div class="field"><label>Teste hidrostático</label><span>${fmtData(e.validade_hidrostatico)}</span></div>
+        <div class="field"><label>Tipo</label><span>Pó químico ${e.tipo}</span></div>
       </div>
-      ${alerta}
     </div>
 
     <button class="edu-toggle no-print" onclick="toggleEdu()"><span>ℹ️ Sobre este extintor / Como usar</span><span id="eduArrow">›</span></button>
@@ -276,7 +274,31 @@ function lockHTML(){
 }
 
 function inspecaoHTML(){
+  const e = state.extintor;
+  const dias = diasAte(e.validade_carga);
+  let alerta = '<div class="alert ok">✓ Carga dentro da validade</div>';
+  if(dias!==null && dias<0) alerta = `<div class="alert nc">⚠ Carga VENCIDA em ${fmtData(e.validade_carga)}</div>`;
+  else if(dias!==null && dias<30) alerta = `<div class="alert warn">⏱ Carga vence em ${dias} dia(s) — ${fmtData(e.validade_carga)}</div>`;
+  let ultima = '—';
+  if(state.ultimaInsp){ ultima = `${fmtData(state.ultimaInsp.data)} · ${state.ultimaInsp.condicao==='conforme'?'Conforme':'Não conforme'}`; }
+  else if(e.ultima_inspecao){ ultima = fmtData((''+e.ultima_inspecao).slice(0,10)); }
+
   return `
+    <div class="card id-card">
+      <h2 class="sec">Dados operacionais</h2>
+      <div class="grid2">
+        <div class="field"><label>Equipe</label><span>${e.equipe||'—'}</span></div>
+        <div class="field"><label>Última inspeção</label><span>${ultima}</span></div>
+        <div class="field"><label>Validade carga</label><span>${fmtData(e.validade_carga)}</span></div>
+        <div class="field"><label>Teste hidrostático</label><span>${fmtData(e.validade_hidrostatico)}</span></div>
+        <div class="field"><label>Nº de série</label><span>${e.numero_serie||'—'}</span></div>
+        <div class="field"><label>Selo Inmetro</label><span>${e.selo_inmetro||'—'}</span></div>
+      </div>
+      ${alerta}
+      <button class="ghost no-print" style="margin-top:10px" onclick="abrirTroca()">🔄 Trocar extintor (mantém a TAG)</button>
+      <div id="trocaBox"></div>
+    </div>
+
     <div class="card">
       <h2 class="sec">Checklist de inspeção</h2>
       ${ITENS.map((it,i)=>`
@@ -317,6 +339,44 @@ function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
   if(v===PIN_EQUIPE){ unlocked=true; document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
+}
+
+/* ---- Troca de extintor (mantém a TAG/posição) ---- */
+function abrirTroca(){
+  const box=document.getElementById('trocaBox');
+  if(box.dataset.open){ box.innerHTML=''; box.dataset.open=''; return; }
+  box.dataset.open='1';
+  const e=state.extintor;
+  box.innerHTML=`
+    <div style="margin-top:12px;padding:12px;border:1.5px dashed var(--teal);border-radius:10px;background:#f3fbfa">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">A TAG <b>${e.codigo}</b> continua no local. Informe o extintor que entrou no lugar:</p>
+      <input id="novaSerie" placeholder="Novo nº de série" style="margin-bottom:8px">
+      <input id="novoSelo" placeholder="Novo selo Inmetro" style="margin-bottom:8px">
+      <button class="save" onclick="registrarTroca()">Confirmar troca</button>
+    </div>`;
+}
+
+async function registrarTroca(){
+  const serie=(document.getElementById('novaSerie').value||'').trim();
+  const selo=(document.getElementById('novoSelo').value||'').trim();
+  if(!serie && !selo){ alert('Informe ao menos o novo nº de série ou o novo selo.'); return; }
+  const e=state.extintor;
+  if(DEMO || !sb){
+    alert('Troca registrada (modo demonstração).');
+    e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro;
+    document.getElementById('inspArea').innerHTML=inspecaoHTML(); return;
+  }
+  try{
+    await sb.from('trocas_extintores').insert({
+      extintor_id:e.id, codigo:e.codigo,
+      serie_anterior:e.numero_serie, selo_anterior:e.selo_inmetro,
+      serie_nova:serie||null, selo_nova:selo||null
+    });
+    await sb.from('extintores').update({numero_serie:serie||e.numero_serie, selo_inmetro:selo||e.selo_inmetro}).eq('id',e.id);
+    e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro;
+    alert('Troca registrada. A TAG continua a mesma.');
+    document.getElementById('inspArea').innerHTML=inspecaoHTML();
+  }catch(err){ alert('Erro ao registrar troca: '+(err.message||err)); }
 }
 
 function resp(i,ok){
