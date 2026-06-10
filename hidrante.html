@@ -154,12 +154,14 @@ const ITENS = [
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
+try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
 function diasAte(d){ if(!d) return null; return Math.ceil((new Date(d)-new Date())/86400000); }
 function getParam(k){ return new URLSearchParams(location.search).get(k); }
+function lastInspetor(){ try{ return sessionStorage.getItem('sgo_inspetor')||''; }catch(e){ return ''; } }
 
 /* ---------- Router ---------- */
 async function init(){
@@ -213,7 +215,13 @@ async function abrirExtintor(codigo){
     catch(e){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
   }
   if(!data){ app.innerHTML = erro(`Hidrante "${codigo}" não encontrado.`); return; }
-  state.extintor = data; state.respostas = {}; state.foto = null;
+  state.extintor = data; state.respostas = {}; state.foto = null; state.ultimaInsp = null;
+  if(sb && !DEMO){
+    try{
+      const r = await sb.from('inspecoes').select('created_at,condicao').eq('hidrante_id',data.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+      if(r.data) state.ultimaInsp = {data:(''+r.data.created_at).slice(0,10), condicao:r.data.condicao};
+    }catch(e){}
+  }
   renderInspecao();
 }
 
@@ -246,11 +254,6 @@ function toggleEdu(){
 
 function renderInspecao(){
   const e = state.extintor;
-  const dias = diasAte(e.venc_hidrostatico);
-  let alerta = '<div class="alert ok">✓ Abrigo cadastrado e ativo</div>';
-  if(dias!==null && dias<0) alerta = `<div class="alert nc">⚠ Teste hidrostático das mangueiras VENCIDO em ${fmtData(e.venc_hidrostatico)}</div>`;
-  else if(dias!==null && dias<30) alerta = `<div class="alert warn">⏱ Teste das mangueiras vence em ${dias} dia(s) — ${fmtData(e.venc_hidrostatico)}</div>`;
-
   app.innerHTML = `
     ${bannerDemo()}
     <div class="card id-card">
@@ -258,10 +261,7 @@ function renderInspecao(){
       <div class="grid2">
         <div class="field"><label>Local</label><span>${e.local||'—'}</span></div>
         <div class="field"><label>Área</label><span>${e.area||'—'}</span></div>
-        <div class="field"><label>TAG</label><span>${e.tag||'—'}</span></div>
-        <div class="field"><label>Teste hidrostático</label><span>${fmtData(e.venc_hidrostatico)}</span></div>
       </div>
-      ${alerta}
     </div>
 
     <button class="edu-toggle no-print" onclick="toggleEdu()"><span>ℹ️ Sobre o abrigo de hidrante / Como usar</span><span id="eduArrow">›</span></button>
@@ -296,7 +296,26 @@ function inspecaoHTML(){
         <button id="nc${x.i}" onclick="resp(${x.i},false)">NC</button>
       </div>
     </div>`;
+  const e = state.extintor;
+  const dias = diasAte(e.venc_hidrostatico);
+  let alerta = '<div class="alert ok">✓ Abrigo ativo</div>';
+  if(dias!==null && dias<0) alerta = `<div class="alert nc">⚠ Teste hidrostático das mangueiras VENCIDO em ${fmtData(e.venc_hidrostatico)}</div>`;
+  else if(dias!==null && dias<30) alerta = `<div class="alert warn">⏱ Teste das mangueiras vence em ${dias} dia(s) — ${fmtData(e.venc_hidrostatico)}</div>`;
+  let ultima = '—';
+  if(state.ultimaInsp){ ultima = `${fmtData(state.ultimaInsp.data)} · ${state.ultimaInsp.condicao==='conforme'?'Conforme':'Não conforme'}`; }
+  else if(e.ultima_inspecao){ ultima = fmtData((''+e.ultima_inspecao).slice(0,10)); }
   return `
+    <div class="card id-card">
+      <h2 class="sec">Dados do abrigo</h2>
+      <div class="grid2">
+        <div class="field"><label>TAG</label><span>${e.tag||e.codigo||'—'}</span></div>
+        <div class="field"><label>Turno</label><span>${e.turno||'—'}</span></div>
+        <div class="field"><label>Teste hidrostático</label><span>${fmtData(e.venc_hidrostatico)}</span></div>
+        <div class="field"><label>Última inspeção</label><span>${ultima}</span></div>
+      </div>
+      ${alerta}
+    </div>
+
     <div class="card">
       <h2 class="sec">Coluna do hidrante</h2>
       ${coluna.map(row).join('')}
@@ -314,7 +333,7 @@ function inspecaoHTML(){
       <h2 class="sec">Inspetor</h2>
       <select id="inspetor">
         <option value="">Selecione o responsável…</option>
-        ${state.efetivo.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('')}
+        ${state.efetivo.map(f=>`<option value="${f.id}" ${f.id===lastInspetor()?'selected':''}>${f.nome}</option>`).join('')}
       </select>
     </div>
 
@@ -336,7 +355,7 @@ function inspecaoHTML(){
 
 function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -370,6 +389,7 @@ async function salvar(){
   if(respondidos<total){ alert(`Marque todos os itens (${respondidos}/${total}).`); return; }
   const inspetor=document.getElementById('inspetor').value;
   if(!inspetor){ alert('Selecione o inspetor responsável.'); return; }
+  try{ sessionStorage.setItem('sgo_inspetor', inspetor); }catch(e){}
 
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.classList.add('busy'); btn.textContent='Salvando…';

@@ -138,12 +138,14 @@ const ITENS = [
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
+try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
 function diasAte(d){ if(!d) return null; return Math.ceil((new Date(d)-new Date())/86400000); }
 function getParam(k){ return new URLSearchParams(location.search).get(k); }
+function lastInspetor(){ try{ return sessionStorage.getItem('sgo_inspetor')||''; }catch(e){ return ''; } }
 
 /* ---------- Router ---------- */
 async function init(){
@@ -315,7 +317,7 @@ function inspecaoHTML(){
       <h2 class="sec">Inspetor</h2>
       <select id="inspetor">
         <option value="">Selecione o responsável…</option>
-        ${state.efetivo.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('')}
+        ${state.efetivo.map(f=>`<option value="${f.id}" ${f.id===lastInspetor()?'selected':''}>${f.nome}</option>`).join('')}
       </select>
     </div>
 
@@ -337,7 +339,7 @@ function inspecaoHTML(){
 
 function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -409,6 +411,7 @@ async function salvar(){
   if(respondidos<total){ alert(`Marque todos os itens (${respondidos}/${total}).`); return; }
   const inspetor=document.getElementById('inspetor').value;
   if(!inspetor){ alert('Selecione o inspetor responsável.'); return; }
+  try{ sessionStorage.setItem('sgo_inspetor', inspetor); }catch(e){}
 
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.classList.add('busy'); btn.textContent='Salvando…';
