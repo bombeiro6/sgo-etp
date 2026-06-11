@@ -36,10 +36,11 @@
   .check{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
   .check:last-child{border-bottom:0}
   .check .lbl{font-size:14px;font-weight:600;flex:1;line-height:1.25}
-  .toggle{display:flex;gap:6px;flex:0 0 auto}
-  .toggle button{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;color:var(--muted);min-width:48px}
+  .toggle{display:flex;gap:5px;flex:0 0 auto}
+  .toggle button{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:8px 10px;font-size:13px;font-weight:700;color:var(--muted);min-width:42px}
   .toggle button.on-ok{background:var(--ok);border-color:var(--ok);color:#fff}
   .toggle button.on-nc{background:var(--nc);border-color:var(--nc);color:#fff}
+  .toggle button.on-na{background:#64748b;border-color:#64748b;color:#fff}
   select,textarea,input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
   textarea{min-height:70px;resize:vertical}
   .photo-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed var(--teal);color:var(--teal);background:#f3fbfa;border-radius:10px;padding:16px;font-weight:700;font-size:14px;width:100%;cursor:pointer}
@@ -125,14 +126,25 @@ function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
 const ITENS = [
-  "Lacre / trava de segurança íntegro",
-  "Manômetro na faixa verde (pressão OK)",
-  "Mangueira e difusor sem danos",
-  "Sinalização de piso/parede visível",
-  "Acesso desobstruído",
-  "Cilindro sem corrosão ou avaria",
-  "Rótulo legível e validade vigente",
-  "Suporte / fixação adequada"
+  "Rótulo de instrução de uso",
+  "Suporte de parede ou chão",
+  "Sinalização de identificação",
+  "Nº lacre de segurança",
+  "Acesso ao extintor",
+  "Etiqueta de identificação",
+  "Etiqueta de identificação da inspeção",
+  "Pintura",
+  "Cilindro",
+  "Pressurizado",
+  "Manômetro",
+  "Esguicho",
+  "Mangueira",
+  "Gatilho",
+  "Alça",
+  "Selo do Inmetro",
+  "Limpeza",
+  "No prazo",
+  "Rodas"
 ];
 
 const app = document.getElementById('app');
@@ -199,7 +211,7 @@ async function abrirExtintor(codigo){
     catch(e){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
   }
   if(!data){ app.innerHTML = erro(`Extintor "${codigo}" não encontrado.`); return; }
-  state.extintor = data; state.respostas = {}; state.foto = null; state.ultimaInsp = null;
+  state.extintor = data; state.respostas = {}; state.foto = null; state.ultimaInsp = null; retirado = false;
   if(sb && !DEMO){
     try{
       const r = await sb.from('inspecoes').select('created_at,condicao').eq('extintor_id',data.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
@@ -291,14 +303,16 @@ function inspecaoHTML(){
       <div class="grid2">
         <div class="field"><label>Equipe</label><span>${e.equipe||'—'}</span></div>
         <div class="field"><label>Última inspeção</label><span>${ultima}</span></div>
-        <div class="field"><label>Validade carga</label><span>${fmtData(e.validade_carga)}</span></div>
-        <div class="field"><label>Teste hidrostático</label><span>${fmtData(e.validade_hidrostatico)}</span></div>
         <div class="field"><label>Nº de série</label><span>${e.numero_serie||'—'}</span></div>
         <div class="field"><label>Selo Inmetro</label><span>${e.selo_inmetro||'—'}</span></div>
+        <div class="field"><label>Cor do anel</label><span>${e.cor_anel||'—'}</span></div>
+        <div class="field"><label>Fabricante</label><span>${e.fabricante||'—'}</span></div>
+        <div class="field"><label>Ano fabricação</label><span>${e.ano_fabricacao||'—'}</span></div>
+        <div class="field"><label>Última recarga</label><span>${fmtData(e.ultima_recarga)}</span></div>
+        <div class="field"><label>Validade carga</label><span>${fmtData(e.validade_carga)}</span></div>
+        <div class="field"><label>Teste hidrostático</label><span>${fmtData(e.validade_hidrostatico)}</span></div>
       </div>
       ${alerta}
-      <button class="ghost no-print" style="margin-top:10px" onclick="abrirTroca()">🔄 Trocar extintor (mantém a TAG)</button>
-      <div id="trocaBox"></div>
     </div>
 
     <div class="card">
@@ -307,10 +321,20 @@ function inspecaoHTML(){
         <div class="check">
           <div class="lbl">${it}</div>
           <div class="toggle">
-            <button id="ok${i}" onclick="resp(${i},true)">OK</button>
-            <button id="nc${i}" onclick="resp(${i},false)">NC</button>
+            <button id="ok${i}" onclick="resp(${i},'ok')">OK</button>
+            <button id="nc${i}" onclick="resp(${i},'nc')">NC</button>
+            <button id="na${i}" onclick="resp(${i},'na')">NA</button>
           </div>
         </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h2 class="sec">Extintor foi retirado nesta verificação?</h2>
+      <div class="toggle">
+        <button id="ret-nao" class="${retirado?'':'on-ok'}" onclick="setRetirado(false)">NÃO</button>
+        <button id="ret-sim" class="${retirado?'on-nc':''}" onclick="setRetirado(true)">SIM</button>
+      </div>
+      <div id="retiradoBox">${retirado?retiradoFieldsHTML():''}</div>
     </div>
 
     <div class="card">
@@ -343,48 +367,43 @@ function desbloquear(){
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
-/* ---- Troca de extintor (mantém a TAG/posição) ---- */
-function abrirTroca(){
-  const box=document.getElementById('trocaBox');
-  if(box.dataset.open){ box.innerHTML=''; box.dataset.open=''; return; }
-  box.dataset.open='1';
+/* ---- Extintor foi retirado? (troca integrada à inspeção) ---- */
+let retirado = false;
+function retiradoFieldsHTML(){
   const e=state.extintor;
-  box.innerHTML=`
-    <div style="margin-top:12px;padding:12px;border:1.5px dashed var(--teal);border-radius:10px;background:#f3fbfa">
+  return `
+    <div style="margin-top:10px;padding:12px;border:1.5px dashed var(--teal);border-radius:10px;background:#f3fbfa">
       <p style="font-size:13px;color:var(--muted);margin:0 0 10px">A TAG <b>${e.codigo}</b> continua no local. Informe o extintor que entrou no lugar:</p>
-      <input id="novaSerie" placeholder="Novo nº de série" style="margin-bottom:8px">
-      <input id="novoSelo" placeholder="Novo selo Inmetro" style="margin-bottom:8px">
-      <button class="save" onclick="registrarTroca()">Confirmar troca</button>
+      <input id="novaSerie" placeholder="Nº de série do extintor instalado" style="margin-bottom:8px">
+      <input id="novoSelo" placeholder="Nº do selo Inmetro instalado">
     </div>`;
 }
-
-async function registrarTroca(){
-  const serie=(document.getElementById('novaSerie').value||'').trim();
-  const selo=(document.getElementById('novoSelo').value||'').trim();
-  if(!serie && !selo){ alert('Informe ao menos o novo nº de série ou o novo selo.'); return; }
+function setRetirado(v){
+  retirado=v;
+  document.getElementById('ret-sim').className = v?'on-nc':'';
+  document.getElementById('ret-nao').className = v?'':'on-ok';
+  document.getElementById('retiradoBox').innerHTML = v?retiradoFieldsHTML():'';
+}
+async function registrarTrocaInterna(){
   const e=state.extintor;
-  if(DEMO || !sb){
-    alert('Troca registrada (modo demonstração).');
-    e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro;
-    document.getElementById('inspArea').innerHTML=inspecaoHTML(); return;
-  }
-  try{
-    await sb.from('trocas_extintores').insert({
-      extintor_id:e.id, codigo:e.codigo,
-      serie_anterior:e.numero_serie, selo_anterior:e.selo_inmetro,
-      serie_nova:serie||null, selo_nova:selo||null
-    });
-    await sb.from('extintores').update({numero_serie:serie||e.numero_serie, selo_inmetro:selo||e.selo_inmetro}).eq('id',e.id);
-    e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro;
-    alert('Troca registrada. A TAG continua a mesma.');
-    document.getElementById('inspArea').innerHTML=inspecaoHTML();
-  }catch(err){ alert('Erro ao registrar troca: '+(err.message||err)); }
+  const serie=(document.getElementById('novaSerie')?.value||'').trim();
+  const selo=(document.getElementById('novoSelo')?.value||'').trim();
+  if(!serie && !selo) return; // nada informado, ignora
+  if(DEMO || !sb){ e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro; return; }
+  await sb.from('trocas_extintores').insert({
+    extintor_id:e.id, codigo:e.codigo,
+    serie_anterior:e.numero_serie, selo_anterior:e.selo_inmetro,
+    serie_nova:serie||null, selo_nova:selo||null
+  });
+  await sb.from('extintores').update({numero_serie:serie||e.numero_serie, selo_inmetro:selo||e.selo_inmetro}).eq('id',e.id);
+  e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro;
 }
 
-function resp(i,ok){
-  state.respostas[i]=ok;
-  document.getElementById('ok'+i).className = ok?'on-ok':'';
-  document.getElementById('nc'+i).className = ok?'':'on-nc';
+function resp(i,estado){
+  state.respostas[i]=estado;
+  document.getElementById('ok'+i).className = estado==='ok'?'on-ok':'';
+  document.getElementById('nc'+i).className = estado==='nc'?'on-nc':'';
+  document.getElementById('na'+i).className = estado==='na'?'on-na':'';
 }
 
 /* Comprime a foto antes de enviar (mantém leve) */
@@ -416,11 +435,14 @@ async function salvar(){
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.classList.add('busy'); btn.textContent='Salvando…';
 
-  // monta checklist e conformidade
-  const checklist=ITENS.map((it,i)=>({item:it, conforme:state.respostas[i]}));
-  const conformes=checklist.filter(c=>c.conforme).length;
-  const pct=Math.round(conformes/total*100);
-  const condicao = pct===100 ? 'conforme' : 'nao_conforme';
+  // monta checklist e conformidade (OK/NC/NA — NA não conta)
+  const checklist=ITENS.map((it,i)=>({item:it, situacao:state.respostas[i]}));
+  const nOk=checklist.filter(c=>c.situacao==='ok').length;
+  const nNc=checklist.filter(c=>c.situacao==='nc').length;
+  const base=nOk+nNc;
+  const pct = base ? Math.round(nOk/base*100) : 100;
+  const condicao = nNc>0 ? 'nao_conforme' : 'conforme';
+  checklist.push({item:'Extintor foi retirado?', situacao: retirado?'sim':'nao'});
 
   // modo demonstração: não grava, só mostra o resultado
   if(DEMO || !sb){ setTimeout(()=>telaSucesso(pct, condicao), 400); return; }
@@ -444,6 +466,9 @@ async function salvar(){
 
     // 3) atualiza última inspeção do extintor
     await sb.from('extintores').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id);
+
+    // 4) se foi retirado, registra a troca (série/selo do novo extintor)
+    if(retirado){ try{ await registrarTrocaInterna(); }catch(e){} }
 
     telaSucesso(pct, condicao);
   }catch(err){
