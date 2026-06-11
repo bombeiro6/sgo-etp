@@ -6,7 +6,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#0a0e14" />
 <title>SGO · Painel de Gestores — Terminal Parauapebas</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -116,6 +115,16 @@
 </style>
 </head>
 <body>
+<div id="gate" style="position:fixed;inset:0;background:#0a0e14;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:340px;text-align:center">
+    <div style="width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,#16a34a,#0d7a3a);display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i data-lucide="lock" style="color:#fff;width:26px;height:26px"></i></div>
+    <div class="disp" style="font-size:18px;font-weight:800">Painel de Gestores</div>
+    <div style="font-size:13px;color:#8b98a8;margin:6px 0 18px">Acesso restrito. Informe o código de gestor.</div>
+    <input id="gpin" type="password" inputmode="numeric" placeholder="Código de acesso" style="width:100%;padding:13px;border-radius:10px;border:1.5px solid #1f2937;background:#131a24;color:#e6edf3;font-size:16px;text-align:center;margin-bottom:10px" onkeydown="if(event.key==='Enter')entrarGestor()">
+    <button onclick="entrarGestor()" style="width:100%;padding:13px;border-radius:10px;border:none;background:#16a34a;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">Entrar</button>
+    <div id="gerr" style="font-size:12.5px;color:#ef4444;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <div class="hrow">
@@ -174,6 +183,33 @@
       </div>
     </section>
 
+    <!-- ATIVOS SPCI -->
+    <section>
+      <div class="sect-title"><i data-lucide="shield-check"></i> Ativos de combate a incêndio</div>
+      <div class="grid2">
+        <div class="card kpi">
+          <div class="kpi-h"><i data-lucide="flame"></i> EXTINTORES</div>
+          <div class="mono kpi-v" id="extV">--</div>
+          <div class="kpi-s" id="extS" style="color:var(--muted)">—</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-h"><i data-lucide="droplet"></i> HIDRANTES</div>
+          <div class="mono kpi-v" id="hidV">--</div>
+          <div class="kpi-s" id="hidS" style="color:var(--muted)">—</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-h"><i data-lucide="circle-dot"></i> VÁLVULAS</div>
+          <div class="mono kpi-v" id="valV">--</div>
+          <div class="kpi-s" id="valS" style="color:var(--muted)">—</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-h"><i data-lucide="cable"></i> MANGUEIRAS</div>
+          <div class="mono kpi-v" id="manV">--</div>
+          <div class="kpi-s" id="manS" style="color:var(--muted)">—</div>
+        </div>
+      </div>
+    </section>
+
     <!-- PENDÊNCIAS -->
     <section class="card">
       <div id="ncWrap">
@@ -219,7 +255,32 @@
 // ====== CONEXÃO COM O BANCO ======
 const SUPABASE_URL = 'https://wcyftjpsbifyvuqzxmbs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* Cliente Supabase via fetch (sem CDN externo — funciona em rede corporativa) */
+function makeClient(url, key){
+  const H = { apikey:key, Authorization:'Bearer '+key };
+  function query(table){
+    const st={select:'*',filters:[],order:'',limit:''};
+    const run=async()=>{
+      let q=`${url}/rest/v1/${table}?select=${encodeURIComponent(st.select)}`;
+      st.filters.forEach(f=>q+='&'+f); q+=st.order+st.limit;
+      try{ const r=await fetch(q,{headers:H}); const data=await r.json();
+        return r.ok?{data,error:null}:{data:[],error:data}; }
+      catch(e){ return {data:[],error:e}; }
+    };
+    const api={
+      select(c){ st.select=c||'*'; return api; },
+      eq(c,v){ st.filters.push(`${c}=eq.${encodeURIComponent(v)}`); return api; },
+      neq(c,v){ st.filters.push(`${c}=neq.${encodeURIComponent(v)}`); return api; },
+      order(c,o){ st.order=`&order=${c}.${(o&&o.ascending===false)?'desc':'asc'}`; return api; },
+      limit(n){ st.limit=`&limit=${n}`; return api; },
+      then(res,rej){ return run().then(res,rej); }
+    };
+    return api;
+  }
+  return { from:(t)=>({ select:(c)=>query(t).select(c) }) };
+}
+const sb = makeClient(SUPABASE_URL, SUPABASE_KEY);
 
 let emergManual = false;
 let segundosSync = 0;
@@ -281,18 +342,23 @@ function setEmerg(on){
 async function carregar(manual){
   if(manual){ $('refIcon').classList.add('spin'); }
   try{
-    const [ef,vi,nc,ts,ins,ps,rd] = await Promise.all([
+    const [ef,vi,nc,ts,ins,ps,rd,ex,hd,vl,mg] = await Promise.all([
       sb.from('efetivo').select('nome,funcao,tipo,status,turno'),
       sb.from('viaturas').select('prefixo,modelo,tipo,status,quilometragem,combustivel_pct,observacoes,ultima_inspecao').order('prefixo'),
       sb.from('nao_conformidades').select('numero,ativo_tipo,area,descricao,criticidade,status,prazo').neq('status','encerrada'),
       sb.from('tst_documentos').select('tipo,descricao,status,vencimento').neq('status','ok'),
       sb.from('inspecoes').select('conformidade_pct,condicao,created_at'),
       sb.from('plano_seca').select('reservatorio,nivel_pct,pressao_bar,bomba_principal,bomba_reserva,data_hora').order('data_hora',{ascending:false}),
-      sb.from('rondas').select('data_hora')
+      sb.from('rondas').select('data_hora'),
+      sb.from('extintores').select('codigo,validade_carga,prox_inspecao,status'),
+      sb.from('hidrantes').select('codigo,venc_hidrostatico,status'),
+      sb.from('valvulas').select('codigo,status'),
+      sb.from('mangueiras').select('numero_lacre,validade,status')
     ]);
     const dados = {
       efetivo: ef.data||[], viaturas: vi.data||[], ncs: nc.data||[],
-      tst: ts.data||[], insp: ins.data||[], plano: ps.data||[], rondas: rd.data||[]
+      tst: ts.data||[], insp: ins.data||[], plano: ps.data||[], rondas: rd.data||[],
+      extintores: ex.data||[], hidrantes: hd.data||[], valvulas: vl.data||[], mangueiras: mg.data||[]
     };
     window.__dados = dados;
     segundosSync = 0;
@@ -383,6 +449,22 @@ function render(d){
   const inspHoje=ins.filter(i=>i.created_at && new Date(i.created_at).toLocaleDateString('pt-BR')===hoje).length;
   $('inspS').textContent = (d30.length?'média 30 dias':'média geral')+' · '+inspHoje+' hoje';
 
+  // ---- ativos SPCI: totais e vencidos ----
+  const hoje0=new Date(); hoje0.setHours(0,0,0,0);
+  const venc = ds => { try{ return ds && new Date(ds+'T00:00:00') < hoje0; }catch(e){ return false; } };
+  const ext=d.extintores||[], extVenc=ext.filter(e=>venc(e.validade_carga)).length;
+  $('extV').textContent = ext.length;
+  $('extS').innerHTML = extVenc ? `<span style="color:#ef4444">${extVenc} carga vencida</span>` : '<span style="color:#16a34a">todos na validade</span>';
+  const hid=d.hidrantes||[], hidVenc=hid.filter(h=>venc(h.venc_hidrostatico)).length;
+  $('hidV').textContent = hid.length;
+  $('hidS').innerHTML = hidVenc ? `<span style="color:#ef4444">${hidVenc} teste vencido</span>` : '<span style="color:#16a34a">testes em dia</span>';
+  const val=d.valvulas||[];
+  $('valV').textContent = val.length;
+  $('valS').textContent = val.length ? 'cadastradas' : '—';
+  const man=d.mangueiras||[], manVenc=man.filter(m=>venc(m.validade)).length;
+  $('manV').textContent = man.length;
+  $('manS').innerHTML = manVenc ? `<span style="color:#ef4444">${manVenc} vencida(s)</span>` : '<span style="color:#16a34a">em dia</span>';
+
   // ---- NCs (linha) ----
   $('ncV').textContent = ncAbertas.length;
   $('ncV').style.color = ncAbertas.length?'#f59e0b':'#16a34a';
@@ -428,9 +510,24 @@ function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;'
 function fmtData(d){ try{return new Date(d+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return d;} }
 
 // ====== INÍCIO ======
-lucide.createIcons();
-carregar();
-setInterval(()=>carregar(false), 30000); // atualiza a cada 30s
+// ====== ACESSO RESTRITO (GESTORES) ======
+const PIN_GESTOR = "gestor2026"; // << TROQUE pelo código secreto dos gestores
+let gestorOk = false;
+try { gestorOk = sessionStorage.getItem('sgo_gestor')==='1'; } catch(e){}
+function entrarGestor(){
+  const v=(document.getElementById('gpin').value||'').trim();
+  if(v===PIN_GESTOR){ try{sessionStorage.setItem('sgo_gestor','1');}catch(e){} iniciarPainel(); }
+  else { document.getElementById('gerr').textContent='Código incorreto.'; }
+}
+function iniciarPainel(){
+  const g=document.getElementById('gate'); if(g) g.style.display='none';
+  lucide.createIcons();
+  carregar();
+  setInterval(()=>carregar(false), 30000); // atualiza a cada 30s
+}
+
+lucide.createIcons();            // ícones da tela de senha
+if(gestorOk) iniciarPainel();    // se já liberou nesta sessão, abre direto
 </script>
 </body>
 </html>
