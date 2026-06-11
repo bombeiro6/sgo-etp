@@ -104,16 +104,56 @@
   <div class="loading"><div class="spin"></div>Carregando…</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 /* ===== CONFIG SGO-ETP ===== */
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const BUCKET = "inspecao-fotos";
+
+/* Cliente Supabase próprio via fetch (sem CDN externo — funciona em rede corporativa) */
+function makeClient(url, key){
+  const H = { apikey:key, Authorization:'Bearer '+key };
+  const errOf = async r => r.ok ? null : (await r.json().catch(()=>({message:'HTTP '+r.status})));
+  function query(table){
+    const st={select:'*',filters:[],order:'',limit:'',single:false};
+    const run=async()=>{
+      let q=`${url}/rest/v1/${table}?select=${encodeURIComponent(st.select)}`;
+      st.filters.forEach(f=>q+='&'+f); q+=st.order+st.limit;
+      try{
+        const r=await fetch(q,{headers:H});
+        let data=await r.json();
+        if(!r.ok) return {data:null,error:data};
+        if(st.single) data=Array.isArray(data)?(data[0]||null):data;
+        return {data,error:null};
+      }catch(e){ return {data:null,error:e}; }
+    };
+    const api={
+      select(c){ st.select=c||'*'; return api; },
+      eq(c,v){ st.filters.push(`${c}=eq.${encodeURIComponent(v)}`); return api; },
+      order(c,o){ st.order=`&order=${c}.${(o&&o.ascending===false)?'desc':'asc'}`; return api; },
+      limit(n){ st.limit=`&limit=${n}`; return api; },
+      maybeSingle(){ st.single=true; return run(); },
+      then(res,rej){ return run().then(res,rej); }
+    };
+    return api;
+  }
+  function from(table){
+    return {
+      select(c){ return query(table).select(c); },
+      insert(obj){ return fetch(`${url}/rest/v1/${table}`,{method:'POST',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:await errOf(r)})); },
+      update(obj){ return { eq:(c,v)=>fetch(`${url}/rest/v1/${table}?${c}=eq.${encodeURIComponent(v)}`,{method:'PATCH',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:await errOf(r)})) }; }
+    };
+  }
+  const storage={ from(bucket){ return {
+    upload(path,file,opts){ return fetch(`${url}/storage/v1/object/${bucket}/${path}`,{method:'POST',headers:{...H,'Content-Type':(opts&&opts.contentType)||'application/octet-stream'},body:file}).then(async r=>({error:await errOf(r)})); },
+    getPublicUrl(path){ return {data:{publicUrl:`${url}/storage/v1/object/public/${bucket}/${path}`}}; }
+  };}};
+  return { from, storage };
+}
+
 let sb = null, DEMO = false;
-try { if (window.supabase) { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } else { DEMO = true; } }
-catch(e){ DEMO = true; }
+try { sb = makeClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){ DEMO = true; }
 
 /* Dados de exemplo para modo demonstração (quando não há conexão — ex.: prévia do chat) */
 const MOCK_EXT = [
@@ -122,7 +162,7 @@ const MOCK_EXT = [
   {id:'demo-3', codigo:'EXT-TERM-003', tipo:'CO2', capacidade:'6 kg', local:'Sala elétrica', area:'Terminal', validade_carga:'2026-11-30', validade_hidrostatico:'2030-11-30', status:'ativo'}
 ];
 const MOCK_EFETIVO = [{id:'d1',nome:'Brigadista (demo)'},{id:'d2',nome:'Supervisor (demo)'}];
-function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão (a prévia do chat bloqueia o acesso). Publique no GitHub para usar os dados reais.</div>' : ''; }
+function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão com o banco. Na prévia do chat é normal; no site, verifique se a rede libera o domínio supabase.co.</div>' : ''; }
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
 const ITENS = [
