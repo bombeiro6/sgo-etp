@@ -222,6 +222,13 @@ async function abrirExtintor(codigo){
       if(r.data) state.ultimaInsp = {data:(''+r.data.created_at).slice(0,10), condicao:r.data.condicao};
     }catch(e){}
   }
+  // mangueiras do abrigo
+  state.mangueiras = [];
+  if(sb && !DEMO){
+    try{ const rm=await sb.from('mangueiras').select('*').eq('hidrante_id',data.id).eq('status','ativa').order('validade'); if(rm.data) state.mangueiras=rm.data; }catch(e){}
+  } else {
+    state.mangueiras = [{id:'m1',numero_lacre:'16304',validade:'2026-06-30'},{id:'m2',numero_lacre:'23839',validade:'2026-10-30'}];
+  }
   renderInspecao();
 }
 
@@ -330,6 +337,16 @@ function inspecaoHTML(){
     </div>
 
     <div class="card">
+      <h2 class="sec">Mangueiras do abrigo</h2>
+      ${(state.mangueiras||[]).length ? state.mangueiras.map((m,i)=>`
+        <div class="check">
+          <div class="lbl">Lacre ${m.numero_lacre||'—'}<span style="display:block;font-size:12px;color:var(--muted)">Validade: ${fmtData(m.validade)}</span></div>
+          <button class="ghost" style="width:auto;padding:8px 14px;margin:0" onclick="trocarMangueira(${i})">Trocar</button>
+        </div>`).join('') : '<p style="color:var(--muted);font-size:13px;margin:0">Nenhuma mangueira cadastrada.</p>'}
+      <div id="trocaMangBox"></div>
+    </div>
+
+    <div class="card">
       <h2 class="sec">Inspetor</h2>
       <select id="inspetor">
         <option value="">Selecione o responsável…</option>
@@ -357,6 +374,40 @@ function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
   if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
+}
+
+/* ---- Troca de mangueira (mantém o abrigo) ---- */
+function trocarMangueira(i){
+  const m=state.mangueiras[i];
+  document.getElementById('trocaMangBox').innerHTML=`
+    <div style="margin-top:10px;padding:12px;border:1.5px dashed var(--teal);border-radius:10px;background:#f3fbfa">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Trocando a mangueira de lacre <b>${m.numero_lacre||'—'}</b>. Informe a nova:</p>
+      <input id="novoLacre" placeholder="Novo nº de lacre" style="margin-bottom:8px">
+      <input id="novaValidade" type="date" style="margin-bottom:8px">
+      <button class="save" onclick="confirmarTrocaMang(${i})">Confirmar troca</button>
+    </div>`;
+}
+
+async function confirmarTrocaMang(i){
+  const m=state.mangueiras[i];
+  const lacre=(document.getElementById('novoLacre').value||'').trim();
+  const validade=document.getElementById('novaValidade').value||null;
+  if(!lacre && !validade){ alert('Informe o novo lacre ou a nova validade.'); return; }
+  if(DEMO || !sb){
+    alert('Troca de mangueira registrada (modo demonstração).');
+    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade;
+    document.getElementById('inspArea').innerHTML=inspecaoHTML(); return;
+  }
+  try{
+    await sb.from('trocas_mangueiras').insert({mangueira_id:m.id, hidrante_id:state.extintor.id, lacre_anterior:m.numero_lacre, validade_anterior:m.validade, lacre_novo:lacre||null, validade_nova:validade||null});
+    await sb.from('mangueiras').update({numero_lacre:lacre||m.numero_lacre, validade:validade||m.validade}).eq('id',m.id);
+    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade;
+    const novoVenc = state.mangueiras.map(x=>x.validade).filter(Boolean).sort()[0]||null;
+    await sb.from('hidrantes').update({venc_hidrostatico:novoVenc}).eq('id',state.extintor.id);
+    state.extintor.venc_hidrostatico=novoVenc;
+    alert('Troca de mangueira registrada.');
+    document.getElementById('inspArea').innerHTML=inspecaoHTML();
+  }catch(err){ alert('Erro ao registrar troca: '+(err.message||err)); }
 }
 
 function resp(i,ok){
