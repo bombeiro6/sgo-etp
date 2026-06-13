@@ -85,6 +85,12 @@
   .lock-card{text-align:center}
   .lock-ic{width:62px;height:62px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 12px}
   @media print{header,.tabs,.no-print{display:none}.qr-item{page-break-inside:avoid}}
+
+  /* ===== Responsivo PC (apenas CSS, sem custo de carga/banco) ===== */
+  @media(min-width:700px){
+    .wrap{max-width:640px;padding:24px}
+    body{font-size:16px}
+  }
 </style>
 </head>
 <body>
