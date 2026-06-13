@@ -228,20 +228,12 @@
         </div>
         <div class="sub" id="ncSub"></div>
       </div>
-      <div class="divider"></div>
-      <div id="tstWrap">
-        <div class="row" onclick="toggle('tstWrap')">
-          <div class="row-l"><i data-lucide="file-clock" id="tstIcon"></i> Documentos / TST pendentes</div>
-          <div class="row-r"><span class="mono row-v" id="tstV">--</span><i data-lucide="chevron-right" class="chev"></i></div>
-        </div>
-        <div class="sub" id="tstSub"></div>
-      </div>
     </section>
 
-    <!-- RESERVATÓRIOS -->
+    <!-- MONITORAMENTO FLORESTAL -->
     <section>
-      <div class="sect-title"><i data-lucide="droplet"></i> Reservatórios</div>
-      <div id="resBox" class="card"><div class="empty skel">Carregando…</div></div>
+      <div class="sect-title"><i data-lucide="flame"></i> Monitoramento de incêndios florestais</div>
+      <div id="florBox" class="card"><div class="empty skel">Carregando…</div></div>
     </section>
 
     <div class="sync">
@@ -351,23 +343,23 @@ function setEmerg(on){
 async function carregar(manual){
   if(manual){ $('refIcon').classList.add('spin'); }
   try{
-    const [ef,vi,nc,ts,ins,ps,rd,ex,hd,vl,mg] = await Promise.all([
+    const [ef,vi,nc,ins,rd,ex,hd,vl,mg,mf] = await Promise.all([
       sb.from('efetivo').select('nome,funcao,tipo,status,turno'),
       sb.from('viaturas').select('prefixo,modelo,tipo,status,quilometragem,combustivel_pct,observacoes,ultima_inspecao').order('prefixo'),
       sb.from('nao_conformidades').select('numero,ativo_tipo,area,descricao,criticidade,status,prazo').neq('status','encerrada'),
-      sb.from('tst_documentos').select('tipo,descricao,status,vencimento').neq('status','ok'),
       sb.from('inspecoes').select('conformidade_pct,condicao,created_at'),
-      sb.from('plano_seca').select('reservatorio,nivel_pct,pressao_bar,bomba_principal,bomba_reserva,data_hora').order('data_hora',{ascending:false}),
       sb.from('rondas').select('data_hora'),
       sb.from('extintores').select('codigo,validade_carga,prox_inspecao,status'),
       sb.from('hidrantes').select('codigo,venc_hidrostatico,status'),
       sb.from('valvulas').select('codigo,status'),
-      sb.from('mangueiras').select('numero_lacre,validade,status')
+      sb.from('mangueiras').select('numero_lacre,validade,status'),
+      sb.from('monitoramento_florestal').select('nivel_alerta,vegetacao,focos_fumaca,aceiros_ok,created_at').order('created_at',{ascending:false}).limit(1)
     ]);
     const dados = {
       efetivo: ef.data||[], viaturas: vi.data||[], ncs: nc.data||[],
-      tst: ts.data||[], insp: ins.data||[], plano: ps.data||[], rondas: rd.data||[],
-      extintores: ex.data||[], hidrantes: hd.data||[], valvulas: vl.data||[], mangueiras: mg.data||[]
+      insp: ins.data||[], rondas: rd.data||[],
+      extintores: ex.data||[], hidrantes: hd.data||[], valvulas: vl.data||[], mangueiras: mg.data||[],
+      florestal: mf.data||[]
     };
     window.__dados = dados;
     segundosSync = 0;
@@ -387,12 +379,11 @@ function render(d){
   const ncAbertas = (d.ncs||[]).filter(n=>n.status==='aberta');
   const ncCriticasAbertas = (d.ncs||[]).filter(n=>n.criticidade==='critica');
   const viatNaoOp = (d.viaturas||[]).filter(v=>norm(v.status)!=='operacional');
-  const docsVencidos = (d.tst||[]).filter(t=>norm(t.status)==='vencido');
 
   // ---- status geral ----
   let st='normal';
   if(emergManual) st='emergencia';
-  else if(ncCriticasAbertas.length || viatNaoOp.length || docsVencidos.length) st='atencao';
+  else if(ncCriticasAbertas.length || viatNaoOp.length) st='atencao';
   aplicarStatus(st);
 
   // ---- ocorrências / pontos críticos ----
@@ -486,31 +477,20 @@ function render(d){
       <div class="ld">${esc(n.area||'')} · ${n.status==='tratamento'?'em tratamento':'aberta'}${n.prazo?(' · prazo '+fmtData(n.prazo)):''}</div></div>`;
   }).join('') : '<div class="litem ld">Nenhuma NC em aberto.</div>';
 
-  // ---- TST (linha) ----
-  const tstP=(d.tst||[]);
-  $('tstV').textContent = tstP.length;
-  $('tstV').style.color = docsVencidos.length?'#ef4444':(tstP.length?'#f59e0b':'#16a34a');
-  $('tstIcon').style.color = docsVencidos.length?'#ef4444':(tstP.length?'#f59e0b':'#16a34a');
-  const tCor={vencido:'#ef4444',vencendo:'#f59e0b',pendente:'#3b82f6'};
-  $('tstSub').innerHTML = tstP.length? tstP.map(t=>{
-    const c=tCor[norm(t.status)]||'#8b98a8';
-    return `<div class="litem"><div class="lt"><b>${esc(t.tipo||'Documento')}</b>
-      <span class="tag" style="color:${c};border-color:${c}66">${(t.status||'').toUpperCase()}</span></div>
-      <div class="ld">${esc(t.descricao||'')}${t.vencimento?(' · vence '+fmtData(t.vencimento)):''}</div></div>`;
-  }).join('') : '<div class="litem ld">Todos os documentos em dia.</div>';
-
-  // ---- reservatórios ----
-  const vistos={}; const ult=[];
-  (d.plano||[]).forEach(p=>{ if(!vistos[p.reservatorio]){vistos[p.reservatorio]=1; ult.push(p);} });
-  ult.sort((a,b)=>a.reservatorio-b.reservatorio);
-  $('resBox').innerHTML = ult.length? ult.map((p,i)=>{
-    const n=p.nivel_pct??0; const cor=n>=60?'#16a34a':n>=30?'#f59e0b':'#ef4444';
-    return `${i>0?'<div class="divider"></div>':''}<div class="res">
-      <span style="font-size:12.5px;font-weight:600;min-width:74px">Reserv. ${p.reservatorio}</span>
-      <div class="bar"><i style="width:${Math.max(0,Math.min(100,n))}%;background:${cor}"></i></div>
-      <span class="mono" style="font-size:13px;font-weight:700;color:${cor};min-width:38px;text-align:right">${n}%</span>
-    </div>`;
-  }).join('') : '<div class="empty">Sem leituras de reservatório.</div>';
+  // ---- monitoramento florestal ----
+  const mfUlt=(d.florestal||[])[0];
+  const corAlerta={verde:'#16a34a',amarelo:'#f59e0b',laranja:'#e2742a',vermelho:'#ef4444'};
+  if(mfUlt){
+    const c=corAlerta[mfUlt.nivel_alerta]||'#8b98a8';
+    let q=''; try{ q=new Date(mfUlt.created_at).toLocaleString('pt-BR'); }catch(e){ q=mfUlt.created_at; }
+    $('florBox').innerHTML = `<div class="row"><div class="row-l">Nível de alerta</div>
+      <div class="row-r"><span class="tag" style="color:${c};border-color:${c}66">${(mfUlt.nivel_alerta||'').toUpperCase()}</span></div></div>
+      <div class="divider"></div>
+      <div class="litem ld">Focos de fumaça: <b style="color:${mfUlt.focos_fumaca?'#ef4444':'#16a34a'}">${mfUlt.focos_fumaca?'SIM':'não'}</b> · Aceiros: <b style="color:${mfUlt.aceiros_ok?'#16a34a':'#ef4444'}">${mfUlt.aceiros_ok?'ok':'pendente'}</b></div>
+      <div class="litem ld">Último check: ${q}</div>`;
+  } else {
+    $('florBox').innerHTML = '<div class="empty">Sem check de monitoramento ainda.</div>';
+  }
 
   lucide.createIcons();
 }
