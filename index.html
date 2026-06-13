@@ -16,7 +16,7 @@
   html,body{background:var(--bg);color:var(--txt);font-family:'Hanken Grotesk',-apple-system,sans-serif}
   body{display:flex;justify-content:center;min-height:100vh}
   .disp{font-family:'Archivo',sans-serif}
-  .wrap{width:100%;max-width:480px;padding-bottom:40px}
+  .wrap{width:100%;max-width:480px;margin:0 auto;padding-bottom:40px}
 
   header{padding:18px 18px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;
     background:rgba(10,14,20,.92);backdrop-filter:blur(8px);z-index:10}
@@ -46,6 +46,11 @@
   .chev{color:var(--green);flex-shrink:0}
 
   .note{font-size:11.5px;color:var(--dim);text-align:center;margin-top:12px;line-height:1.5;padding:0 12px}
+
+  /* ===== Responsivo PC ===== */
+  @media(min-width:720px){
+    .wrap{max-width:600px}
+  }
 </style>
 </head>
 <body>
