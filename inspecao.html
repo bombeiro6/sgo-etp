@@ -64,8 +64,6 @@
   .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
   @keyframes s{to{transform:rotate(360deg)}}
   /* painel educativo */
-  .edu-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:#fff;border:1.5px solid var(--teal);color:var(--teal);border-radius:12px;padding:14px 16px;font-size:14px;font-weight:700;margin-bottom:14px}
-  .edu-toggle #eduArrow{font-size:18px;font-weight:800}
   .edu{margin-bottom:14px}
   .edu .card{margin-bottom:10px}
   .edu h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 10px}
@@ -165,6 +163,7 @@ const MOCK_EFETIVO = [{id:'d1',nome:'Brigadista (demo)'},{id:'d2',nome:'Supervis
 function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão com o banco. Na prévia do chat é normal; no site, verifique se a rede libera o domínio supabase.co.</div>' : ''; }
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
+const CORES_LACRE = ["Roxo","Amarelo","Verde","Azul","Vermelho","Laranja","Preto","Branco","Cinza"];
 const ITENS = [
   "Rótulo de instrução de uso",
   "Suporte de parede ou chão",
@@ -189,7 +188,8 @@ const ITENS = [
 
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
-let unlocked = false;                  // controla o acesso à inspeção
+let unlocked = false;
+let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
 try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
@@ -223,6 +223,21 @@ async function carregarEfetivo(){
 }
 
 /* ---------- Lista / seleção ---------- */
+function ordenarPorNumero(arr){
+  return [...arr].sort((a,b)=>{
+    const na=parseInt((a.codigo||'').replace(/\D/g,''),10);
+    const nb=parseInt((b.codigo||'').replace(/\D/g,''),10);
+    if(isNaN(na)||isNaN(nb)) return (a.codigo||'').localeCompare(b.codigo||'');
+    return na-nb;
+  });
+}
+/* (C) Inspeção demonstrativa — treina o colaborador sem gravar nada */
+function inspecaoDemo(){
+  TREINO=true; unlocked=true;
+  state.extintor={id:'treino',codigo:'TREINO-01',tipo:'ABC',capacidade:'6 kg',local:'Extintor de treinamento',area:'Treinamento',validade_carga:'2027-01-01',cor_anel:'Amarelo',equipe:'Treinamento'};
+  state.respostas={}; state.foto=null; state.ultimaInsp=null; retirado=false;
+  renderInspecao();
+}
 async function listaExtintores(){
   app.innerHTML = '<div class="loading"><div class="spin"></div>Buscando extintores…</div>';
   let data;
@@ -232,7 +247,8 @@ async function listaExtintores(){
     catch(e){ DEMO=true; data=MOCK_EXT; }
   }
   if(!data.length){ app.innerHTML = bannerDemo()+'<div class="card">Nenhum extintor cadastrado ainda.</div>'; return; }
-  app.innerHTML = bannerDemo()+'<h2 class="sec">Selecione o extintor</h2>' + data.map(e=>{
+  TREINO=false; data = ordenarPorNumero(data);
+  app.innerHTML = bannerDemo()+'<button class="ghost no-print" style="margin-bottom:14px" onclick="inspecaoDemo()">🎓 Inspeção demonstrativa (treinamento)</button>'+'<h2 class="sec">Selecione o extintor</h2>' + data.map(e=>{
     const dias = diasAte(e.validade_carga);
     const aviso = dias!==null && dias<0 ? ' · ⚠ carga vencida' : (dias!==null && dias<30 ? ` · vence em ${dias}d` : '');
     return `<div class="list-item" onclick="abrirExtintor('${e.codigo}')">
@@ -243,6 +259,7 @@ async function listaExtintores(){
 
 /* ---------- Tela de inspeção ---------- */
 async function abrirExtintor(codigo){
+  TREINO=false;
   app.innerHTML = '<div class="loading"><div class="spin"></div>Carregando extintor…</div>';
   let data;
   if(!sb){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
@@ -289,11 +306,6 @@ function eduContent(tipo){
       <div class="emerg">📞 Central de Emergência: 0800 091 3818</div></div>
     <div class="card"><h3>Atenção</h3><div class="att">⚠ ${e.atencao}</div></div>`;
 }
-function toggleEdu(){
-  const p=document.getElementById('eduPanel'); const open=p.style.display==='none';
-  p.style.display=open?'block':'none';
-  document.getElementById('eduArrow').textContent=open?'⌄':'›';
-}
 
 function renderInspecao(){
   const e = state.extintor;
@@ -307,8 +319,7 @@ function renderInspecao(){
       </div>
     </div>
 
-    <button class="edu-toggle no-print" onclick="toggleEdu()"><span>ℹ️ Sobre este extintor / Como usar</span><span id="eduArrow">›</span></button>
-    <div id="eduPanel" class="edu" style="display:none">${eduContent(e.tipo)}</div>
+    <div class="edu">${eduContent(e.tipo)}</div>
 
     <div id="inspArea">${unlocked ? inspecaoHTML() : lockHTML()}</div>
     ${getParam('ext')?'':'<button class="ghost no-print" onclick="listaExtintores()">‹ Voltar à lista</button>'}
@@ -320,8 +331,8 @@ function lockHTML(){
   return `
     <div class="card lock-card">
       <div class="lock-ic">🔒</div>
-      <h2 style="margin:0 0 4px;font-size:17px">Inspeção restrita à equipe</h2>
-      <p style="color:var(--muted);font-size:14px;margin:0 0 14px">Apenas a equipe de bombeiros. Informe o código da equipe para liberar o checklist.</p>
+      <h2 style="margin:0 0 4px;font-size:17px">Acesso da equipe</h2>
+      <p style="color:var(--muted);font-size:14px;margin:0 0 14px">As instruções de uso acima são públicas. Para acessar o sistema de inspeção dos extintores, a equipe de bombeiros deve informar o código de acesso.</p>
       <input id="pin" type="password" inputmode="numeric" placeholder="Código da equipe" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key==='Enter')desbloquear()">
       <button class="save" style="margin-top:12px" onclick="desbloquear()">Desbloquear inspeção</button>
     </div>`;
@@ -375,6 +386,17 @@ function inspecaoHTML(){
         <button id="ret-sim" class="${retirado?'on-nc':''}" onclick="setRetirado(true)">SIM</button>
       </div>
       <div id="retiradoBox">${retirado?retiradoFieldsHTML():''}</div>
+    </div>
+
+    <div class="card">
+      <h2 class="sec">Lacre de segurança — troca de cor</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 10px">Conforme a norma interna, registre a substituição da cor do lacre feita nesta inspeção.</p>
+      <div class="grid2">
+        <div class="field"><label>Cor anterior</label>
+          <select id="lacreAnt">${CORES_LACRE.map(c=>`<option ${c==='Roxo'?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="field"><label>Cor nova (atual)</label>
+          <select id="lacreNova">${CORES_LACRE.map(c=>`<option ${c==='Amarelo'?'selected':''}>${c}</option>`).join('')}</select></div>
+      </div>
     </div>
 
     <div class="card">
@@ -483,9 +505,11 @@ async function salvar(){
   const pct = base ? Math.round(nOk/base*100) : 100;
   const condicao = nNc>0 ? 'nao_conforme' : 'conforme';
   checklist.push({item:'Extintor foi retirado?', situacao: retirado?'sim':'nao'});
+  const _lAnt=(document.getElementById('lacreAnt')||{}).value, _lNov=(document.getElementById('lacreNova')||{}).value;
+  if(_lAnt&&_lNov) checklist.push({item:'Cor do lacre (anterior → atual)', situacao:`${_lAnt} → ${_lNov}`});
 
   // modo demonstração: não grava, só mostra o resultado
-  if(DEMO || !sb){ setTimeout(()=>telaSucesso(pct, condicao), 400); return; }
+  if(TREINO || DEMO || !sb){ setTimeout(()=>telaSucesso(pct, condicao), 400); return; }
 
   try{
     // 1) upload da foto (se houver)
@@ -521,7 +545,8 @@ function telaSucesso(pct, condicao){
   const ok = condicao==='conforme';
   app.innerHTML = `<div class="card"><div class="success">
     <div class="ico" style="${ok?'':'background:var(--ncbg);color:var(--nc)'}">${ok?'✓':'!'}</div>
-    <h2>Inspeção registrada</h2>
+    <h2>${TREINO?'Inspeção demonstrativa concluída':'Inspeção registrada'}</h2>
+    ${TREINO?'<p style="color:var(--warn);font-weight:700;margin:0 0 4px">🎓 Treinamento — nada foi gravado no sistema</p>':''}
     <p style="color:var(--muted);margin:0 0 4px">${state.extintor.codigo} · conformidade ${pct}%</p>
     <p style="font-weight:700;color:${ok?'var(--ok)':'var(--nc)'}">${ok?'Conforme':'Não conforme — abrir tratativa'}</p>
     <button class="save" style="margin-top:16px" onclick="${getParam('ext')?'location.reload()':'listaExtintores()'}">${getParam('ext')?'Nova inspeção':'‹ Voltar à lista'}</button>
@@ -537,6 +562,7 @@ async function telaQR(){
     try{ const r = await sb.from('extintores').select('codigo,tipo,local').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
     catch(e){ DEMO=true; data=MOCK_EXT; }
   }
+  data = ordenarPorNumero(data);
   const base = location.href.split('?')[0];
   if(typeof QRCode==='undefined'){
     app.innerHTML = bannerDemo()+'<div class="card"><div class="alert warn">Os QR Codes precisam de internet para serem gerados. Abra a página publicada no GitHub para gerar e imprimir.</div></div>';
