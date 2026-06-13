@@ -47,6 +47,15 @@
   .alert.warn{background:var(--warnbg);color:var(--warn)}
   .ghost{background:#fff;border:1.5px solid var(--teal);color:var(--teal);border-radius:12px;padding:14px;font-size:15px;font-weight:700;width:100%;margin-top:10px}
   .intro{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4}
+  .clima-row{display:flex;gap:8px;justify-content:space-between;text-align:center}
+  .clima-row>div{flex:1}
+  .clima-v{font-size:22px;font-weight:800;color:var(--ink);line-height:1.1}
+  .clima-l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:2px}
+  .clima-sug{margin-top:10px;font-size:12px;color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:8px}
+  .clima-off{font-size:13px;color:var(--muted);text-align:center;padding:4px}
+  .clima-load{font-size:13px;color:var(--muted);text-align:center;padding:4px}
+  .legenda{margin-top:12px;font-size:11.5px;color:var(--muted);line-height:1.8;border-top:1px solid var(--line);padding-top:10px}
+  .legenda b{font-weight:800}
   @media(min-width:700px){ .wrap{max-width:640px;padding:24px} }
 </style>
 </head>
@@ -74,7 +83,8 @@ catch(e){ DEMO=true; }
 
 let unlocked=false; try{ unlocked = sessionStorage.getItem('sgo_unlock_flor')==='1'; }catch(e){}
 const app=document.getElementById('app');
-const state={ efetivo:[], fotos:[], nivel:'verde', vegetacao:'', focos:null, aceiros:null };
+const state={ efetivo:[], fotos:[], nivel:'verde', vegetacao:'', focos:null, aceiros:null, clima:null };
+const COORD_TERMINAL = {lat:-6.0678, lng:-49.9037}; // Terminal Parauapebas (ajustável)
 
 const NIVEIS=[['verde','VERDE','#1f9d57'],['amarelo','AMARELO','#c98a00'],['laranja','LARANJA','#e2742a'],['vermelho','VERMELHO','#d63131']];
 const ALERTA_DESC={verde:'Operação normal — vigilância de rotina.',amarelo:'Risco elevado — ronda reforçada.',laranja:'Risco alto — prontidão ampliada.',vermelho:'Risco crítico — prontidão máxima.'};
@@ -97,6 +107,7 @@ function render(){
     ${unlocked ? '' : lockHTML()}
   </div>
   ${unlocked ? formHTML() : ''}`;
+  if(unlocked) carregarClima();
 }
 
 function lockHTML(){
@@ -117,11 +128,22 @@ function desbloquear(){
 function formHTML(){
   return `
   <div class="card">
+    <h2 class="sec">Clima do dia · evidência</h2>
+    <div id="climaBox"><div class="clima-load">🌡️ Buscando clima de Parauapebas…</div></div>
+  </div>
+
+  <div class="card">
     <h2 class="sec">Nível de alerta do dia</h2>
     <div class="alertas" id="alertas">
       ${NIVEIS.map(n=>`<button data-n="${n[0]}" onclick="setNivel('${n[0]}')" class="${state.nivel===n[0]?'on':''}" style="${state.nivel===n[0]?('background:'+n[2]):''}">${n[1]}</button>`).join('')}
     </div>
     <div class="alert warn" id="alertaDesc" style="background:#f1f4f8;color:var(--muted)">${ALERTA_DESC[state.nivel]}</div>
+    <div class="legenda">
+      <div><b style="color:#1f9d57">VERDE</b> — risco baixo · umidade ≥ 60% · vigilância de rotina</div>
+      <div><b style="color:#c98a00">AMARELO</b> — risco moderado · umidade 40–59% · ronda reforçada</div>
+      <div><b style="color:#e2742a">LARANJA</b> — risco alto · umidade 30–39% · prontidão ampliada</div>
+      <div><b style="color:#d63131">VERMELHO</b> — risco crítico · umidade &lt; 30% · prontidão máxima</div>
+    </div>
   </div>
 
   <div class="card">
@@ -206,6 +228,49 @@ function obterLocal(){
   });
 }
 
+
+/* ===== Clima do dia (Open-Meteo · grátis, sem chave, não usa o Supabase) ===== */
+function descClima(code){
+  const m={0:'Céu limpo',1:'Predom. limpo',2:'Parc. nublado',3:'Nublado',45:'Névoa',48:'Névoa gelada',
+    51:'Garoa fraca',53:'Garoa',55:'Garoa forte',61:'Chuva fraca',63:'Chuva',65:'Chuva forte',
+    71:'Neve',80:'Pancadas',81:'Pancadas',82:'Pancadas fortes',95:'Tempestade',96:'Tempestade/granizo',99:'Tempestade/granizo'};
+  return m[code]||'—';
+}
+function nivelPorUmidade(u){
+  if(u==null) return null;
+  if(u<30) return 'vermelho';
+  if(u<40) return 'laranja';
+  if(u<60) return 'amarelo';
+  return 'verde';
+}
+async function buscarClima(){
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${COORD_TERMINAL.lat}&longitude=${COORD_TERMINAL.lng}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=America/Sao_Paulo`;
+    const r=await fetch(url); if(!r.ok) throw 0;
+    const j=await r.json(); const c=j.current||{};
+    if(c.relative_humidity_2m==null && c.temperature_2m==null) throw 0;
+    return {temp:c.temperature_2m, umidade:c.relative_humidity_2m, desc:descClima(c.weather_code)};
+  }catch(e){ return null; }
+}
+function corUmidade(u){ return u<30?'#d63131':u<40?'#e2742a':u<60?'#c98a00':'#1f9d57'; }
+async function carregarClima(){
+  const box=document.getElementById('climaBox'); if(!box) return;
+  const c=await buscarClima();
+  if(!c || c.umidade==null){
+    box.innerHTML='<div class="clima-off">🌐 Clima indisponível agora — registre o nível manualmente.</div>';
+    return;
+  }
+  state.clima=c;
+  const sug=nivelPorUmidade(c.umidade); if(sug) setNivel(sug);
+  const cor=corUmidade(c.umidade);
+  box.innerHTML=`<div class="clima-row">
+      <div><div class="clima-v">${Math.round(c.temp)}°C</div><div class="clima-l">temperatura</div></div>
+      <div><div class="clima-v" style="color:${cor}">${c.umidade}%</div><div class="clima-l">umidade do ar</div></div>
+      <div><div class="clima-v" style="font-size:14px;padding-top:5px">${c.desc}</div><div class="clima-l">condição</div></div>
+    </div>
+    <div class="clima-sug">Sugestão automática pela umidade: <b style="color:${cor}">${(sug||'').toUpperCase()}</b> — você pode ajustar manualmente.</div>`;
+}
+
 async function salvar(){
   const resp=$('resp').value;
   if(!resp){ alert('Selecione o responsável.'); return; }
@@ -227,7 +292,10 @@ async function salvar(){
     const {error}=await sb.from('monitoramento_florestal').insert({
       responsavel_id:resp, nivel_alerta:state.nivel, vegetacao:state.vegetacao,
       focos_fumaca:state.focos, aceiros_ok:state.aceiros,
-      observacao:$('obs').value||null, evidencias, ...gps
+      observacao:$('obs').value||null, evidencias, ...gps,
+      clima_temp: state.clima?state.clima.temp:null,
+      clima_umidade: state.clima?state.clima.umidade:null,
+      clima_desc: state.clima?state.clima.desc:null
     });
     if(error) throw error;
     telaSucesso();
