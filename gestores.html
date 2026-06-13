@@ -19,7 +19,7 @@
   body{display:flex;justify-content:center;min-height:100vh}
   .disp{font-family:'Archivo',sans-serif}
   .mono{font-family:'JetBrains Mono',monospace}
-  .wrap{width:100%;max-width:480px;padding-bottom:48px}
+  .wrap{width:100%;max-width:480px;margin:0 auto;padding-bottom:48px}
   i[data-lucide]{width:1em;height:1em;vertical-align:-2px}
 
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.32}}
@@ -112,6 +112,15 @@
     font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
   button:disabled{background:#334155!important;cursor:default}
   .skel{color:var(--dim);font-size:13px}
+
+  /* ===== Responsivo PC: painel amplo ===== */
+  @media(min-width:900px){
+    .wrap{max-width:1040px}
+    .grid2{grid-template-columns:1fr 1fr 1fr 1fr}
+  }
+  @media(min-width:600px) and (max-width:899px){
+    .wrap{max-width:680px}
+  }
 </style>
 </head>
 <body>
