@@ -125,6 +125,7 @@ const MOCK_EFETIVO = [{id:'d1',nome:'Brigadista (demo)'},{id:'d2',nome:'Supervis
 function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão (a prévia do chat bloqueia o acesso). Publique no GitHub para usar os dados reais.</div>' : ''; }
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
+const CORES_LACRE = ["Roxo","Amarelo","Verde","Azul","Vermelho","Laranja","Preto","Branco","Cinza"];
 const ITENS = [
   // Coluna do hidrante
   {s:'Coluna do hidrante', t:'Sem vazamento'},
@@ -154,7 +155,7 @@ const ITENS = [
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
-try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
+try { unlocked = sessionStorage.getItem('sgo_unlock_hid')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
@@ -166,15 +167,28 @@ function lastInspetor(){ try{ return sessionStorage.getItem('sgo_inspetor')||'';
 /* ---------- Router ---------- */
 async function init(){
   await carregarEfetivo();
+  const tok = getParam('t');
   const cod = getParam('hid');
-  if(cod){ await abrirExtintor(cod); }
+  if(tok){ await abrirPorToken(tok); }
+  else if(cod){ await abrirExtintor(cod); }
   else { await listaExtintores(); }
 }
 function setView(v){
   document.getElementById('tab-insp').classList.toggle('active', v==='inspecao');
   document.getElementById('tab-qr').classList.toggle('active', v==='qr');
   if(v==='qr') telaQR();
-  else { const cod=getParam('hid'); cod?abrirExtintor(cod):listaExtintores(); }
+  else { const tok=getParam('t'),cod=getParam('hid'); if(tok)abrirPorToken(tok); else if(cod)abrirExtintor(cod); else listaExtintores(); }
+}
+
+async function abrirPorToken(token){
+  app.innerHTML = '<div class="loading"><div class="spin"></div>Carregando hidrante…</div>';
+  let data=null;
+  if(sb){
+    try{ const r = await sb.from('hidrantes').select('codigo').eq('token',token).maybeSingle(); if(r.error) throw r.error; data=r.data; }
+    catch(e){ data=null; }
+  }
+  if(!data){ app.innerHTML = erro('QR inválido ou hidrante não encontrado.'); return; }
+  await abrirExtintor(data.codigo);
 }
 
 async function carregarEfetivo(){
@@ -347,6 +361,17 @@ function inspecaoHTML(){
     </div>
 
     <div class="card">
+      <h2 class="sec">Lacre das mangueiras — troca de cor</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 10px">Conforme a norma interna, registre a substituição da cor do lacre das mangueiras nesta inspeção.</p>
+      <div class="grid2">
+        <div class="field"><label>Cor anterior</label>
+          <select id="lacreAnt">${CORES_LACRE.map(c=>`<option ${c==='Roxo'?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="field"><label>Cor nova (atual)</label>
+          <select id="lacreNova">${CORES_LACRE.map(c=>`<option ${c==='Amarelo'?'selected':''}>${c}</option>`).join('')}</select></div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2 class="sec">Inspetor</h2>
       <select id="inspetor">
         <option value="">Selecione o responsável…</option>
@@ -372,7 +397,7 @@ function inspecaoHTML(){
 
 function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlock_hid','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -457,6 +482,8 @@ async function salvar(){
     {secao:'Coluna do hidrante', item:'Vazão (L/min)', valor:g('vazao')},
     {secao:'Caixa de abrigo das mangueiras', item:'Chaves (qtd)', valor:g('chaves')}
   ]);
+  const _lAnt=(document.getElementById('lacreAnt')||{}).value, _lNov=(document.getElementById('lacreNova')||{}).value;
+  if(_lAnt&&_lNov) checklistFull.push({secao:'Lacre das mangueiras', item:'Cor do lacre (anterior → atual)', valor:`${_lAnt} → ${_lNov}`});
 
   // modo demonstração: não grava, só mostra o resultado
   if(DEMO || !sb){ setTimeout(()=>telaSucesso(pct, condicao), 400); return; }
@@ -505,7 +532,7 @@ async function telaQR(){
   let data;
   if(!sb){ DEMO=true; data=MOCK_EXT; }
   else{
-    try{ const r = await sb.from('hidrantes').select('codigo,local,qtd_mangueiras').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
+    try{ const r = await sb.from('hidrantes').select('codigo,local,qtd_mangueiras,token').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
     catch(e){ DEMO=true; data=MOCK_EXT; }
   }
   const base = location.href.split('?')[0];
@@ -518,7 +545,7 @@ async function telaQR(){
       <div class="c">${e.codigo}</div><div class="m">${e.local||''}</div></div>`).join('') +
     '<button class="ghost no-print" onclick="window.print()">🖨 Imprimir todos</button>';
   data.forEach(e=>{
-    QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?hid=${e.codigo}`, {width:200,margin:1});
+    QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?t=${e.token||e.codigo}`, {width:200,margin:1});
   });
 }
 
