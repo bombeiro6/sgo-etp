@@ -308,7 +308,7 @@ function renderInspecao(){
     </div>
 
     <button class="edu-toggle no-print" onclick="toggleEdu()"><span>ℹ️ Sobre este extintor / Como usar</span><span id="eduArrow">›</span></button>
-    <div id="eduPanel" class="edu" style="display:none">${eduContent(e.tipo)}</div>
+    <div id="eduPanel" class="edu" style="display:block">${eduContent(e.tipo)}</div>
 
     <div id="inspArea">${unlocked ? inspecaoHTML() : lockHTML()}</div>
     ${getParam('ext')?'':'<button class="ghost no-print" onclick="listaExtintores()">‹ Voltar à lista</button>'}
