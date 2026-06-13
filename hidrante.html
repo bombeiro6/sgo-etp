@@ -354,21 +354,10 @@ function inspecaoHTML(){
       <h2 class="sec">Mangueiras do abrigo</h2>
       ${(state.mangueiras||[]).length ? state.mangueiras.map((m,i)=>`
         <div class="check">
-          <div class="lbl">Lacre ${m.numero_lacre||'—'}<span style="display:block;font-size:12px;color:var(--muted)">Validade: ${fmtData(m.validade)}</span></div>
+          <div class="lbl">Lacre ${m.numero_lacre||'—'}<span style="display:block;font-size:12px;color:var(--muted)">Validade: ${fmtData(m.validade)} · Cor: ${m.cor_lacre||'—'}</span></div>
           <button class="ghost" style="width:auto;padding:8px 14px;margin:0" onclick="trocarMangueira(${i})">Trocar</button>
         </div>`).join('') : '<p style="color:var(--muted);font-size:13px;margin:0">Nenhuma mangueira cadastrada.</p>'}
       <div id="trocaMangBox"></div>
-    </div>
-
-    <div class="card">
-      <h2 class="sec">Lacre das mangueiras — troca de cor</h2>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 10px">Conforme a norma interna, registre a substituição da cor do lacre das mangueiras nesta inspeção.</p>
-      <div class="grid2">
-        <div class="field"><label>Cor anterior</label>
-          <select id="lacreAnt">${CORES_LACRE.map(c=>`<option ${c==='Roxo'?'selected':''}>${c}</option>`).join('')}</select></div>
-        <div class="field"><label>Cor nova (atual)</label>
-          <select id="lacreNova">${CORES_LACRE.map(c=>`<option ${c==='Amarelo'?'selected':''}>${c}</option>`).join('')}</select></div>
-      </div>
     </div>
 
     <div class="card">
@@ -409,6 +398,8 @@ function trocarMangueira(i){
       <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Trocando a mangueira de lacre <b>${m.numero_lacre||'—'}</b>. Informe a nova:</p>
       <input id="novoLacre" placeholder="Novo nº de lacre" style="margin-bottom:8px">
       <input id="novaValidade" type="date" style="margin-bottom:8px">
+      <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:2px;font-weight:700">Cor do novo lacre</label>
+      <select id="novaCor" style="margin-bottom:8px">${CORES_LACRE.map(c=>`<option ${c==='Amarelo'?'selected':''}>${c}</option>`).join('')}</select>
       <button class="save" onclick="confirmarTrocaMang(${i})">Confirmar troca</button>
     </div>`;
 }
@@ -417,16 +408,17 @@ async function confirmarTrocaMang(i){
   const m=state.mangueiras[i];
   const lacre=(document.getElementById('novoLacre').value||'').trim();
   const validade=document.getElementById('novaValidade').value||null;
-  if(!lacre && !validade){ alert('Informe o novo lacre ou a nova validade.'); return; }
+  const cor=(document.getElementById('novaCor')||{}).value||null;
+  if(!lacre && !validade && !cor){ alert('Informe o novo lacre, a validade ou a cor.'); return; }
   if(DEMO || !sb){
     alert('Troca de mangueira registrada (modo demonstração).');
-    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade;
+    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade; m.cor_lacre=cor||m.cor_lacre;
     document.getElementById('inspArea').innerHTML=inspecaoHTML(); return;
   }
   try{
-    await sb.from('trocas_mangueiras').insert({mangueira_id:m.id, hidrante_id:state.extintor.id, lacre_anterior:m.numero_lacre, validade_anterior:m.validade, lacre_novo:lacre||null, validade_nova:validade||null});
-    await sb.from('mangueiras').update({numero_lacre:lacre||m.numero_lacre, validade:validade||m.validade}).eq('id',m.id);
-    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade;
+    await sb.from('trocas_mangueiras').insert({mangueira_id:m.id, hidrante_id:state.extintor.id, lacre_anterior:m.numero_lacre, validade_anterior:m.validade, lacre_novo:lacre||null, validade_nova:validade||null, cor_anterior:m.cor_lacre||null, cor_nova:cor||null});
+    await sb.from('mangueiras').update({numero_lacre:lacre||m.numero_lacre, validade:validade||m.validade, cor_lacre:cor||m.cor_lacre}).eq('id',m.id);
+    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade; m.cor_lacre=cor||m.cor_lacre;
     const novoVenc = state.mangueiras.map(x=>x.validade).filter(Boolean).sort()[0]||null;
     await sb.from('hidrantes').update({venc_hidrostatico:novoVenc}).eq('id',state.extintor.id);
     state.extintor.venc_hidrostatico=novoVenc;
@@ -460,6 +452,25 @@ function capturarFoto(input){
 }
 
 /* ---------- Salvar ---------- */
+/* ===== Caminho B: verificação de presença por GPS ===== */
+let _foraLocal=false;
+const RAIO_TOLERANCIA = 60; // metros de tolerância (GPS oscila em área industrial)
+function obterLocal(){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),
+      ()=>res(null),
+      {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+    );
+  });
+}
+function distanciaMetros(la1,lo1,la2,lo2){
+  const R=6371000, rad=x=>x*Math.PI/180;
+  const dla=rad(la2-la1), dlo=rad(lo2-lo1);
+  const a=Math.sin(dla/2)**2+Math.cos(rad(la1))*Math.cos(rad(la2))*Math.sin(dlo/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
 async function salvar(){
   const total=ITENS.length, respondidos=Object.keys(state.respostas).length;
   if(respondidos<total){ alert(`Marque todos os itens (${respondidos}/${total}).`); return; }
@@ -482,8 +493,6 @@ async function salvar(){
     {secao:'Coluna do hidrante', item:'Vazão (L/min)', valor:g('vazao')},
     {secao:'Caixa de abrigo das mangueiras', item:'Chaves (qtd)', valor:g('chaves')}
   ]);
-  const _lAnt=(document.getElementById('lacreAnt')||{}).value, _lNov=(document.getElementById('lacreNova')||{}).value;
-  if(_lAnt&&_lNov) checklistFull.push({secao:'Lacre das mangueiras', item:'Cor do lacre (anterior → atual)', valor:`${_lAnt} → ${_lNov}`});
 
   // modo demonstração: não grava, só mostra o resultado
   if(DEMO || !sb){ setTimeout(()=>telaSucesso(pct, condicao), 400); return; }
@@ -497,11 +506,27 @@ async function salvar(){
       if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
     }
 
+    // Caminho B — captura de presença por GPS
+    _foraLocal=false;
+    const loc = await obterLocal();
+    let gps = {};
+    if(loc){
+      gps.latitude=loc.lat; gps.longitude=loc.lng; gps.gps_precisao=loc.acc;
+      const ax=state.extintor.latitude, ay=state.extintor.longitude;
+      if(ax!=null && ay!=null){
+        const d=distanciaMetros(loc.lat,loc.lng,ax,ay);
+        gps.distancia_ativo=d; gps.fora_do_local=d>RAIO_TOLERANCIA; _foraLocal=gps.fora_do_local;
+      } else {
+        try{ await sb.from('hidrantes').update({latitude:loc.lat,longitude:loc.lng}).eq('id',state.extintor.id); }catch(e){}
+        gps.fora_do_local=false;
+      }
+    }
+
     // 2) insere na tabela inspecoes existente
     const { error:insErr } = await sb.from('inspecoes').insert({
       tipo:'hidrante', area:state.extintor.area, hidrante_id:state.extintor.id,
       responsavel_id:inspetor, checklist:checklistFull, conformidade_pct:pct, condicao,
-      observacoes:document.getElementById('obs').value||null, evidencias
+      observacoes:document.getElementById('obs').value||null, evidencias, ...gps
     });
     if(insErr) throw insErr;
 
@@ -520,6 +545,7 @@ function telaSucesso(pct, condicao){
   app.innerHTML = `<div class="card"><div class="success">
     <div class="ico" style="${ok?'':'background:var(--ncbg);color:var(--nc)'}">${ok?'✓':'!'}</div>
     <h2>Inspeção registrada</h2>
+    ${_foraLocal?'<p style="color:var(--nc);font-weight:700;margin:0 0 4px">⚠ Inspeção salva FORA do local do ativo — sujeita a revisão</p>':''}
     <p style="color:var(--muted);margin:0 0 4px">${state.extintor.codigo} · conformidade ${pct}%</p>
     <p style="font-weight:700;color:${ok?'var(--ok)':'var(--nc)'}">${ok?'Conforme':'Não conforme — abrir tratativa'}</p>
     <button class="save" style="margin-top:16px" onclick="${getParam('hid')?'location.reload()':'listaExtintores()'}">${getParam('hid')?'Nova inspeção':'‹ Voltar à lista'}</button>
