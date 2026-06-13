@@ -83,6 +83,12 @@
   .lock-card{text-align:center}
   .lock-ic{width:62px;height:62px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 12px}
   @media print{header,.tabs,.no-print{display:none}.qr-item{page-break-inside:avoid}}
+
+  /* ===== Responsivo PC (apenas CSS, sem custo de carga/banco) ===== */
+  @media(min-width:700px){
+    .wrap{max-width:640px;padding:24px}
+    body{font-size:16px}
+  }
 </style>
 </head>
 <body>
@@ -190,7 +196,7 @@ const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;
 let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
-try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
+try { unlocked = sessionStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
@@ -202,15 +208,17 @@ function lastInspetor(){ try{ return sessionStorage.getItem('sgo_inspetor')||'';
 /* ---------- Router ---------- */
 async function init(){
   await carregarEfetivo();
+  const tok = getParam('t');
   const cod = getParam('ext');
-  if(cod){ await abrirExtintor(cod); }
+  if(tok){ await abrirPorToken(tok); }
+  else if(cod){ await abrirExtintor(cod); }
   else { await listaExtintores(); }
 }
 function setView(v){
   document.getElementById('tab-insp').classList.toggle('active', v==='inspecao');
   document.getElementById('tab-qr').classList.toggle('active', v==='qr');
   if(v==='qr') telaQR();
-  else { const cod=getParam('ext'); cod?abrirExtintor(cod):listaExtintores(); }
+  else { const tok=getParam('t'),cod=getParam('ext'); if(tok)abrirPorToken(tok); else if(cod)abrirExtintor(cod); else listaExtintores(); }
 }
 
 async function carregarEfetivo(){
@@ -255,6 +263,19 @@ async function listaExtintores(){
       <div><div class="c">${e.codigo}</div><div class="m">${e.tipo} · ${e.local||'—'}${aviso}</div></div>
       <div class="chev">›</div></div>`;
   }).join('');
+}
+
+/* ---------- Acesso via QR com token aleatório (anti-burla) ---------- */
+async function abrirPorToken(token){
+  TREINO=false;
+  app.innerHTML = '<div class="loading"><div class="spin"></div>Carregando extintor…</div>';
+  let data=null;
+  if(sb){
+    try{ const r = await sb.from('extintores').select('codigo').eq('token',token).maybeSingle(); if(r.error) throw r.error; data=r.data; }
+    catch(e){ data=null; }
+  }
+  if(!data){ app.innerHTML = erro('QR inválido ou extintor não encontrado.'); return; }
+  await abrirExtintor(data.codigo);
 }
 
 /* ---------- Tela de inspeção ---------- */
@@ -322,7 +343,7 @@ function renderInspecao(){
     <div class="edu">${eduContent(e.tipo)}</div>
 
     <div id="inspArea">${unlocked ? inspecaoHTML() : lockHTML()}</div>
-    ${getParam('ext')?'':'<button class="ghost no-print" onclick="listaExtintores()">‹ Voltar à lista</button>'}
+    ${(getParam('ext')||getParam('t'))?'':'<button class="ghost no-print" onclick="listaExtintores()">‹ Voltar à lista</button>'}
   `;
 }
 
@@ -425,7 +446,7 @@ function inspecaoHTML(){
 
 function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlock_ext','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -486,6 +507,25 @@ function capturarFoto(input){
   reader.readAsDataURL(file);
 }
 
+/* ===== Caminho B: verificação de presença por GPS ===== */
+let _foraLocal=false;
+const RAIO_TOLERANCIA = 60; // metros de tolerância (GPS oscila em área industrial)
+function obterLocal(){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),
+      ()=>res(null),
+      {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+    );
+  });
+}
+function distanciaMetros(la1,lo1,la2,lo2){
+  const R=6371000, rad=x=>x*Math.PI/180;
+  const dla=rad(la2-la1), dlo=rad(lo2-lo1);
+  const a=Math.sin(dla/2)**2+Math.cos(rad(la1))*Math.cos(rad(la2))*Math.sin(dlo/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
 /* ---------- Salvar ---------- */
 async function salvar(){
   const total=ITENS.length, respondidos=Object.keys(state.respostas).length;
@@ -520,11 +560,27 @@ async function salvar(){
       if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
     }
 
+    // Caminho B — captura de presença por GPS
+    _foraLocal=false;
+    const loc = await obterLocal();
+    let gps = {};
+    if(loc){
+      gps.latitude=loc.lat; gps.longitude=loc.lng; gps.gps_precisao=loc.acc;
+      const ax=state.extintor.latitude, ay=state.extintor.longitude;
+      if(ax!=null && ay!=null){
+        const d=distanciaMetros(loc.lat,loc.lng,ax,ay);
+        gps.distancia_ativo=d; gps.fora_do_local=d>RAIO_TOLERANCIA; _foraLocal=gps.fora_do_local;
+      } else {
+        try{ await sb.from('extintores').update({latitude:loc.lat,longitude:loc.lng}).eq('id',state.extintor.id); }catch(e){}
+        gps.fora_do_local=false;
+      }
+    }
+
     // 2) insere na tabela inspecoes existente
     const { error:insErr } = await sb.from('inspecoes').insert({
       tipo:'extintor', area:state.extintor.area, extintor_id:state.extintor.id,
       responsavel_id:inspetor, checklist, conformidade_pct:pct, condicao,
-      observacoes:document.getElementById('obs').value||null, evidencias
+      observacoes:document.getElementById('obs').value||null, evidencias, ...gps
     });
     if(insErr) throw insErr;
 
@@ -546,10 +602,11 @@ function telaSucesso(pct, condicao){
   app.innerHTML = `<div class="card"><div class="success">
     <div class="ico" style="${ok?'':'background:var(--ncbg);color:var(--nc)'}">${ok?'✓':'!'}</div>
     <h2>${TREINO?'Inspeção demonstrativa concluída':'Inspeção registrada'}</h2>
+    ${(!TREINO&&_foraLocal)?'<p style="color:var(--nc);font-weight:700;margin:0 0 4px">⚠ Inspeção salva FORA do local do ativo — sujeita a revisão</p>':''}
     ${TREINO?'<p style="color:var(--warn);font-weight:700;margin:0 0 4px">🎓 Treinamento — nada foi gravado no sistema</p>':''}
     <p style="color:var(--muted);margin:0 0 4px">${state.extintor.codigo} · conformidade ${pct}%</p>
     <p style="font-weight:700;color:${ok?'var(--ok)':'var(--nc)'}">${ok?'Conforme':'Não conforme — abrir tratativa'}</p>
-    <button class="save" style="margin-top:16px" onclick="${getParam('ext')?'location.reload()':'listaExtintores()'}">${getParam('ext')?'Nova inspeção':'‹ Voltar à lista'}</button>
+    <button class="save" style="margin-top:16px" onclick="${(getParam('ext')||getParam('t'))?'location.reload()':'listaExtintores()'}">${(getParam('ext')||getParam('t'))?'Nova inspeção':'‹ Voltar à lista'}</button>
   </div></div>`;
 }
 
@@ -559,7 +616,7 @@ async function telaQR(){
   let data;
   if(!sb){ DEMO=true; data=MOCK_EXT; }
   else{
-    try{ const r = await sb.from('extintores').select('codigo,tipo,local').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
+    try{ const r = await sb.from('extintores').select('codigo,tipo,local,token').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
     catch(e){ DEMO=true; data=MOCK_EXT; }
   }
   data = ordenarPorNumero(data);
@@ -573,7 +630,7 @@ async function telaQR(){
       <div class="c">${e.codigo}</div><div class="m">${e.tipo} · ${e.local||''}</div></div>`).join('') +
     '<button class="ghost no-print" onclick="window.print()">🖨 Imprimir todos</button>';
   data.forEach(e=>{
-    QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?ext=${e.codigo}`, {width:200,margin:1});
+    QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?t=${e.token||e.codigo}`, {width:200,margin:1});
   });
 }
 
