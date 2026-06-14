@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0a0e14" />
 <title>SGO · Painel de Gestores — Terminal Parauapebas</title>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
@@ -628,6 +629,61 @@ function _baixar(nome,conteudo){
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },1200);
 }
 function _tipoTxt(t){ return ({extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de Bomba'})[t]||t; }
+/* ===== Geração .xlsx REAL (xlsx-js-style) — sem aviso de formato no Excel ===== */
+const _BD={style:'thin',color:{rgb:'D9DEE5'}};
+const _bd={top:_BD,bottom:_BD,left:_BD,right:_BD};
+const _S={
+  title:{font:{name:'Arial',sz:15,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'0A2240'}},alignment:{horizontal:'center',vertical:'center'}},
+  subt:{font:{name:'Arial',sz:9,color:{rgb:'445566'}},alignment:{horizontal:'center',vertical:'center'}},
+  kpiH:{font:{name:'Arial',sz:9,bold:true,color:{rgb:'5B6B7B'}},fill:{patternType:'solid',fgColor:{rgb:'EAF1F0'}},alignment:{horizontal:'center',vertical:'center',wrapText:true}},
+  sec:{font:{name:'Arial',sz:11,bold:true,color:{rgb:'0A2240'}}},
+  hdr:{font:{name:'Arial',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'0A2240'}},alignment:{horizontal:'center',vertical:'center'},border:_bd},
+  nameL:{font:{name:'Arial',sz:10,bold:true,color:{rgb:'111111'}},alignment:{horizontal:'left',vertical:'center'},border:_bd},
+  numC:{font:{name:'Arial',sz:10,color:{rgb:'111111'}},alignment:{horizontal:'center',vertical:'center'},border:_bd}
+};
+function _kpi(c){ return {font:{name:'Arial',sz:18,bold:true,color:{rgb:c}},fill:{patternType:'solid',fgColor:{rgb:'EAF1F0'}},alignment:{horizontal:'center',vertical:'center'}}; }
+function _wsResumo(total,conf,ncc,media,semfoto,porTipo,porResp){
+  const ws={}; const E=XLSX.utils.encode_cell;
+  const set=(r,c,v,st)=>{ const ref=E({r:r,c:c}); ws[ref]={t:(typeof v==='number'?'n':'s'),v:v}; if(st)ws[ref].s=st; };
+  set(1,1,'SGO-ETP · RELATÓRIO DE INSPEÇÕES',_S.title);
+  set(2,1,'Terminal Parauapebas · '+new Date().toLocaleString('pt-BR'),_S.subt);
+  ['TOTAL INSPEÇÕES','CONFORMES','NÃO CONFORMES','CONFORMIDADE MÉDIA','SEM FOTO'].forEach((t,i)=>set(4,1+i,t,_S.kpiH));
+  set(5,1,total,_kpi('0A2240')); set(5,2,conf,_kpi('1F7A44')); set(5,3,ncc,_kpi('B02A2A')); set(5,4,media+'%',_kpi('007B6E')); set(5,5,semfoto,_kpi('C98A00'));
+  let r=8; set(r,1,'POR TIPO DE ATIVO',_S.sec); r++;
+  ['Tipo','Inspeções','Conformes','Não Conf.','Conf. Média'].forEach((h,i)=>set(r,1+i,h,_S.hdr)); r++;
+  porTipo.forEach(row=>{ set(r,1,row[0],_S.nameL); for(let i=1;i<5;i++) set(r,1+i,row[i],_S.numC); r++; });
+  r++;
+  set(r,1,'POR RESPONSÁVEL (PRODUTIVIDADE)',_S.sec); r++;
+  ['Responsável','Inspeções','Conformes','Não Conf.','Conf. Média'].forEach((h,i)=>set(r,1+i,h,_S.hdr)); r++;
+  porResp.forEach(row=>{ set(r,1,row[0],_S.nameL); for(let i=1;i<5;i++) set(r,1+i,row[i],_S.numC); r++; });
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r+1,c:5}});
+  ws['!merges']=[{s:{r:1,c:1},e:{r:1,c:5}},{s:{r:2,c:1},e:{r:2,c:5}}];
+  ws['!cols']=[{wch:2.5},{wch:26},{wch:13},{wch:13},{wch:16},{wch:13}];
+  ws['!rows']=[{},{hpt:30},{hpt:16},{},{hpt:16},{hpt:26}];
+  return ws;
+}
+function _wsTabela(headers,rows,isNC){
+  const aoa = isNC ? [['⚠ '+rows.length+' não conformidades'],headers].concat(rows) : [headers].concat(rows);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[18,13,12,11,7,22,9,16,8,16,7,55].map(w=>({wch:w}));
+  const E=XLSX.utils.encode_cell; const hRow=isNC?1:0;
+  if(isNC){
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:11}}];
+    ws[E({r:0,c:0})].s={font:{name:'Arial',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'B02A2A'}},alignment:{horizontal:'center',vertical:'center'}};
+  }
+  for(let c=0;c<headers.length;c++){ const ref=E({r:hRow,c:c}); if(ws[ref]) ws[ref].s=_S.hdr; }
+  rows.forEach((row,i)=>{
+    const rr=hRow+1+i; const nc=row[7]==='NÃO CONFORME'; const bg=nc?'FBE9E9':'F4F7FA';
+    for(let c=0;c<headers.length;c++){
+      const ref=E({r:rr,c:c}); if(!ws[ref]) ws[ref]={t:'s',v:''};
+      if(c===7) ws[ref].s={font:{name:'Arial',sz:10,bold:true,color:{rgb:nc?'B02A2A':'1F7A44'}},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:'center',vertical:'center'},border:_bd};
+      else if(c===11) ws[ref].s={font:{name:'Arial',sz:10,color:{rgb:'111111'}},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:'left',vertical:'center',wrapText:true},border:_bd};
+      else ws[ref].s={font:{name:'Arial',sz:10,color:{rgb:'111111'}},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:'center',vertical:'center'},border:_bd};
+    }
+  });
+  const rr=[]; if(isNC) rr[0]={hpt:20}; rr[hRow]={hpt:24}; ws['!rows']=rr;
+  return ws;
+}
 
 async function baixarExcel(){
   const code=prompt('Código para baixar a planilha:');
@@ -664,13 +720,17 @@ async function baixarExcel(){
     const total=ins.length, conf=ins.filter(r=>r.condicao==='conforme').length, ncc=total-conf;
     const media= total? (ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
     const semfoto= ins.filter(r=>!(r.evidencias&&r.evidencias.length)).length;
-    const xls=_wb([
-      _resumo(total,conf,ncc,media,semfoto),
-      _tabela('Inspeções',headers,todas,false),
-      _tabela('Não Conformidades',headers,ncs,true)
-    ]);
+    const med1=(a)=> a.length? (a.reduce((s,r)=>s+(r.conformidade_pct||0),0)/a.length).toFixed(1)+'%' : '—';
+    const porTipo=['extintor','hidrante','valvula','casa_bomba'].map(t=>{ const a=ins.filter(r=>r.tipo===t); if(!a.length)return null; const cc=a.filter(r=>r.condicao==='conforme').length; return [_tipoTxt(t),a.length,cc,a.length-cc,med1(a)]; }).filter(Boolean);
+    const byR={}; ins.forEach(r=>{ const id=r.responsavel_id||'_'; (byR[id]=byR[id]||[]).push(r); });
+    const porResp=Object.keys(byR).map(id=>{ const a=byR[id]; const cc=a.filter(r=>r.condicao==='conforme').length; return [efN[id]||'—',a.length,cc,a.length-cc,med1(a)]; }).sort((x,y)=>y[1]-x[1]);
+    if(typeof XLSX==='undefined'){ alert('A biblioteca de Excel ainda não carregou — aguarde 1-2s e tente de novo.'); return; }
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, _wsResumo(total,conf,ncc,media,semfoto,porTipo,porResp), 'Resumo');
+    XLSX.utils.book_append_sheet(wb, _wsTabela(headers,todas,false), 'Inspeções');
+    XLSX.utils.book_append_sheet(wb, _wsTabela(headers,ncs,true), 'Não Conformidades');
     const hoje=new Date().toISOString().slice(0,10);
-    _baixar('SGO-ETP_Inspecoes_'+hoje+'.xls', xls);
+    XLSX.writeFile(wb, 'SGO-ETP_Inspecoes_'+hoje+'.xlsx');
   }catch(e){ alert('Erro ao gerar a planilha: '+(e.message||e)); }
 }
 
