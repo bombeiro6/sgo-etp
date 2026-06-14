@@ -200,6 +200,7 @@ let unlocked = false;
 let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
 try { unlocked = sessionStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
+const PIN_ADMIN  = "9999";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
@@ -308,16 +309,17 @@ const FIRE_CLASSES = {
   C:{color:'#2563c9', label:'Classe C — Elétricos', sub:'Equipamentos energizados', svg:'<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="#fff"/>'}
 };
 const EDU = {
-  ABC:{classes:['A','B','C'], funciona:'Pó químico seco (fosfato monoamônico) que interrompe a reação química do fogo e forma uma camada que abafa as chamas. É o mais versátil — cobre as três classes mais comuns.', atencao:'Deixa resíduo de pó (limpe o equipamento depois) e reduz a visibilidade ao acionar.'},
+  ABC:{classes:['A','B','C'], funciona:'Pó químico seco (fosfato monoamônico) que interrompe a reação química do fogo e forma uma camada que abafa as chamas. É o mais versátil — cobre as três classes mais comuns.', atencao:'Deixa resíduo de pó que exige limpeza do equipamento após o uso. No disparo, forma uma nuvem de pó que dificulta a visão por alguns instantes — mantenha sempre uma rota de saída livre.'},
   BC:{classes:['B','C'], funciona:'Pó químico à base de bicarbonato que interrompe a reação química do fogo. Não combate fogo em materiais sólidos.', atencao:'Não use em incêndio de papel, madeira ou tecido (classe A) — não é eficaz.'},
   CO2:{classes:['B','C'], funciona:'Gás carbônico que abafa o fogo retirando o oxigênio e ainda resfria. Não deixa resíduo — ideal para painéis e equipamentos elétricos/eletrônicos.', atencao:'O difusor fica muito gelado — não toque na parte metálica. Evite ambiente fechado sem ventilação (risco de asfixia) e perde eficácia ao ar livre/vento.'},
   AGUA:{classes:['A'], funciona:'Água sob pressão que resfria o material em combustão abaixo da temperatura de ignição. Indicado apenas para sólidos.', atencao:'NUNCA use em equipamento elétrico energizado (risco de choque) nem em líquidos inflamáveis (espalha o fogo).'},
   ESPUMA:{classes:['A','B'], funciona:'Forma uma película de espuma que abafa as chamas e isola a superfície de líquidos inflamáveis, evitando a reignição.', atencao:'Não use em equipamento elétrico energizado (risco de choque).'}
 };
 const PASSOS = [
-  'Use o extintor na posição vertical e puxe a trava rompendo o lacre.',
-  'Segure firme na mangueira e aperte o gatilho até o fim.',
-  'Dirija o jato à base do fogo, espalhando — sempre com o vento nas costas.'
+  'Mantenha o extintor na vertical, rompa o lacre e puxe a trava de segurança.',
+  'Posicione-se com o vento nas costas e empunhe firme a mangueira (ou difusor).',
+  'Aperte o gatilho e direcione o jato à base das chamas, em movimento de varredura.',
+  'Após o uso, mesmo que parcial, acione a emergência local para reposição do extintor.'
 ];
 function eduContent(tipo){
   const e = EDU[tipo] || EDU.ABC;
@@ -613,7 +615,22 @@ function telaSucesso(pct, condicao){
 }
 
 /* ---------- Aba QR Codes ---------- */
+function adminOK(){ try{return sessionStorage.getItem('sgo_admin')==='1';}catch(e){return false;} }
+function telaAdminGate(){
+  app.innerHTML = '<div class="card" style="text-align:center;max-width:420px;margin:0 auto">'
+    +'<div style="font-size:42px">🔐</div>'
+    +'<h2 style="margin:6px 0 4px;font-size:17px">Área restrita</h2>'
+    +'<p style="color:var(--muted);font-size:14px;margin:0 0 14px">A geração de QR Codes é exclusiva do administrador. Esta etiqueta não deve ser escaneada da tela — ela é colada no extintor e lida no local.</p>'
+    +'<input id="apin" type="password" inputmode="numeric" placeholder="Senha do administrador" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key===String.fromCharCode(13))entrarAdmin()">'
+    +'<button class="save" style="margin-top:12px" onclick="entrarAdmin()">Entrar</button></div>';
+}
+function entrarAdmin(){
+  const v=(document.getElementById('apin').value||'').trim();
+  if(v===PIN_ADMIN){ try{sessionStorage.setItem('sgo_admin','1');}catch(e){} telaQR(); }
+  else alert('Senha incorreta.');
+}
 async function telaQR(){
+  if(!adminOK()){ telaAdminGate(); return; }
   app.innerHTML='<div class="loading"><div class="spin"></div>Gerando QR Codes…</div>';
   let data;
   if(!sb){ DEMO=true; data=MOCK_EXT; }
