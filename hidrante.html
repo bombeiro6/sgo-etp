@@ -165,6 +165,7 @@ let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
 try { unlocked = sessionStorage.getItem('sgo_unlock_hid')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
+const PIN_ADMIN  = "9999";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
@@ -561,7 +562,22 @@ function telaSucesso(pct, condicao){
 }
 
 /* ---------- Aba QR Codes ---------- */
+function adminOK(){ try{return sessionStorage.getItem('sgo_admin')==='1';}catch(e){return false;} }
+function telaAdminGate(){
+  app.innerHTML = '<div class="card" style="text-align:center;max-width:420px;margin:0 auto">'
+    +'<div style="font-size:42px">🔐</div>'
+    +'<h2 style="margin:6px 0 4px;font-size:17px">Área restrita</h2>'
+    +'<p style="color:var(--muted);font-size:14px;margin:0 0 14px">A geração de QR Codes é exclusiva do administrador. Esta etiqueta não deve ser escaneada da tela — ela é colada no hidrante e lida no local.</p>'
+    +'<input id="apin" type="password" inputmode="numeric" placeholder="Senha do administrador" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key===String.fromCharCode(13))entrarAdmin()">'
+    +'<button class="save" style="margin-top:12px" onclick="entrarAdmin()">Entrar</button></div>';
+}
+function entrarAdmin(){
+  const v=(document.getElementById('apin').value||'').trim();
+  if(v===PIN_ADMIN){ try{sessionStorage.setItem('sgo_admin','1');}catch(e){} telaQR(); }
+  else alert('Senha incorreta.');
+}
 async function telaQR(){
+  if(!adminOK()){ telaAdminGate(); return; }
   app.innerHTML='<div class="loading"><div class="spin"></div>Gerando QR Codes…</div>';
   let data;
   if(!sb){ DEMO=true; data=MOCK_EXT; }
