@@ -503,8 +503,9 @@ function render(d){
   $('hidV').textContent = hid.length;
   $('hidS').innerHTML = hidVenc ? `<span style="color:#ef4444">${hidVenc} teste vencido</span>` : '<span style="color:#16a34a">testes em dia</span>';
   const val=d.valvulas||[];
+  const valProb=val.filter(v=> v.status && String(v.status).toLowerCase()!=='ativo').length;
   $('valV').textContent = val.length;
-  $('valS').textContent = val.length ? 'cadastradas' : '—';
+  $('valS').innerHTML = val.length ? (valProb ? `<span style="color:#ef4444">${valProb} fora de operação</span>` : '<span style="color:#16a34a">todas operacionais</span>') : '—';
   const man=d.mangueiras||[], manVenc=man.filter(m=>venc(m.validade)).length;
   $('manV').textContent = man.length;
   $('manS').innerHTML = manVenc ? `<span style="color:#ef4444">${manVenc} vencida(s)</span>` : '<span style="color:#16a34a">em dia</span>';
