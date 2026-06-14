@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGO-ETP · BI Gerencial</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --navy:#0A2240; --navy2:#143257; --teal:#007B6E; --bg:#eef1f5; --card:#fff; --line:#dfe5ec; --ink:#0A2240; --muted:#5b6b7b; --green:#1F7A44; --red:#C0392B; --orange:#C98A00; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(10,34,64,.18)}
+  header .mark{width:34px;height:34px;border-radius:8px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+  header h1{font-size:15px;margin:0;font-weight:700}
+  header small{display:block;font-weight:400;opacity:.75;font-size:11px}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
+  .kpi .v{font-size:26px;font-weight:800;line-height:1}
+  .kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:5px}
+  .grid{display:grid;grid-template-columns:1fr;gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .card h3{margin:0 0 10px;font-size:14px;color:var(--ink)}
+  .cv{position:relative;height:260px}
+  .gate{max-width:380px;margin:60px auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+  .gate input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;margin:12px 0}
+  .btn{width:100%;background:var(--teal);color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer}
+  .loading{text-align:center;padding:50px;color:var(--muted)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .err{color:var(--red);font-size:13px;margin-top:8px;min-height:16px}
+  @media(min-width:760px){ .kpis{grid-template-columns:repeat(4,1fr)} .grid{grid-template-columns:1fr 1fr} .full{grid-column:1 / -1} }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">BI</div>
+  <div><h1>BI Gerencial — SGO-ETP<small>Emergência Terminal Parauapebas · Vale</small></h1></div>
+</header>
+<div class="wrap" id="app">
+  <div class="loading"><div class="spin"></div>Carregando…</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const PIN_GESTOR = "gestor2026"; // << mesmo código do painel de gestores
+const NAVY='#0A2240', TEAL='#007B6E', GREEN='#1F7A44', RED='#C0392B', ORANGE='#C98A00', GRAY='#94a3b8';
+let sb=null; try{ if(window.supabase) sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+const app=document.getElementById('app');
+let gestorOk=false; try{ gestorOk=sessionStorage.getItem('sgo_gestor')==='1'; }catch(e){}
+const _tipo={extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de Bomba'};
+
+function start(){ if(gestorOk) carregar(); else gate(); }
+function gate(){
+  app.innerHTML=`<div class="gate"><div style="font-size:40px">🔒</div>
+    <h2 style="margin:6px 0 4px;font-size:18px">Acesso gerencial</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0">Informe o código de gestor para ver os indicadores.</p>
+    <input id="gpin" type="password" inputmode="numeric" placeholder="Código" onkeydown="if(event.key==='Enter')entrar()">
+    <button class="btn" onclick="entrar()">Entrar</button>
+    <div class="err" id="gerr"></div></div>`;
+}
+function entrar(){
+  const v=(document.getElementById('gpin').value||'').trim();
+  if(v===PIN_GESTOR){ gestorOk=true; try{sessionStorage.setItem('sgo_gestor','1');}catch(e){} carregar(); }
+  else document.getElementById('gerr').textContent='Código incorreto.';
+}
+
+async function carregar(){
+  app.innerHTML='<div class="loading"><div class="spin"></div>Montando indicadores…</div>';
+  if(!sb){ app.innerHTML='<div class="loading">Sem conexão com o banco.</div>'; return; }
+  try{
+    const [insR,efR,exR,hdR,vlR,cbR]=await Promise.all([
+      sb.from('inspecoes').select('created_at,condicao,conformidade_pct,area,turno,responsavel_id,tipo,extintor_id,hidrante_id,valvula_id,casa_bomba_id'),
+      sb.from('efetivo').select('id,nome'),
+      sb.from('extintores').select('id').eq('status','ativo'),
+      sb.from('hidrantes').select('id').eq('status','ativo'),
+      sb.from('valvulas').select('id').eq('status','ativo'),
+      sb.from('casas_bombas').select('id').eq('status','ativo')
+    ]);
+    const ins=insR.data||[];
+    const efN={}; (efR.data||[]).forEach(e=>efN[e.id]=e.nome);
+    const totalAtivos=(exR.data||[]).length+(hdR.data||[]).length+(vlR.data||[]).length+(cbR.data||[]).length;
+    render(ins, efN, totalAtivos);
+  }catch(e){ app.innerHTML='<div class="loading">Erro ao carregar: '+(e.message||e)+'</div>'; }
+}
+
+function render(ins, efN, totalAtivos){
+  const total=ins.length;
+  const conf=ins.filter(r=>r.condicao==='conforme').length;
+  const ncs=total-conf;
+  const media= total? (ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
+  const insSet=new Set(); ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id) insSet.add(id); });
+  const cobertura= totalAtivos? Math.round(insSet.size/totalAtivos*100) : 0;
+
+  app.innerHTML=`
+    <div class="kpis">
+      <div class="kpi"><div class="v" style="color:${NAVY}">${total}</div><div class="l">Inspeções</div></div>
+      <div class="kpi"><div class="v" style="color:${TEAL}">${media}%</div><div class="l">Conformidade média</div></div>
+      <div class="kpi"><div class="v" style="color:${RED}">${ncs}</div><div class="l">Não conformes</div></div>
+      <div class="kpi"><div class="v" style="color:${ORANGE}">${cobertura}%</div><div class="l">Cobertura</div></div>
+    </div>
+    <div class="grid">
+      <div class="card full"><h3>Conformidade ao longo do tempo</h3><div class="cv"><canvas id="c1"></canvas></div></div>
+      <div class="card"><h3>Não conformidades por área</h3><div class="cv"><canvas id="c2"></canvas></div></div>
+      <div class="card"><h3>Não conformidades por tipo de ativo</h3><div class="cv"><canvas id="c3"></canvas></div></div>
+      <div class="card"><h3>Inspeções por turno</h3><div class="cv"><canvas id="c4"></canvas></div></div>
+      <div class="card"><h3>Cobertura de inspeção</h3><div class="cv"><canvas id="c6"></canvas></div></div>
+      <div class="card full"><h3>Produtividade por responsável</h3><div class="cv" style="height:${Math.max(260, 0)}px"><canvas id="c5"></canvas></div></div>
+    </div>`;
+
+  Chart.defaults.font.family='-apple-system,Segoe UI,Roboto,sans-serif';
+  Chart.defaults.color='#5b6b7b';
+  const baseOpt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+
+  // 1) Conformidade ao longo do tempo (por dia)
+  const porDia={};
+  ins.forEach(r=>{ const d=(r.created_at||'').slice(0,10); if(!d)return; (porDia[d]=porDia[d]||[]).push(r.conformidade_pct||0); });
+  const dias=Object.keys(porDia).sort();
+  const labDias=dias.map(d=>d.slice(8,10)+'/'+d.slice(5,7));
+  const medDia=dias.map(d=>{ const a=porDia[d]; return Math.round(a.reduce((s,x)=>s+x,0)/a.length); });
+  new Chart(c1,{type:'line',data:{labels:labDias,datasets:[{data:medDia,borderColor:TEAL,backgroundColor:'rgba(0,123,110,.12)',fill:true,tension:.3,pointBackgroundColor:TEAL,pointRadius:4}]},options:Object.assign({},baseOpt,{scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}})});
+
+  // 2) NC por área
+  const ncArea={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const a=r.area||'—'; ncArea[a]=(ncArea[a]||0)+1; });
+  new Chart(c2,{type:'bar',data:{labels:Object.keys(ncArea),datasets:[{data:Object.values(ncArea),backgroundColor:RED,borderRadius:6}]},options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
+
+  // 3) NC por tipo
+  const ncTipo={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const t=_tipo[r.tipo]||r.tipo||'—'; ncTipo[t]=(ncTipo[t]||0)+1; });
+  new Chart(c3,{type:'doughnut',data:{labels:Object.keys(ncTipo),datasets:[{data:Object.values(ncTipo),backgroundColor:[NAVY,TEAL,ORANGE,RED,GRAY]}]},options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}}})});
+
+  // 4) Inspeções por turno
+  const turno={}; ins.forEach(r=>{ const t=(r.turno||'—').trim()||'—'; turno[t]=(turno[t]||0)+1; });
+  new Chart(c4,{type:'bar',data:{labels:Object.keys(turno).map(t=>'Turno '+t),datasets:[{data:Object.values(turno),backgroundColor:NAVY,borderRadius:6}]},options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
+
+  // 6) Cobertura
+  const cobV=Math.min(insSet.size,totalAtivos);
+  new Chart(c6,{type:'doughnut',data:{labels:['Inspecionados','Pendentes'],datasets:[{data:[cobV, Math.max(0,totalAtivos-cobV)],backgroundColor:[GREEN,'#e2e8f0']}]},options:Object.assign({},baseOpt,{cutout:'68%',plugins:{legend:{display:true,position:'bottom'}}})});
+
+  // 5) Produtividade por responsável (top, horizontal)
+  const resp={}; ins.forEach(r=>{ const n=efN[r.responsavel_id]||'—'; resp[n]=(resp[n]||0)+1; });
+  const ord=Object.keys(resp).map(n=>[n,resp[n]]).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const c5box=document.getElementById('c5').parentElement; c5box.style.height=Math.max(260, ord.length*26+40)+'px';
+  new Chart(c5,{type:'bar',data:{labels:ord.map(x=>x[0]),datasets:[{data:ord.map(x=>x[1]),backgroundColor:TEAL,borderRadius:5}]},options:Object.assign({},baseOpt,{indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{precision:0}}}})});
+}
+
+start();
+</script>
+</body>
+</html>
