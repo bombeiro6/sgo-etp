@@ -250,6 +250,7 @@
 
 <script>
 // ====== CONEXÃO COM O BANCO ======
+function safeIcons(){ try{ if(window.lucide && window.lucide.createIcons) window.lucide.createIcons(); }catch(e){} }
 const SUPABASE_URL = 'https://wcyftjpsbifyvuqzxmbs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM';
 
@@ -381,7 +382,7 @@ async function carregar(manual){
     console.error(e);
   }finally{
     if(manual) setTimeout(()=>$('refIcon').classList.remove('spin'),600);
-    lucide.createIcons();
+    safeIcons();
   }
 }
 
@@ -391,25 +392,19 @@ function render(d){
   const ncCriticasAbertas = (d.ncs||[]).filter(n=>n.criticidade==='critica');
   const viatNaoOp = (d.viaturas||[]).filter(v=>norm(v.status)!=='operacional');
 
-  // ---- ocorrências / pontos críticos ----
+  // ---- Top NCs em aberto (lista recolhível) ----
   const critOrder={critica:0,moderada:1,baixa:2};
   const pontos=[...(d.ncs||[])].sort((a,b)=>(critOrder[a.criticidade]??9)-(critOrder[b.criticidade]??9));
   const cCor={critica:'#ef4444',moderada:'#f59e0b',baixa:'#3b82f6'};
-  if(pontos.length===0){
-    $('occBox').innerHTML='<div class="card empty"><i data-lucide="check-circle-2" style="color:#16a34a"></i><span>Nenhuma não conformidade em aberto.</span></div>';
-  }else{
-    $('occBox').innerHTML=pontos.map(n=>{
-      const c=cCor[n.criticidade]||'#8b98a8';
-      return `<div class="occ rise" style="border-color:${c}55;background:${c}11">
-        <div class="occ-top">
-          <div class="occ-t">${esc(n.descricao||n.ativo_tipo||'Não conformidade')}</div>
-          <span class="badge" style="color:${c};border-color:${c}66">${(n.criticidade||'').toUpperCase()}</span>
-        </div>
-        <div class="occ-l"><i data-lucide="map-pin" style="color:var(--muted)"></i> ${esc(n.area||'Área não informada')} · ${esc(n.ativo_tipo||'')}</div>
-        <div class="occ-l"><i data-lucide="clock" style="color:var(--muted)"></i> ${n.status==='tratamento'?'Em tratamento':'Aberta'}${n.prazo?(' · prazo '+fmtData(n.prazo)):''}</div>
-      </div>`;
-    }).join('');
-  }
+  const temCrit=pontos.some(n=>n.criticidade==='critica');
+  if($('ncV')) $('ncV').textContent = pontos.length;
+  if($('ncIcon')) $('ncIcon').style.color = temCrit?'#ef4444':(pontos.length?'#f59e0b':'#16a34a');
+  if($('ncSub')) $('ncSub').innerHTML = pontos.length ? pontos.map(n=>{
+    const c=cCor[n.criticidade]||'#8b98a8';
+    return `<div class="litem"><div class="lt"><b>${esc(n.descricao||n.ativo_tipo||'Não conformidade')}</b>
+      <span class="tag" style="color:${c};border-color:${c}66">${(n.criticidade||'').toUpperCase()}</span></div>
+      <div class="ld">${esc(n.area||'Área não informada')} · ${esc(n.ativo_tipo||'')} · ${n.status==='tratamento'?'Em tratamento':'Aberta'}${n.prazo?(' · prazo '+fmtData(n.prazo)):''}</div></div>`;
+  }).join('') : '<div class="litem ld">Nenhuma não conformidade em aberto.</div>';
 
   // ---- viaturas ----
   $('vcount').textContent = (d.viaturas||[]).length+' un.';
@@ -497,7 +492,7 @@ function render(d){
     $('florBox').innerHTML = '<div class="empty">Sem check de monitoramento ainda.</div>';
   }
 
-  lucide.createIcons();
+  safeIcons();
 }
 
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -607,12 +602,12 @@ function entrarGestor(){
 }
 function iniciarPainel(){
   const g=document.getElementById('gate'); if(g) g.style.display='none';
-  lucide.createIcons();
+  safeIcons();
   carregar();
   setInterval(()=>carregar(false), 30000); // atualiza a cada 30s
 }
 
-lucide.createIcons();            // ícones da tela de senha
+safeIcons();            // ícones da tela de senha
 if(gestorOk) iniciarPainel();    // se já liberou nesta sessão, abre direto
 </script>
 </body>
