@@ -111,7 +111,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- QR: tenta primeiro o arquivo no próprio repositório (funciona na rede da Vale); se não houver, usa o CDN -->
+<script src="qrcode.min.js"></script>
+<script>if(typeof QRCode==='undefined'){document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></scr'+'ipt>');}</script>
 <script>
 /* ===== CONFIG SGO-ETP ===== */
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
