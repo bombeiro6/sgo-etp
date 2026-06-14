@@ -359,7 +359,7 @@ async function carregar(manual){
       sb.from('efetivo').select('nome,funcao,tipo,status,turno'),
       sb.from('viaturas').select('prefixo,modelo,tipo,status,quilometragem,combustivel_pct,observacoes,ultima_inspecao').order('prefixo'),
       sb.from('nao_conformidades').select('numero,ativo_tipo,area,descricao,criticidade,status,prazo').neq('status','encerrada'),
-      sb.from('inspecoes').select('conformidade_pct,condicao,created_at'),
+      sb.from('inspecoes').select('created_at,tipo,area,conformidade_pct,condicao,observacoes,extintor_id,hidrante_id,valvula_id,casa_bomba_id').order('created_at',{ascending:false}),
       sb.from('rondas').select('data_hora'),
       sb.from('extintores').select('codigo,validade_carga,prox_inspecao,status'),
       sb.from('hidrantes').select('codigo,venc_hidrostatico,status'),
@@ -391,19 +391,25 @@ function render(d){
   const ncAbertas = (d.ncs||[]).filter(n=>n.status==='aberta');
   const ncCriticasAbertas = (d.ncs||[]).filter(n=>n.criticidade==='critica');
   const viatNaoOp = (d.viaturas||[]).filter(v=>norm(v.status)!=='operacional');
+  if($('viatResumo')) $('viatResumo').textContent = ((d.viaturas||[]).length-viatNaoOp.length)+'/'+((d.viaturas||[]).length||0);
 
-  // ---- Top NCs em aberto (lista recolhível) ----
-  const critOrder={critica:0,moderada:1,baixa:2};
-  const pontos=[...(d.ncs||[])].sort((a,b)=>(critOrder[a.criticidade]??9)-(critOrder[b.criticidade]??9));
-  const cCor={critica:'#ef4444',moderada:'#f59e0b',baixa:'#3b82f6'};
-  const temCrit=pontos.some(n=>n.criticidade==='critica');
-  if($('ncV')) $('ncV').textContent = pontos.length;
-  if($('ncIcon')) $('ncIcon').style.color = temCrit?'#ef4444':(pontos.length?'#f59e0b':'#16a34a');
-  if($('ncSub')) $('ncSub').innerHTML = pontos.length ? pontos.map(n=>{
-    const c=cCor[n.criticidade]||'#8b98a8';
-    return `<div class="litem"><div class="lt"><b>${esc(n.descricao||n.ativo_tipo||'Não conformidade')}</b>
-      <span class="tag" style="color:${c};border-color:${c}66">${(n.criticidade||'').toUpperCase()}</span></div>
-      <div class="ld">${esc(n.area||'Área não informada')} · ${esc(n.ativo_tipo||'')} · ${n.status==='tratamento'?'Em tratamento':'Aberta'}${n.prazo?(' · prazo '+fmtData(n.prazo)):''}</div></div>`;
+  // ---- NCs reais derivadas das inspeções (última inspeção por ativo) ----
+  const _ins=[...(d.insp||[])].sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
+  const _vis={}; const ultPorAtivo=[];
+  _ins.forEach(i=>{ const k=i.extintor_id||i.hidrante_id||i.valvula_id||i.casa_bomba_id||(i.tipo+'|'+i.area); if(!_vis[k]){_vis[k]=1; ultPorAtivo.push(i);} });
+  const ncList=ultPorAtivo.filter(i=>i.condicao!=='conforme').sort((a,b)=>(a.conformidade_pct||0)-(b.conformidade_pct||0));
+  const ncCrit=ncList.filter(i=>(i.conformidade_pct||0)<85);
+  const ncMod =ncList.filter(i=>(i.conformidade_pct||0)>=85);
+  const tipoTxtNC={extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de Bomba'};
+  if($('ncCritV')){ $('ncCritV').textContent=ncCrit.length; $('ncCritV').style.color=ncCrit.length?'#ef4444':'#16a34a'; }
+  if($('ncModV')){ $('ncModV').textContent=ncMod.length; $('ncModV').style.color=ncMod.length?'#f59e0b':'#16a34a'; }
+  if($('ncV')) $('ncV').textContent = ncList.length;
+  if($('ncIcon')) $('ncIcon').style.color = ncCrit.length?'#ef4444':(ncList.length?'#f59e0b':'#16a34a');
+  if($('ncSub')) $('ncSub').innerHTML = ncList.length ? ncList.map(i=>{
+    const crit=(i.conformidade_pct||0)<85; const c=crit?'#ef4444':'#f59e0b';
+    return `<div class="litem"><div class="lt"><b>${(tipoTxtNC[i.tipo]||i.tipo||'Ativo')} · ${esc(i.area||'—')}</b>
+      <span class="tag" style="color:${c};border-color:${c}66">${crit?'CRÍTICA':'MODERADA'} · ${i.conformidade_pct}%</span></div>
+      <div class="ld">${esc((i.observacoes||'Sem observação registrada').replace(/[\r\n]+/g,' · '))}</div></div>`;
   }).join('') : '<div class="litem ld">Nenhuma não conformidade em aberto.</div>';
 
   // ---- viaturas ----
@@ -425,6 +431,7 @@ function render(d){
 
   // ---- efetivo ----
   const ativo=(d.efetivo||[]).filter(e=>norm(e.status)==='ativo');
+  if($('efetResumo')) $('efetResumo').textContent = ativo.length+'/'+((d.efetivo||[]).length||0);
   const oper=(d.efetivo||[]).filter(e=>norm(e.tipo)==='operacional');
   const adm=(d.efetivo||[]).filter(e=>norm(e.tipo)==='administrativo');
   const bloq=(d.efetivo||[]).filter(e=>norm(e.status)!=='ativo');
