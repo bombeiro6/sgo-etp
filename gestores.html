@@ -554,15 +554,72 @@ function _sheet(name,headers,rows,styleFn,widths){
   return x+'</Table></Worksheet>';
 }
 function _wb(sheets){
+  const S=(id,extra)=>'<Style ss:ID="'+id+'">'+extra+'</Style>';
+  const F=(sz,bold,color)=>'<Font ss:FontName="Arial" ss:Size="'+sz+'"'+(bold?' ss:Bold="1"':'')+(color?(' ss:Color="'+color+'"'):'')+'/>';
+  const I=(c)=>'<Interior ss:Color="'+c+'" ss:Pattern="Solid"/>';
+  const A=(h,wrap)=>'<Alignment'+(h?(' ss:Horizontal="'+h+'"'):'')+' ss:Vertical="Center"'+(wrap?' ss:WrapText="1"':'')+'/>';
   const styles='<Styles>'
-    +'<Style ss:ID="Default"><Font ss:FontName="Arial" ss:Size="10"/><Alignment ss:Vertical="Center"/></Style>'
-    +'<Style ss:ID="hdr"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A2240" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>'
-    +'<Style ss:ID="nc"><Font ss:FontName="Arial" ss:Size="10" ss:Color="#B02A2A"/><Interior ss:Color="#FBE9E9" ss:Pattern="Solid"/></Style>'
-    +'<Style ss:ID="big"><Font ss:FontName="Arial" ss:Size="12" ss:Bold="1" ss:Color="#0A2240"/></Style>'
+    +S('Default',F(10)+A())
+    +S('title',F(15,1,'#FFFFFF')+I('#0A2240')+A('Center'))
+    +S('subt',F(9,0,'#445566')+A('Center'))
+    +S('kpiH',F(9,1,'#5B6B7B')+I('#EAF1F0')+A('Center'))
+    +S('kT',F(18,1,'#0A2240')+I('#EAF1F0')+A('Center'))
+    +S('kC',F(18,1,'#1F7A44')+I('#EAF1F0')+A('Center'))
+    +S('kN',F(18,1,'#B02A2A')+I('#EAF1F0')+A('Center'))
+    +S('kM',F(18,1,'#007B6E')+I('#EAF1F0')+A('Center'))
+    +S('kF',F(18,1,'#C98A00')+I('#EAF1F0')+A('Center'))
+    +S('hdr',F(10,1,'#FFFFFF')+I('#0A2240')+A('Center'))
+    +S('cC',F(10,0,'#111111')+I('#F4F7FA')+A('Center'))
+    +S('cN',F(10,0,'#111111')+I('#FBE9E9')+A('Center'))
+    +S('oC',F(10,0,'#111111')+I('#F4F7FA')+A('Left',1))
+    +S('oN',F(10,0,'#111111')+I('#FBE9E9')+A('Left',1))
+    +S('condC',F(10,1,'#1F7A44')+I('#F4F7FA')+A('Center'))
+    +S('condN',F(10,1,'#B02A2A')+I('#FBE9E9')+A('Center'))
+    +S('ncTitle',F(10,1,'#FFFFFF')+I('#B02A2A')+A('Center'))
     +'</Styles>';
   return '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n'
     +'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
     +styles+sheets.join('')+'</Workbook>';
+}
+function _resumo(total,conf,ncc,media,semfoto){
+  const W=[70,150,95,115,150,80];
+  let x='<Worksheet ss:Name="Resumo"><Table>';
+  W.forEach(w=>x+='<Column ss:Width="'+w+'"/>');
+  x+='<Row ss:Height="8"></Row>';
+  x+='<Row ss:Height="30"><Cell ss:Index="2" ss:StyleID="title" ss:MergeAcross="4"><Data ss:Type="String">SGO-ETP \u00b7 RELAT\u00d3RIO DE INSPE\u00c7\u00d5ES</Data></Cell></Row>';
+  x+='<Row ss:Height="16"><Cell ss:Index="2" ss:StyleID="subt" ss:MergeAcross="4"><Data ss:Type="String">Terminal Parauapebas \u00b7 '+_xe(new Date().toLocaleString('pt-BR'))+'</Data></Cell></Row>';
+  x+='<Row ss:Height="8"></Row>';
+  const kh=['TOTAL INSPE\u00c7\u00d5ES','CONFORMES','N\u00c3O CONFORMES','CONFORMIDADE M\u00c9DIA','SEM FOTO'];
+  x+='<Row ss:Height="16"><Cell ss:Index="2" ss:StyleID="kpiH"><Data ss:Type="String">'+kh[0]+'</Data></Cell>';
+  for(let i=1;i<5;i++) x+='<Cell ss:StyleID="kpiH"><Data ss:Type="String">'+kh[i]+'</Data></Cell>';
+  x+='</Row>';
+  x+='<Row ss:Height="26">'
+    +'<Cell ss:Index="2" ss:StyleID="kT"><Data ss:Type="Number">'+total+'</Data></Cell>'
+    +'<Cell ss:StyleID="kC"><Data ss:Type="Number">'+conf+'</Data></Cell>'
+    +'<Cell ss:StyleID="kN"><Data ss:Type="Number">'+ncc+'</Data></Cell>'
+    +'<Cell ss:StyleID="kM"><Data ss:Type="String">'+media+'%</Data></Cell>'
+    +'<Cell ss:StyleID="kF"><Data ss:Type="Number">'+semfoto+'</Data></Cell>'
+    +'</Row>';
+  return x+'</Table></Worksheet>';
+}
+function _tabela(name,headers,rows,isNC){
+  const W=[110,75,70,65,42,130,52,98,46,80,42,320];
+  let x='<Worksheet ss:Name="'+_xe(name)+'"><Table>';
+  W.forEach(w=>x+='<Column ss:Width="'+w+'"/>');
+  if(isNC) x+='<Row ss:Height="20"><Cell ss:StyleID="ncTitle" ss:MergeAcross="11"><Data ss:Type="String">'+_xe('\u26a0 '+rows.length+' n\u00e3o conformidades')+'</Data></Cell></Row>';
+  x+='<Row ss:Height="24">'+headers.map(h=>_cell(h,'hdr')).join('')+'</Row>';
+  rows.forEach(r=>{
+    const nc = r[7]==='N\u00c3O CONFORME';
+    x+='<Row>';
+    r.forEach((c,ci)=>{
+      let st = nc?'cN':'cC';
+      if(ci===7) st = nc?'condN':'condC';
+      else if(ci===11) st = nc?'oN':'oC';
+      x+=_cell(c,st);
+    });
+    x+='</Row>';
+  });
+  return x+'</Table></Worksheet>';
 }
 function _baixar(nome,conteudo){
   const blob=new Blob(['\ufeff'+conteudo],{type:'application/vnd.ms-excel'});
@@ -579,7 +636,7 @@ async function baixarExcel(){
   if(!sb){ alert('Sem conexão com o banco.'); return; }
   try{
     const [insR,efR,exR,hdR,vlR,cbR]=await Promise.all([
-      sb.from('inspecoes').select('created_at,tipo,area,turno,conformidade_pct,condicao,latitude,fora_do_local,evidencias,observacoes,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id').order('created_at',{ascending:false}),
+      sb.from('inspecoes').select('created_at,tipo,area,turno,conformidade_pct,condicao,latitude,longitude,fora_do_local,evidencias,observacoes,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id').order('created_at',{ascending:false}),
       sb.from('efetivo').select('id,nome'),
       sb.from('extintores').select('id,codigo'),
       sb.from('hidrantes').select('id,codigo'),
@@ -595,34 +652,22 @@ async function baixarExcel(){
     const obs=(o)=> (o||'—').replace(/[\r\n]+/g,' | ');
 
     const linha=(r)=>[
-      fmt(r.created_at), _tipoTxt(r.tipo), ativoCod(r), r.area||'—', r.turno||'—', efN[r.responsavel_id]||'—',
+      fmt(r.created_at), _tipoTxt(r.tipo), ativoCod(r), r.area||'—', (r.turno||'').trim()||'—', efN[r.responsavel_id]||'—',
       r.conformidade_pct, (r.condicao==='conforme'?'Conforme':'NÃO CONFORME'),
-      (r.latitude!=null?'Sim':'Não'),
-      (r.fora_do_local===true?'FORA':(r.fora_do_local===false?'OK':'—')),
+      (r.latitude!=null? (r.fora_do_local?'FORA':'Sim') : 'Não'),
+      (r.latitude!=null&&r.longitude!=null ? (r.latitude.toFixed(5)+', '+r.longitude.toFixed(5)) : '—'),
       (r.evidencias&&r.evidencias.length)||0, obs(r.observacoes)
     ];
-    const headers=['Data/Hora','Tipo','Ativo','Área','Turno','Responsável','Conf. %','Condição','GPS','Local GPS','Fotos','Observações / Não Conformidades'];
-    const widths=[110,75,70,65,40,130,50,90,40,55,40,320];
-    const ncRows=ins.filter(r=>r.condicao!=='conforme').sort((a,b)=>(a.conformidade_pct||0)-(b.conformidade_pct||0));
-    const styleFn=(r)=>null; // estilo por linha aplicado abaixo via dataset
-
-    // monta linhas já com marcação de NC (estilo aplicado na função _sheet por callback)
+    const headers=['Data/Hora','Tipo','Ativo','Área','Turno','Responsável','Conf. %','Condição','GPS','Local GPS','Fotos','Observações / Não Conformidade'];
     const todas=ins.map(linha);
-    const todasFn=(row)=> (row[7]==='NÃO CONFORME')?'nc':null;
-    const ncs=ncRows.map(linha);
-    const ncFn=()=> 'nc';
-
-    // Resumo
+    const ncs=ins.filter(r=>r.condicao!=='conforme').map(linha);
     const total=ins.length, conf=ins.filter(r=>r.condicao==='conforme').length, ncc=total-conf;
-    const media= total? Math.round(ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total) : 0;
-    const porTipo={}; ins.forEach(r=>{ (porTipo[r.tipo]=porTipo[r.tipo]||[]).push(r); });
-    const resumoRows=[['Total de inspeções',total],['Conformes',conf],['Não conformes',ncc],['Conformidade média (%)',media],['',''],['POR TIPO','']];
-    Object.keys(porTipo).forEach(t=>{ const a=porTipo[t]; const n=a.filter(r=>r.condicao!=='conforme').length; resumoRows.push([_tipoTxt(t), a.length+' insp. · '+n+' NC']); });
-
+    const media= total? (ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
+    const semfoto= ins.filter(r=>!(r.evidencias&&r.evidencias.length)).length;
     const xls=_wb([
-      _sheet('Resumo',['Indicador','Valor'],resumoRows,(r)=> (r[0]==='POR TIPO')?'big':null,[220,260]),
-      _sheet('Inspeções',headers,todas,todasFn,widths),
-      _sheet('Não Conformidades',headers,ncs,ncFn,widths)
+      _resumo(total,conf,ncc,media,semfoto),
+      _tabela('Inspeções',headers,todas,false),
+      _tabela('Não Conformidades',headers,ncs,true)
     ]);
     const hoje=new Date().toISOString().slice(0,10);
     _baixar('SGO-ETP_Inspecoes_'+hoje+'.xls', xls);
