@@ -53,7 +53,8 @@
   .list-item .m{font-size:12px;color:var(--muted);margin-top:2px}
   .chev{color:var(--teal);font-size:20px;font-weight:800}
   .qr-item{text-align:center;padding:16px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:#fff}
-  .qr-item canvas{max-width:200px;height:auto}
+  .qr-item canvas,.qr-item img{max-width:200px;height:auto}
+  .qr-item .qrc{display:flex;justify-content:center}
   .qr-item .c{font-weight:800;margin-top:8px}
   .qr-item .m{font-size:12px;color:var(--muted)}
   .success{text-align:center;padding:30px 16px}
@@ -109,8 +110,7 @@
 </div>
 
 <!-- QR: tenta primeiro o arquivo no próprio repositório (funciona na rede da Vale); se não houver, usa o CDN -->
-<script src="qrcode.min.js"></script>
-<script>if(typeof QRCode==='undefined'){document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></scr'+'ipt>');}</script>
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 <script>
 /* ===== CONFIG SGO-ETP ===== */
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
@@ -628,11 +628,11 @@ async function telaQR(){
     return;
   }
   app.innerHTML = bannerDemo()+'<h2 class="sec no-print">Imprima e cole em cada extintor</h2>' +
-    data.map(e=>`<div class="qr-item"><canvas id="q-${e.codigo}"></canvas>
+    data.map(e=>`<div class="qr-item"><div id="q-${e.codigo}" class="qrc"></div>
       <div class="c">${e.codigo}</div><div class="m">${e.tipo} · ${e.local||''}</div></div>`).join('') +
     '<button class="ghost no-print" onclick="window.print()">🖨 Imprimir todos</button>';
   data.forEach(e=>{
-    QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?t=${e.token||e.codigo}`, {width:200,margin:1});
+    new QRCode(document.getElementById('q-'+e.codigo), {text:`${base}?t=${e.token||e.codigo}`, width:200, height:200, correctLevel:QRCode.CorrectLevel.M});
   });
 }
 
