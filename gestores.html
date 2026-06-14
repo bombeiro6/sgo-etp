@@ -243,8 +243,17 @@
 
     <button onclick="baixarExcel()" style="width:100%;margin-top:8px;background:#0A2240;color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="m9 13 2 2 2-2 2 2"/></svg>
-      Baixar planilha Excel
+      Baixar planilha Excel (tudo)
     </button>
+    <div style="margin-top:8px">
+      <div style="font-size:11.5px;color:#5b6b7b;font-weight:600;margin:2px 2px 6px">Ou baixar só de um tipo:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">
+        <button onclick="baixarExcel('extintor')" style="flex:1;min-width:120px;background:#fff;color:#0A2240;border:1.5px solid #C0392B;border-radius:10px;padding:11px 8px;font-size:13px;font-weight:700;cursor:pointer">Extintores</button>
+        <button onclick="baixarExcel('hidrante')" style="flex:1;min-width:120px;background:#fff;color:#0A2240;border:1.5px solid #185FA5;border-radius:10px;padding:11px 8px;font-size:13px;font-weight:700;cursor:pointer">Hidrantes</button>
+        <button onclick="baixarExcel('valvula')" style="flex:1;min-width:120px;background:#fff;color:#0A2240;border:1.5px solid #5F5E5A;border-radius:10px;padding:11px 8px;font-size:13px;font-weight:700;cursor:pointer">Válvulas</button>
+        <button onclick="baixarExcel('casa_bomba')" style="flex:1;min-width:120px;background:#fff;color:#0A2240;border:1.5px solid #0F6E56;border-radius:10px;padding:11px 8px;font-size:13px;font-weight:700;cursor:pointer">Casas de bombas</button>
+      </div>
+    </div>
 
   </main>
 </div>
@@ -685,10 +694,14 @@ function _wsTabela(headers,rows,isNC){
   return ws;
 }
 
-async function baixarExcel(){
-  const code=prompt('Código para baixar a planilha:');
-  if(code===null) return;
-  if((code||'').trim()!==PIN_EXCEL){ alert('Código incorreto. Acesso restrito.'); return; }
+async function baixarExcel(tipoFiltro){
+  let _ok=false; try{ _ok=sessionStorage.getItem('sgo_excel')==='1'; }catch(e){}
+  if(!_ok){
+    const code=prompt('Código para baixar a planilha:');
+    if(code===null) return;
+    if((code||'').trim()!==PIN_EXCEL){ alert('Código incorreto. Acesso restrito.'); return; }
+    try{ sessionStorage.setItem('sgo_excel','1'); }catch(e){}
+  }
   if(!sb){ alert('Sem conexão com o banco.'); return; }
   try{
     const [insR,efR,exR,hdR,vlR,cbR]=await Promise.all([
@@ -700,6 +713,8 @@ async function baixarExcel(){
       sb.from('casas_bombas').select('id,codigo')
     ]);
     const ins=insR.data||[];
+    const base = tipoFiltro ? ins.filter(r=>r.tipo===tipoFiltro) : ins;
+    if(!base.length){ alert('Não há inspeções'+(tipoFiltro?(' de '+_tipoTxt(tipoFiltro)):'')+' para exportar ainda.'); return; }
     const mapa=(arr)=>{ const m={}; (arr||[]).forEach(x=>m[x.id]=x.codigo||x.nome); return m; };
     const efN={}; (efR.data||[]).forEach(x=>efN[x.id]=x.nome);
     const exC=mapa(exR.data),hdC=mapa(hdR.data),vlC=mapa(vlR.data),cbC=mapa(cbR.data);
@@ -715,22 +730,24 @@ async function baixarExcel(){
       (r.evidencias&&r.evidencias.length)||0, obs(r.observacoes)
     ];
     const headers=['Data/Hora','Tipo','Ativo','Área','Turno','Responsável','Conf. %','Condição','GPS','Local GPS','Fotos','Observações / Não Conformidade'];
-    const todas=ins.map(linha);
-    const ncs=ins.filter(r=>r.condicao!=='conforme').map(linha);
-    const total=ins.length, conf=ins.filter(r=>r.condicao==='conforme').length, ncc=total-conf;
-    const media= total? (ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
-    const semfoto= ins.filter(r=>!(r.evidencias&&r.evidencias.length)).length;
+    const todas=base.map(linha);
+    const ncs=base.filter(r=>r.condicao!=='conforme').map(linha);
+    const total=base.length, conf=base.filter(r=>r.condicao==='conforme').length, ncc=total-conf;
+    const media= total? (base.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
+    const semfoto= base.filter(r=>!(r.evidencias&&r.evidencias.length)).length;
     const med1=(a)=> a.length? (a.reduce((s,r)=>s+(r.conformidade_pct||0),0)/a.length).toFixed(1)+'%' : '—';
-    const porTipo=['extintor','hidrante','valvula','casa_bomba'].map(t=>{ const a=ins.filter(r=>r.tipo===t); if(!a.length)return null; const cc=a.filter(r=>r.condicao==='conforme').length; return [_tipoTxt(t),a.length,cc,a.length-cc,med1(a)]; }).filter(Boolean);
-    const byR={}; ins.forEach(r=>{ const id=r.responsavel_id||'_'; (byR[id]=byR[id]||[]).push(r); });
+    const porTipo=['extintor','hidrante','valvula','casa_bomba'].map(t=>{ const a=base.filter(r=>r.tipo===t); if(!a.length)return null; const cc=a.filter(r=>r.condicao==='conforme').length; return [_tipoTxt(t),a.length,cc,a.length-cc,med1(a)]; }).filter(Boolean);
+    const byR={}; base.forEach(r=>{ const id=r.responsavel_id||'_'; (byR[id]=byR[id]||[]).push(r); });
     const porResp=Object.keys(byR).map(id=>{ const a=byR[id]; const cc=a.filter(r=>r.condicao==='conforme').length; return [efN[id]||'—',a.length,cc,a.length-cc,med1(a)]; }).sort((x,y)=>y[1]-x[1]);
     if(typeof XLSX==='undefined'){ alert('A biblioteca de Excel ainda não carregou — aguarde 1-2s e tente de novo.'); return; }
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, _wsResumo(total,conf,ncc,media,semfoto,porTipo,porResp), 'Resumo');
     XLSX.utils.book_append_sheet(wb, _wsTabela(headers,todas,false), 'Inspeções');
     XLSX.utils.book_append_sheet(wb, _wsTabela(headers,ncs,true), 'Não Conformidades');
+    const rotulos={extintor:'Extintores',hidrante:'Hidrantes',valvula:'Valvulas',casa_bomba:'CasasDeBombas'};
+    const rot = tipoFiltro ? (rotulos[tipoFiltro]||'Inspecoes') : 'Inspecoes';
     const hoje=new Date().toISOString().slice(0,10);
-    XLSX.writeFile(wb, 'SGO-ETP_Inspecoes_'+hoje+'.xlsx');
+    XLSX.writeFile(wb, 'SGO-ETP_'+rot+'_'+hoje+'.xlsx');
   }catch(e){ alert('Erro ao gerar a planilha: '+(e.message||e)); }
 }
 
