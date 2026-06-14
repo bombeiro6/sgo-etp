@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGO-ETP · Gerador de Etiquetas QR</title>
+<style>
+  :root{--navy:#0A2240;--teal:#007B6E;--verde:#1f9d57;--azul:#15489e;--bg:#eef1f5;--line:#d7dee7;--muted:#5b6b7b}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:#0A2240}
+  .topbar{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:20}
+  .topbar h1{font-size:16px;margin:0;font-weight:800}
+  .topbar small{opacity:.8;font-weight:400;display:block;font-size:11px}
+  .btn{background:var(--teal);color:#fff;border:0;border-radius:9px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer}
+  .gate{max-width:380px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;text-align:center}
+  .gate input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:13px;font-size:18px;text-align:center;letter-spacing:4px;margin:12px 0}
+  .info{max-width:900px;margin:16px auto;padding:0 16px;color:var(--muted);font-size:13px}
+  .sheet{max-width:900px;margin:0 auto;padding:0 16px 40px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .label{border:1px solid #cfd8e3;border-radius:12px;overflow:hidden;background:#fff;break-inside:avoid;page-break-inside:avoid}
+  .label .bar{padding:8px 12px;color:#fff;display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;letter-spacing:.4px}
+  .label.uso .bar{background:var(--verde)}
+  .label.insp .bar{background:var(--azul)}
+  .label .body{display:flex;gap:12px;padding:12px;align-items:center}
+  .label .qr{width:120px;height:120px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid #eee;border-radius:8px;background:#fff}
+  .label .qr canvas,.label .qr img{width:118px;height:118px}
+  .label .meta{flex:1;min-width:0}
+  .label .cod{font-size:26px;font-weight:800;line-height:1;color:var(--navy)}
+  .label .sub{font-size:12px;color:var(--muted);margin-top:4px}
+  .label .act{font-size:12.5px;font-weight:700;margin-top:8px}
+  .label.uso .act{color:var(--verde)}
+  .label.insp .act{color:var(--azul)}
+  .label .logo{font-size:9px;color:#aab4c0;border:1px dashed #cfd8e3;border-radius:5px;padding:3px 6px;display:inline-block;margin-top:8px}
+  .row-h{grid-column:1 / -1;font-weight:800;color:var(--navy);font-size:13px;border-bottom:2px solid var(--line);padding:14px 2px 4px;margin-top:6px}
+  @media print{
+    .topbar,.info,.noprint{display:none!important}
+    body{background:#fff}
+    .sheet{max-width:none;padding:0}
+    .grid{gap:6px}
+    .label{border-color:#999}
+    @page{size:A4;margin:10mm}
+  }
+</style>
+</head>
+<body>
+<div class="topbar noprint">
+  <div><h1>Gerador de Etiquetas QR<small>SGO-ETP · acesso restrito</small></h1></div>
+  <button class="btn" onclick="window.print()" id="btnPrint" style="display:none">🖨️ Imprimir / PDF</button>
+</div>
+<div id="app">
+  <div class="gate">
+    <div style="font-size:34px">🔒</div>
+    <h2 style="margin:6px 0 2px;font-size:18px">Acesso restrito</h2>
+    <p style="color:#5b6b7b;font-size:13px;margin:0">Gerador de etiquetas — informe o código.</p>
+    <input id="pin" type="password" inputmode="numeric" placeholder="código" onkeydown="if(event.key==='Enter')abrir()">
+    <button class="btn" style="width:100%" onclick="abrir()">Entrar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const PIN_ETIQ = "paulo2026"; // << seu código exclusivo p/ gerar etiquetas
+const BASE = "https://bombeiro6.github.io/sgo-etp/";
+
+function abrir(){
+  const v=(document.getElementById('pin').value||'').trim();
+  if(v!==PIN_ETIQ){ alert('Código incorreto.'); return; }
+  carregar();
+}
+function ordNum(a,b){ const na=parseInt(String(a.codigo).replace(/\D/g,''))||0, nb=parseInt(String(b.codigo).replace(/\D/g,''))||0; return na-nb; }
+
+async function carregar(){
+  const app=document.getElementById('app');
+  app.innerHTML='<div class="info">Carregando extintores e gerando QR codes…</div>';
+  let sb=null; try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+  if(!sb){ app.innerHTML='<div class="info">Erro: biblioteca não carregou. Verifique a internet do PC e recarregue.</div>'; return; }
+  let data=[];
+  try{ const r=await sb.from('extintores').select('codigo,tipo,local,token').eq('status','ativo'); if(r.error) throw r.error; data=(r.data||[]).sort(ordNum); }
+  catch(e){ app.innerHTML='<div class="info">Erro ao buscar extintores: '+(e.message||e)+'</div>'; return; }
+  if(!data.length){ app.innerHTML='<div class="info">Nenhum extintor encontrado.</div>'; return; }
+
+  let html='<div class="info noprint">'+data.length+' extintores · '+(data.length*2)+' etiquetas. Confira e clique em <b>Imprimir / PDF</b>. Recorte e cole: <b>verde na frente visível</b>, <b>azul num ponto discreto</b>.</div><div class="sheet"><div class="grid">';
+  data.forEach(e=>{
+    html+=`<div class="label uso">
+      <div class="bar">🟢 COMO USAR · EM EMERGÊNCIA</div>
+      <div class="body"><div class="qr" id="qu-${e.codigo}"></div>
+        <div class="meta"><div class="cod">EXT ${e.codigo}</div><div class="sub">${(e.tipo||'')} · ${(e.local||'Terminal Parauapebas')}</div>
+        <div class="act">Aponte a câmera → instruções de uso</div><span class="logo">espaço logo Vale</span></div></div></div>
+    <div class="label insp">
+      <div class="bar">🔵 INSPEÇÃO · USO DA BRIGADA</div>
+      <div class="body"><div class="qr" id="qi-${e.codigo}"></div>
+        <div class="meta"><div class="cod">EXT ${e.codigo}</div><div class="sub">${(e.tipo||'')} · ${(e.local||'Terminal Parauapebas')}</div>
+        <div class="act">Restrito · requer código da equipe</div><span class="logo">espaço logo Vale</span></div></div></div>`;
+  });
+  html+='</div></div>';
+  app.innerHTML=html;
+  document.getElementById('btnPrint').style.display='inline-block';
+  // gera QRs
+  data.forEach(e=>{
+    const tk=e.token||e.codigo;
+    QRCode.toCanvas(document.getElementById('qu-'+e.codigo), BASE+'uso.html?t='+tk, {width:118,margin:1});
+    QRCode.toCanvas(document.getElementById('qi-'+e.codigo), BASE+'inspecao.html?t='+tk, {width:118,margin:1});
+  });
+}
+</script>
+</body>
+</html>
