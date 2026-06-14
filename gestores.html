@@ -312,34 +312,61 @@ function toggleV(el){ el.classList.toggle('open'); }
 
 // ====== STATUS PARA O WHATSAPP ======
 function montarTextoStatus(d){
+  const ins=d.insp||[];
+  const hojeStr=new Date().toLocaleDateString('pt-BR');
   const hoje0=new Date(); hoje0.setHours(0,0,0,0);
   const venc = ds => { try{ return ds && new Date(ds+'T00:00:00') < hoje0; }catch(e){ return false; } };
   const ext=d.extintores||[], extVenc=ext.filter(e=>venc(e.validade_carga)).length;
   const hid=d.hidrantes||[], hidVenc=hid.filter(h=>venc(h.venc_hidrostatico)).length;
   const man=d.mangueiras||[], manVenc=man.filter(m=>venc(m.validade)).length;
-  const ins=d.insp||[]; const now=Date.now();
-  const d30=ins.filter(i=>i.created_at && (now-new Date(i.created_at).getTime())<=30*864e5);
-  const base=d30.length?d30:ins;
-  const conf=base.length?Math.round(base.reduce((a,i)=>a+(i.conformidade_pct||0),0)/base.length):null;
-  const hojeStr=new Date().toLocaleDateString('pt-BR');
+  const conf= ins.length?Math.round(ins.reduce((a,i)=>a+(i.conformidade_pct||0),0)/ins.length):null;
   const inspHoje=ins.filter(i=>i.created_at && new Date(i.created_at).toLocaleDateString('pt-BR')===hojeStr).length;
-  const ncs=(d.ncs||[]); const ncAb=ncs.filter(n=>n.status!=='encerrada').length; const ncCrit=ncs.filter(n=>n.criticidade==='critica').length;
+
+  // NCs reais (última inspeção por ativo) — coerente com o painel
+  const _vis={}, ult=[];
+  [...ins].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(i=>{
+    const k=i.extintor_id||i.hidrante_id||i.valvula_id||i.casa_bomba_id||(i.tipo+'|'+i.area);
+    if(!_vis[k]){_vis[k]=1; ult.push(i);}
+  });
+  const ncList=ult.filter(i=>i.condicao!=='conforme');
+  const ncCritN=ncList.filter(i=>(i.conformidade_pct||0)<85).length;
+
+  // Ranking por equipe REAL de quem fez a inspeção (mapeado pelo cadastro do efetivo)
+  const equipeDe={}; (d.efetivo||[]).forEach(e=>{ equipeDe[e.id]=(e.turno||'').toUpperCase(); });
+  const TEAMS=[['A','ALFA'],['B','BRAVO'],['C','CHARLIE'],['D','DELTA']];
+  const rank=TEAMS.map(([k,nome])=>{
+    const t=ins.filter(i=>equipeDe[i.responsavel_id]===k);
+    const h=t.filter(i=>i.created_at && new Date(i.created_at).toLocaleDateString('pt-BR')===hojeStr).length;
+    const cm=t.length?Math.round(t.reduce((a,i)=>a+(i.conformidade_pct||0),0)/t.length):null;
+    return {nome,total:t.length,hoje:h,conf:cm};
+  }).sort((a,b)=> b.total-a.total || b.hoje-a.hoje);
+  const medalha=['🥇','🥈','🥉','  '];
+
   const mf=(d.florestal||[])[0];
   const nivel = mf ? (mf.nivel_alerta||'').toUpperCase() : '—';
+
   const L=[];
   L.push('🚒 *SGO-ETP · Status SPCI*');
-  L.push('📍 Terminal Parauapebas');
-  L.push('🕒 '+new Date().toLocaleString('pt-BR'));
+  L.push('📍 Terminal Parauapebas · '+new Date().toLocaleDateString('pt-BR'));
   L.push('');
-  L.push('🧯 Extintores: '+ext.length+(extVenc?(' — ⚠ '+extVenc+' carga vencida'):' — ✅ na validade'));
-  L.push('🚰 Hidrantes: '+hid.length+(hidVenc?(' — ⚠ '+hidVenc+' teste vencido'):' — ✅ em dia'));
-  if(man.length) L.push('🧵 Mangueiras: '+man.length+(manVenc?(' — ⚠ '+manVenc+' vencida(s)'):' — ✅ em dia'));
+  L.push('🏆 *RANKING POR EQUIPE*');
+  rank.forEach((e,i)=>{
+    const m = (e.total>0? medalha[i] : '  ');
+    let linha = m+' '+e.nome+' — '+e.total+' insp.';
+    if(e.hoje>0) linha += ' (+'+e.hoje+' hoje)';
+    if(e.conf!=null) linha += ' · '+e.conf+'%';
+    L.push(linha);
+  });
   L.push('');
-  L.push('📋 Inspeções: '+(conf!=null?('conformidade '+conf+'%'):'sem dados')+' — '+inspHoje+' hoje');
-  L.push('❗ NCs em aberto: '+ncAb+(ncCrit?(' ('+ncCrit+' crítica(s))'):''));
+  L.push('📋 Total: '+ins.length+' inspeções · '+inspHoje+' hoje · conformidade '+(conf!=null?conf+'%':'—'));
+  L.push('❗ Não conformidades em aberto: '+ncList.length+(ncCritN?(' ('+ncCritN+' crítica(s))'):''));
+  L.push('');
+  L.push('🧯 Extintores: '+ext.length+(extVenc?(' — ⚠ '+extVenc+' venc.'):' — ✅'));
+  L.push('🚰 Hidrantes: '+hid.length+(hidVenc?(' — ⚠ '+hidVenc+' venc.'):' — ✅'));
+  if(man.length) L.push('🧵 Mangueiras: '+man.length+(manVenc?(' — ⚠ '+manVenc+' venc.'):' — ✅'));
   L.push('🔥 Alerta florestal: '+nivel+(mf&&mf.focos_fumaca?' — ⚠ focos avistados':''));
   L.push('');
-  L.push('👉 Equipe: verifiquem em campo os itens vencidos/pendentes e registrem a inspeção escaneando o QR Code no próprio ativo.');
+  L.push('👉 Equipes: vamos subir no ranking! Registrem as inspeções escaneando o QR Code no próprio ativo. Quantidade conta, mas inspeção bem feita conta mais.');
   return L.join('\n');
 }
 async function statusZap(){
@@ -356,10 +383,10 @@ async function carregar(manual){
   if(manual){ $('refIcon').classList.add('spin'); }
   try{
     const [ef,vi,nc,ins,rd,ex,hd,vl,mg,mf] = await Promise.all([
-      sb.from('efetivo').select('nome,funcao,tipo,status,turno'),
+      sb.from('efetivo').select('id,nome,funcao,tipo,status,turno'),
       sb.from('viaturas').select('prefixo,modelo,tipo,status,quilometragem,combustivel_pct,observacoes,ultima_inspecao').order('prefixo'),
       sb.from('nao_conformidades').select('numero,ativo_tipo,area,descricao,criticidade,status,prazo').neq('status','encerrada'),
-      sb.from('inspecoes').select('created_at,tipo,area,conformidade_pct,condicao,observacoes,extintor_id,hidrante_id,valvula_id,casa_bomba_id').order('created_at',{ascending:false}),
+      sb.from('inspecoes').select('created_at,turno,tipo,area,conformidade_pct,condicao,observacoes,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id').order('created_at',{ascending:false}),
       sb.from('rondas').select('data_hora'),
       sb.from('extintores').select('codigo,validade_carga,prox_inspecao,status'),
       sb.from('hidrantes').select('codigo,venc_hidrostatico,status'),
