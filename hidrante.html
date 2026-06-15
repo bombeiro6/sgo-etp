@@ -203,7 +203,7 @@ async function abrirPorToken(token){
 async function carregarEfetivo(){
   if(!sb){ DEMO=true; state.efetivo=MOCK_EFETIVO; return; }
   try{
-    const { data, error } = await sb.from('efetivo').select('id,nome').eq('status','ativo').order('nome');
+    const { data, error } = await sb.from('efetivo').select('id,nome,turno').eq('status','ativo').order('nome');
     if(error) throw error;
     state.efetivo = data || [];
   }catch(e){ DEMO=true; state.efetivo=MOCK_EFETIVO; }
@@ -532,9 +532,11 @@ async function salvar(){
     }
 
     // 2) insere na tabela inspecoes existente
+    const _insp = state.efetivo.find(f=>String(f.id)===String(inspetor));
+    const _turno = (_insp && ['A','B','C','D'].includes((_insp.turno||'').trim())) ? (_insp.turno).trim() : null;
     const { error:insErr } = await sb.from('inspecoes').insert({
       tipo:'hidrante', area:state.extintor.area, hidrante_id:state.extintor.id,
-      responsavel_id:inspetor, checklist:checklistFull, conformidade_pct:pct, condicao,
+      responsavel_id:inspetor, turno:_turno, checklist:checklistFull, conformidade_pct:pct, condicao,
       observacoes:document.getElementById('obs').value||null, evidencias, ...gps
     });
     if(insErr) throw insErr;
