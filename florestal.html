@@ -205,7 +205,7 @@ function setAceiros(v){ state.aceiros=v; $('ace-sim').className=v?'on-ok':''; $(
 
 function capturarFoto(input){
   const file=input.files[0]; if(!file) return;
-  if(state.fotos.length>=2){ alert('Máximo de 2 fotos.'); return; }
+  if(state.fotos.length>=4){ alert('Máximo de 4 fotos.'); return; }
   const reader=new FileReader();
   reader.onload=ev=>{ const img=new Image(); img.onload=()=>{
     const max=1000, sc=Math.min(1,max/Math.max(img.width,img.height));
@@ -217,7 +217,7 @@ function capturarFoto(input){
 }
 function desenhaPrevs(){
   $('prevs').innerHTML = state.fotos.map((b,i)=>`<img class="photo-prev" src="${URL.createObjectURL(b)}">`).join('');
-  $('fotoBtn').style.display = state.fotos.length>=2?'none':'flex';
+  $('fotoBtn').style.display = state.fotos.length>=4?'none':'flex';
 }
 
 /* GPS (mesma lógica das inspeções) */
