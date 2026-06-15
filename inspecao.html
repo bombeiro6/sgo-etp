@@ -227,7 +227,7 @@ function setView(v){
 async function carregarEfetivo(){
   if(!sb){ DEMO=true; state.efetivo=MOCK_EFETIVO; return; }
   try{
-    const { data, error } = await sb.from('efetivo').select('id,nome').eq('status','ativo').order('nome');
+    const { data, error } = await sb.from('efetivo').select('id,nome,turno').eq('status','ativo').order('nome');
     if(error) throw error;
     state.efetivo = data || [];
   }catch(e){ DEMO=true; state.efetivo=MOCK_EFETIVO; }
@@ -414,14 +414,13 @@ function inspecaoHTML(){
     </div>
 
     <div class="card">
-      <h2 class="sec">Lacre de segurança — troca de cor</h2>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 10px">Conforme a norma interna, registre a substituição da cor do lacre feita nesta inspeção.</p>
-      <div class="grid2">
-        <div class="field"><label>Cor anterior</label>
-          <select id="lacreAnt">${CORES_LACRE.map(c=>`<option ${c==='Roxo'?'selected':''}>${c}</option>`).join('')}</select></div>
-        <div class="field"><label>Cor nova (atual)</label>
-          <select id="lacreNova">${CORES_LACRE.map(c=>`<option ${c==='Amarelo'?'selected':''}>${c}</option>`).join('')}</select></div>
+      <h2 class="sec">Atualizar dados do extintor (recarga / troca)</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 10px">Use apenas quando houver recarga, reteste ou troca da cor do anel. Os dados atuais já vêm preenchidos — altere só o que mudou.</p>
+      <div class="toggle">
+        <button id="upd-nao" class="on-ok" onclick="setAtualiza(false)">Não alterar</button>
+        <button id="upd-sim" onclick="setAtualiza(true)">Atualizar dados</button>
       </div>
+      <div id="updBox"></div>
     </div>
 
     <div class="card">
@@ -484,6 +483,24 @@ async function registrarTrocaInterna(){
   });
   await sb.from('extintores').update({numero_serie:serie||e.numero_serie, selo_inmetro:selo||e.selo_inmetro}).eq('id',e.id);
   e.numero_serie=serie||e.numero_serie; e.selo_inmetro=selo||e.selo_inmetro;
+}
+
+let _atualizaDados=false;
+function atualizaFieldsHTML(){
+  const e=state.extintor;
+  const cores = ['<option value="">—</option>'].concat(CORES_LACRE.map(c=>`<option ${c===(e.cor_anel||'')?'selected':''}>${c}</option>`)).join('');
+  return `<div class="grid2" style="margin-top:10px">
+    <div class="field"><label>Ano de fabricação</label><input id="updAno" type="number" inputmode="numeric" value="${e.ano_fabricacao||''}" placeholder="ex: 2024"></div>
+    <div class="field"><label>Cor do anel</label><select id="updAnel">${cores}</select></div>
+    <div class="field"><label>Validade da carga</label><input id="updCarga" type="date" value="${e.validade_carga||''}"></div>
+    <div class="field"><label>Teste hidrostático</label><input id="updHidro" type="date" value="${e.validade_hidrostatico||''}"></div>
+  </div>`;
+}
+function setAtualiza(v){
+  _atualizaDados=v;
+  document.getElementById('upd-sim').className = v?'on-ok':'';
+  document.getElementById('upd-nao').className = v?'':'on-ok';
+  document.getElementById('updBox').innerHTML = v?atualizaFieldsHTML():'';
 }
 
 function resp(i,estado){
@@ -580,16 +597,30 @@ async function salvar(){
       }
     }
 
+    // turno do inspetor (corrige o bug de gravar tudo como "A")
+    const _insp = state.efetivo.find(f=>String(f.id)===String(inspetor));
+    const _turno = (_insp && ['A','B','C','D'].includes((_insp.turno||'').trim())) ? (_insp.turno).trim() : null;
+
     // 2) insere na tabela inspecoes existente
     const { error:insErr } = await sb.from('inspecoes').insert({
       tipo:'extintor', area:state.extintor.area, extintor_id:state.extintor.id,
-      responsavel_id:inspetor, checklist, conformidade_pct:pct, condicao,
+      responsavel_id:inspetor, turno:_turno, checklist, conformidade_pct:pct, condicao,
       observacoes:document.getElementById('obs').value||null, evidencias, ...gps
     });
     if(insErr) throw insErr;
 
     // 3) atualiza última inspeção do extintor
     await sb.from('extintores').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id);
+
+    // 3b) atualização de dados do extintor (recarga/troca), se solicitado
+    if(_atualizaDados){
+      const upd={};
+      const ano=(document.getElementById('updAno')?.value||'').trim(); if(ano) upd.ano_fabricacao=parseInt(ano,10);
+      const anel=(document.getElementById('updAnel')?.value||'').trim(); if(anel) upd.cor_anel=anel;
+      const carga=(document.getElementById('updCarga')?.value||'').trim(); if(carga) upd.validade_carga=carga;
+      const hidro=(document.getElementById('updHidro')?.value||'').trim(); if(hidro) upd.validade_hidrostatico=hidro;
+      if(Object.keys(upd).length){ try{ await sb.from('extintores').update(upd).eq('id',state.extintor.id); }catch(e){} }
+    }
 
     // 4) se foi retirado, registra a troca (série/selo do novo extintor)
     if(retirado){ try{ await registrarTrocaInterna(); }catch(e){} }
