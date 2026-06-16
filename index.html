@@ -57,6 +57,10 @@
   .dss-badge.no{background:#FAEEDA;color:#BA7517}
   .dss-btn{background:var(--teal);color:#fff;font-size:12px;font-weight:800;padding:9px 13px;border-radius:11px;flex:0 0 auto;white-space:nowrap}
 
+  .row.prio{border-left:3px solid var(--red);border-radius:0 16px 16px 0}
+  .prio-badge{display:inline-block;font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;margin-left:7px;vertical-align:middle;background:#FCEBEB;color:#9B2D22}
+  .prio-btn{background:var(--red);color:#fff;font-size:12px;font-weight:800;padding:9px 13px;border-radius:11px;flex:0 0 auto;white-space:nowrap}
+
   .note{font-size:11.5px;color:#8aa0b8;text-align:center;margin-top:18px;line-height:1.5}
 
   /* ===== PC / telas largas ===== */
@@ -76,6 +80,7 @@
     .rows{grid-template-columns:1fr 1fr;gap:14px}
     .row.seca{grid-column:1 / -1}
     .row.dss{grid-column:1 / -1}
+    .row.prio{grid-column:1 / -1}
   }
 </style>
 </head>
@@ -128,6 +133,18 @@
         <div class="rd">Tema de hoje: <span id="dssTema">carregando…</span></div>
       </div>
       <span class="dss-btn">Iniciar DSS</span>
+    </a>
+  </div>
+
+  <div class="sect"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>PRIORIDADES OPERACIONAIS</div>
+  <div class="rows">
+    <a class="row prio" href="prioridades.html">
+      <div class="rib" style="background:#FCEBEB"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+      <div class="rtx">
+        <div class="rn">Não conformidades <span id="prioStatus" class="prio-badge">—</span></div>
+        <div class="rd" id="prioResumo">prioridades para ir ao local e verificar</div>
+      </div>
+      <span class="prio-btn">Ver painel</span>
     </a>
   </div>
 
@@ -230,7 +247,29 @@ function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; 
     }
   }catch(e){ /* silencioso */ }
 })();
-</script>
+
+/* ===== Card Prioridades: contagem de não conformidades ===== */
+(async function(){
+  try{
+    if(!window.supabase) return;
+    const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const {data}=await sb.from('nao_conformidades').select('status,criticidade,prazo');
+    const nc=data||[];
+    const t0=new Date(); const hoje=new Date(t0.getFullYear(),t0.getMonth(),t0.getDate());
+    const abertas=nc.filter(x=>x.status!=='encerrada');
+    const crit=abertas.filter(x=>x.criticidade==='critica').length;
+    const venc=abertas.filter(x=>x.prazo&&new Date(x.prazo)<hoje).length;
+    const bEl=document.getElementById('prioStatus');
+    const rEl=document.getElementById('prioResumo');
+    if(bEl){
+      if(!abertas.length){ bEl.textContent='tudo em dia'; bEl.style.background='#E1F5EE'; bEl.style.color='#0F6E56'; }
+      else { bEl.textContent=abertas.length+(abertas.length===1?' aberta':' abertas'); }
+    }
+    if(rEl){
+      if(abertas.length){ rEl.textContent=crit+' crítica(s) · '+venc+' vencida(s) · ir ao local e verificar'; }
+    }
+  }catch(e){ /* silencioso */ }
+})();</script>
 </div><!-- /#app -->
 <script>
 const PIN_SGO = "1234";  // << código de acesso da brigada (o MESMO das inspeções). Troque depois por um forte.
