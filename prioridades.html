@@ -23,7 +23,7 @@
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:11px 6px;text-align:center}
   .kpi .v{font-size:21px;font-weight:800}
   .kpi .l{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.15}
-  .kpi.crit .v{color:var(--red)} .kpi.venc .v{color:#B8531F}
+  .kpi.crit .v{color:var(--red)}
 
   .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
   .chip{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:20px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer}
@@ -32,17 +32,18 @@
   .nc{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:14px;padding:13px 14px;margin-bottom:10px}
   .nc.c-critica{border-left-color:var(--red)} .nc.c-moderada{border-left-color:var(--amber)} .nc.c-baixa{border-left-color:#1F7A44}
   .nctop{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
-  .ncnum{font-size:12px;font-weight:800;color:var(--muted)}
+  .ncnum{font-size:12.5px;font-weight:800;color:var(--navy)}
   .badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
   .b-critica{background:#FCEBEB;color:#9B2D22} .b-moderada{background:#FAEEDA;color:#9A6112} .b-baixa{background:#E1F5EE;color:#0F6E56}
-  .b-aberta{background:#FCEBEB;color:#9B2D22} .b-tratamento{background:#FAEEDA;color:#9A6112} .b-encerrada{background:#eef1f5;color:#5b6b7b}
-  .ncdesc{font-size:14.5px;font-weight:600;line-height:1.35;color:var(--navy)}
-  .ncmeta{font-size:12px;color:var(--muted);margin-top:7px;display:flex;flex-wrap:wrap;gap:4px 14px}
+  .pct{margin-left:auto;font-size:13px;font-weight:800}
+  .ncitens{margin:8px 0 0;padding:0;list-style:none}
+  .ncitens li{font-size:13.5px;color:#33455b;line-height:1.4;padding-left:18px;position:relative;margin-bottom:3px}
+  .ncitens li:before{content:'✕';position:absolute;left:0;color:var(--red);font-weight:800}
+  .ncmeta{font-size:12px;color:var(--muted);margin-top:9px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}
   .ncmeta b{color:#33455b;font-weight:700}
-  .venc{color:var(--red);font-weight:800}
-  .ncact{margin-top:10px;display:flex;gap:8px;align-items:center}
-  .ncact select{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)}
+  .mapbtn{margin-left:auto;background:var(--teal);color:#fff;text-decoration:none;font-size:12px;font-weight:800;padding:7px 12px;border-radius:10px;white-space:nowrap}
   .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:40px 16px;line-height:1.6}
+  .crit-note{font-size:11px;color:#8aa0b8;text-align:center;margin-top:6px}
 </style>
 </head>
 <body>
@@ -68,24 +69,28 @@
   <div class="hwrap">
     <a class="back" href="index.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
     <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
-    <div><div class="btitle">Prioridades Operacionais</div><div class="bsub">Não conformidades · ir ao local e verificar</div></div>
+    <div><div class="btitle">Prioridades Operacionais</div><div class="bsub">Não conformidades das inspeções · ir ao local</div></div>
   </div>
 </header>
 <main>
   <div class="kpis">
-    <div class="kpi"><div class="v" id="kAbertas">—</div><div class="l">abertas</div></div>
-    <div class="kpi"><div class="v" id="kTrat">—</div><div class="l">em tratamento</div></div>
+    <div class="kpi"><div class="v" id="kAtivos">—</div><div class="l">ativos com NC</div></div>
+    <div class="kpi"><div class="v" id="kItens">—</div><div class="l">itens reprovados</div></div>
     <div class="kpi crit"><div class="v" id="kCrit">—</div><div class="l">críticas</div></div>
-    <div class="kpi venc"><div class="v" id="kVenc">—</div><div class="l">vencidas</div></div>
+    <div class="kpi"><div class="v" id="kConf">—</div><div class="l">conformidade média</div></div>
   </div>
   <div class="chips" id="chips">
-    <div class="chip on" data-f="abertas">Em aberto</div>
+    <div class="chip on" data-f="todas">Todas</div>
     <div class="chip" data-f="critica">Críticas</div>
     <div class="chip" data-f="moderada">Moderadas</div>
     <div class="chip" data-f="baixa">Baixas</div>
-    <div class="chip" data-f="todas">Todas</div>
+    <div class="chip" data-f="extintor">Extintores</div>
+    <div class="chip" data-f="hidrante">Hidrantes</div>
+    <div class="chip" data-f="valvula">Válvulas</div>
+    <div class="chip" data-f="casa_bomba">Casas de bomba</div>
   </div>
   <div id="lista"></div>
+  <div class="crit-note">Criticidade pela conformidade da inspeção: &lt;90% crítica · 90–96% moderada · ≥97% baixa.</div>
 </main>
 </div>
 
@@ -96,93 +101,98 @@ const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const PIN_SGO="1234";
 const sb=window.supabase?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
 const $=id=>document.getElementById(id);
-let todas=[], efmap={}, filtro='abertas';
+const TIPONOME={extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de bombas'};
+let ncs=[], filtro='todas';
 
 function liberarSGO(){ $('login').style.display='none'; $('app').style.display='block'; }
 function entrarSGO(){ const v=($('lpin').value||'').trim(); if(v===PIN_SGO){ try{sessionStorage.setItem('sgo_login','1');}catch(e){} liberarSGO(); carregar(); } else { $('lerr').textContent='Código incorreto.'; } }
-
-function hoje0(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); }
-function fmtData(s){ if(!s) return '—'; const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); return m?(m[3]+'/'+m[2]+'/'+m[1]):s; }
+function fmtData(s){ if(!s) return '—'; const d=new Date(s); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-const pesoC={critica:0,moderada:1,baixa:2}, pesoS={aberta:0,tratamento:1,encerrada:2};
+function criticidade(pct){ if(pct==null) return 'moderada'; if(pct<90) return 'critica'; if(pct<97) return 'moderada'; return 'baixa'; }
+const pesoC={critica:0,moderada:1,baixa:2};
 
 async function carregar(){
   if(!sb) return;
-  const [{data:nc},{data:ef}]=await Promise.all([
-    sb.from('nao_conformidades').select('*'),
+  const [insR,exR,hiR,vaR,cbR,efR]=await Promise.all([
+    sb.from('inspecoes').select('id,tipo,area,condicao,conformidade_pct,checklist,created_at,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id,latitude,longitude').order('created_at',{ascending:false}),
+    sb.from('extintores').select('id,codigo,local,area,latitude,longitude'),
+    sb.from('hidrantes').select('id,codigo,local,area,latitude,longitude'),
+    sb.from('valvulas').select('id,codigo,local,area,latitude,longitude'),
+    sb.from('casas_bombas').select('id,codigo,local,area,latitude,longitude'),
     sb.from('efetivo').select('id,nome')
   ]);
-  efmap={}; (ef||[]).forEach(e=>efmap[e.id]=e.nome);
-  todas=nc||[];
+  const ativos={extintor:{},hidrante:{},valvula:{},casa_bomba:{}};
+  (exR.data||[]).forEach(a=>ativos.extintor[a.id]=a);
+  (hiR.data||[]).forEach(a=>ativos.hidrante[a.id]=a);
+  (vaR.data||[]).forEach(a=>ativos.valvula[a.id]=a);
+  (cbR.data||[]).forEach(a=>ativos.casa_bomba[a.id]=a);
+  const ef={}; (efR.data||[]).forEach(e=>ef[e.id]=e.nome);
+
+  // mantém só a inspeção MAIS RECENTE de cada ativo (já vem ordenado desc)
+  const vistos={}, abertas=[];
+  (insR.data||[]).forEach(ins=>{
+    const aId=ins.extintor_id||ins.hidrante_id||ins.valvula_id||ins.casa_bomba_id||ins.id;
+    const key=ins.tipo+':'+aId;
+    if(vistos[key]) return; vistos[key]=1;
+    const itens=(Array.isArray(ins.checklist)?ins.checklist:[]).filter(it=>it && it.situacao==='nc').map(it=>it.item);
+    if(!itens.length) return; // ativo está conforme na última inspeção
+    const a=(ativos[ins.tipo]||{})[aId]||{};
+    abertas.push({
+      tipo:ins.tipo, codigo:a.codigo||'', local:a.local||'', area:a.area||ins.area||'',
+      pct:ins.conformidade_pct, itens:itens, data:ins.created_at,
+      resp:ins.responsavel_id?ef[ins.responsavel_id]:'',
+      lat:a.latitude||ins.latitude, lng:a.longitude||ins.longitude,
+      crit:criticidade(ins.conformidade_pct)
+    });
+  });
+  ncs=abertas;
+
   // KPIs
-  const abertas=todas.filter(x=>x.status==='aberta').length;
-  const trat=todas.filter(x=>x.status==='tratamento').length;
-  const crit=todas.filter(x=>x.status!=='encerrada'&&x.criticidade==='critica').length;
-  const venc=todas.filter(x=>x.status!=='encerrada'&&x.prazo&&new Date(x.prazo)<hoje0()).length;
-  $('kAbertas').textContent=abertas; $('kTrat').textContent=trat; $('kCrit').textContent=crit; $('kVenc').textContent=venc;
+  $('kAtivos').textContent=ncs.length;
+  $('kItens').textContent=ncs.reduce((s,x)=>s+x.itens.length,0);
+  $('kCrit').textContent=ncs.filter(x=>x.crit==='critica').length;
+  const todasUlt=Object.values(vistos).length; // nº de ativos inspecionados (chaves vistas)
+  // conformidade média sobre as últimas inspeções de cada ativo
+  let somaPct=0,n=0; const vistos2={};
+  (insR.data||[]).forEach(ins=>{ const aId=ins.extintor_id||ins.hidrante_id||ins.valvula_id||ins.casa_bomba_id||ins.id; const k=ins.tipo+':'+aId; if(vistos2[k])return; vistos2[k]=1; if(ins.conformidade_pct!=null){somaPct+=ins.conformidade_pct;n++;} });
+  $('kConf').textContent=n?(Math.round(somaPct/n)+'%'):'—';
   render();
 }
 
 function render(){
-  let lst=todas.slice();
-  if(filtro==='abertas') lst=lst.filter(x=>x.status!=='encerrada');
-  else if(filtro!=='todas') lst=lst.filter(x=>x.criticidade===filtro&&x.status!=='encerrada');
-  lst.sort((a,b)=>{
-    const sa=pesoS[a.status]??9, sb_=pesoS[b.status]??9; if(sa!==sb_)return sa-sb_;
-    const ca=pesoC[a.criticidade]??9, cb=pesoC[b.criticidade]??9; if(ca!==cb)return ca-cb;
-    const pa=a.prazo?new Date(a.prazo).getTime():9e15, pb=b.prazo?new Date(b.prazo).getTime():9e15; return pa-pb;
-  });
+  let lst=ncs.slice();
+  if(filtro==='critica'||filtro==='moderada'||filtro==='baixa') lst=lst.filter(x=>x.crit===filtro);
+  else if(filtro!=='todas') lst=lst.filter(x=>x.tipo===filtro);
+  lst.sort((a,b)=>{ const c=pesoC[a.crit]-pesoC[b.crit]; if(c)return c; return (a.pct??100)-(b.pct??100); });
   const el=$('lista');
-  if(!lst.length){ el.innerHTML='<div class="empty">Nenhuma não conformidade neste filtro.<br>Quando houver NCs cadastradas no banco, elas aparecem aqui priorizadas por criticidade e prazo.</div>'; return; }
+  if(!lst.length){ el.innerHTML='<div class="empty">Nenhuma não conformidade neste filtro.<br>Aqui aparecem os ativos cuja última inspeção reprovou algum item.</div>'; return; }
   el.innerHTML='';
-  const t0=hoje0();
   lst.forEach(x=>{
-    const venc=(x.status!=='encerrada'&&x.prazo&&new Date(x.prazo)<t0);
-    const resp=x.responsavel_id?(efmap[x.responsavel_id]||''):'';
-    const div=document.createElement('div'); div.className='nc c-'+(x.criticidade||'baixa');
+    const nome=(TIPONOME[x.tipo]||x.tipo)+(x.codigo?(' '+x.codigo):'');
+    const onde=[x.local,x.area].filter(Boolean).join(' · ');
+    const mapa=(x.lat&&x.lng)?('<a class="mapbtn" target="_blank" rel="noopener" href="https://www.google.com/maps?q='+x.lat+','+x.lng+'">Ver no mapa</a>'):'';
+    const itensHtml=x.itens.map(i=>'<li>'+esc(i)+'</li>').join('');
+    const div=document.createElement('div'); div.className='nc c-'+x.crit;
     div.innerHTML=
       '<div class="nctop">'+
-        '<span class="ncnum">NC '+(x.numero!=null?('#'+x.numero):'')+'</span>'+
-        '<span class="badge b-'+(x.criticidade||'baixa')+'">'+(x.criticidade||'—')+'</span>'+
-        '<span class="badge b-'+(x.status||'aberta')+'">'+(x.status||'—')+'</span>'+
+        '<span class="ncnum">'+esc(nome)+'</span>'+
+        '<span class="badge b-'+x.crit+'">'+x.crit+'</span>'+
+        '<span class="pct" style="color:'+(x.crit==='critica'?'#C0392B':(x.crit==='moderada'?'#9A6112':'#0F6E56'))+'">'+(x.pct!=null?x.pct+'%':'')+'</span>'+
       '</div>'+
-      '<div class="ncdesc">'+esc(x.descricao||'(sem descrição)')+'</div>'+
+      (onde?'<div class="ncmeta" style="margin-top:0">📍 <b>'+esc(onde)+'</b></div>':'')+
+      '<ul class="ncitens">'+itensHtml+'</ul>'+
       '<div class="ncmeta">'+
-        (x.area?'<span>📍 <b>'+esc(x.area)+'</b></span>':'')+
-        (x.ativo_tipo?'<span>Ativo: <b>'+esc(x.ativo_tipo)+'</b></span>':'')+
-        '<span>Prazo: <b class="'+(venc?'venc':'')+'">'+fmtData(x.prazo)+(venc?' (vencida)':'')+'</b></span>'+
-        (resp?'<span>Resp.: <b>'+esc(resp)+'</b></span>':'')+
-      '</div>'+
-      (x.status!=='encerrada'?(
-      '<div class="ncact">'+
-        '<select data-id="'+x.id+'">'+
-          '<option value="">Atualizar status…</option>'+
-          (x.status!=='tratamento'?'<option value="tratamento">Marcar em tratamento</option>':'')+
-          '<option value="encerrada">Marcar encerrada</option>'+
-        '</select>'+
-      '</div>'):'');
+        '<span>Inspeção: <b>'+fmtData(x.data)+'</b></span>'+
+        (x.resp?'<span>Resp.: <b>'+esc(x.resp)+'</b></span>':'')+
+        mapa+
+      '</div>';
     el.appendChild(div);
   });
-  el.querySelectorAll('select[data-id]').forEach(s=>s.addEventListener('change',mudarStatus));
-}
-
-async function mudarStatus(ev){
-  const id=ev.target.getAttribute('data-id'); const novo=ev.target.value; if(!novo) return;
-  ev.target.disabled=true;
-  const patch={status:novo, updated_at:new Date().toISOString()};
-  if(novo==='encerrada') patch.encerrada_em=new Date().toISOString();
-  const {error}=await sb.from('nao_conformidades').update(patch).eq('id',id);
-  if(error){ ev.target.disabled=false; alert('Não foi possível atualizar.'); return; }
-  carregar();
 }
 
 (function(){
   if(!sb){ document.body.innerHTML='<p style="padding:24px;font-family:sans-serif">Falha ao carregar o Supabase.</p>'; return; }
-  document.getElementById('chips').addEventListener('click',e=>{
-    const c=e.target.closest('.chip'); if(!c) return;
-    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on');
-    filtro=c.getAttribute('data-f'); render();
-  });
+  $('chips').addEventListener('click',e=>{ const c=e.target.closest('.chip'); if(!c)return; document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on'); filtro=c.getAttribute('data-f'); render(); });
   let ok=false; try{ ok=sessionStorage.getItem('sgo_login')==='1'; }catch(e){}
   if(ok){ liberarSGO(); carregar(); } else { setTimeout(()=>{const i=$('lpin'); if(i) i.focus();},150); }
 })();
