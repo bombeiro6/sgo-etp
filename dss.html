@@ -193,7 +193,8 @@
     <div class="big-ok"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
     <div class="tema">DSS registrado</div>
     <div class="texto center" id="finalDoc" style="white-space:normal"></div>
-    <a class="btn" id="pdfLink" target="_blank" rel="noopener">Abrir PDF do documento</a>
+    <a class="btn" id="btnBaixarPdf" onclick="baixarPdf()">Baixar PDF</a>
+    <a class="btn ghost" id="btnSharePdf" onclick="compartilharPdf()" style="display:none">Compartilhar PDF</a>
     <a class="btn ghost" href="index.html">Voltar ao início</a>
   </div>
 
@@ -375,6 +376,14 @@ async function iniciarDSS(){
   $('btnIniciar').disabled=true; msg.className='msg'; msg.textContent='Abrindo sessão…';
   try{
     const now=new Date(); const dia=isoDay(now);
+    // retoma sessão em andamento do mesmo dia + turno (evita duplicados)
+    const {data:emand}=await sb.from('dss_sessions').select('*').eq('data',dia).eq('turno',turno).eq('status','em_andamento').order('created_at',{ascending:false}).limit(1);
+    if(emand&&emand.length){
+      const s=emand[0];
+      sessao={id:s.id,numero_doc:s.numero_doc,token:s.token,tema:s.tema,texto:s.texto||'',turno:s.turno,facilitador_nome:s.facilitador_nome||fnome,data:s.data};
+      try{ sessionStorage.setItem('dss_ativa',JSON.stringify(sessao)); }catch(e){}
+      abrirSessaoAtiva(true); return;
+    }
     const {count}=await sb.from('dss_sessions').select('id',{count:'exact',head:true}).eq('data',dia);
     const seq=String((count||0)+1).padStart(3,'0');
     const numero='DSS-'+dia.replace(/-/g,'')+'-'+seq;
@@ -518,11 +527,12 @@ async function finalizarDSS(){
       assinatura:sigUrl, pdf_url:pdfUrl
     }).eq('id',sessao.id);
     try{ sessionStorage.removeItem('dss_ativa'); }catch(e){}
+    window._dssPdf={blob:pdfBlob, name:sessao.numero_doc+'.pdf'};
     // tela final
     hide('pSessao'); hide('pTema'); hide('pKpi'); show('pFinal');
     $('finalDoc').innerHTML='Documento <b>'+sessao.numero_doc+'</b> · '+parts.length+' participante(s) · '+fmtData(new Date());
-    if(pdfUrl){ $('pdfLink').setAttribute('href',pdfUrl); }
-    else { $('pdfLink').classList.add('hidden'); }
+    try{ const f=new File([pdfBlob],sessao.numero_doc+'.pdf',{type:'application/pdf'}); if(navigator.canShare&&navigator.canShare({files:[f]})) $('btnSharePdf').style.display='block'; }catch(e){}
+    carregarKpis();
   }catch(e){
     msg.className='msg err'; msg.textContent='Erro ao finalizar: '+(e.message||e); $('btnFinalizar').disabled=false;
   }
@@ -621,20 +631,21 @@ async function carregarKpis(){
     $('cicloRange').textContent=c.startTxt+'  a  '+c.endTxt;
     const {data}=await sb.from('dss_sessions').select('id,numero_doc,tema,turno,data,status,pdf_url')
       .gte('data',c.startISO).lte('data',c.endISO).order('data',{ascending:false});
-    const lst=data||[]; cicloSessoes=lst;
+    const lst=data||[];
     const realiz=lst.filter(s=>s.status==='finalizado');
+    cicloSessoes=realiz;
     $('kRealiz').textContent=realiz.length;
-    $('kPdf').textContent=lst.filter(s=>s.pdf_url).length;
+    $('kPdf').textContent=realiz.filter(s=>s.pdf_url).length;
     let part=0;
-    if(lst.length){
-      const ids=lst.map(s=>s.id);
+    if(realiz.length){
+      const ids=realiz.map(s=>s.id);
       const {count}=await sb.from('dss_participantes').select('id',{count:'exact',head:true}).in('session_id',ids);
       part=count||0;
     }
     $('kPart').textContent=part;
     const h=$('hist'); h.innerHTML='';
-    if(!lst.length){ h.innerHTML='<div class="pmeta" style="padding:8px 0">Nenhum DSS neste ciclo.</div>'; }
-    lst.forEach(s=>{
+    if(!realiz.length){ h.innerHTML='<div class="pmeta" style="padding:8px 0">Nenhum DSS finalizado neste ciclo.</div>'; }
+    realiz.forEach(s=>{
       const d=document.createElement('div'); d.className='hitem';
       const link=s.pdf_url?('<a class="hlink" href="'+s.pdf_url+'" target="_blank" rel="noopener">PDF</a>'):'<span class="pmeta">—</span>';
       d.innerHTML='<span class="pmeta" style="flex:0 0 auto">'+fmtData(s.data)+' · '+s.turno+'</span><span class="htema">'+escapeHtml(s.tema||'')+'</span>'+link;
@@ -662,6 +673,8 @@ async function baixarZip(){
 }
 
 function copiarLink(){ const i=$('linkPres'); i.select(); try{document.execCommand('copy');}catch(e){} }
+function baixarPdf(){ const p=window._dssPdf; if(!p)return; const a=document.createElement('a'); a.href=URL.createObjectURL(p.blob); a.download=p.name; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),0); }
+async function compartilharPdf(){ const p=window._dssPdf; if(!p)return; try{ const f=new File([p.blob],p.name,{type:'application/pdf'}); if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:p.name}); } else { baixarPdf(); } }catch(e){ baixarPdf(); } }
 
 /* ===================================================== */
 /* =====================  BOOT  ======================== */
