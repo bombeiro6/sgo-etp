@@ -113,8 +113,9 @@ const pesoC={critica:0,moderada:1,baixa:2};
 
 async function carregar(){
   if(!sb) return;
+  $('lista').innerHTML='<div class="empty">Carregando…</div>';
   const [insR,exR,hiR,vaR,cbR,efR]=await Promise.all([
-    sb.from('inspecoes').select('id,tipo,area,condicao,conformidade_pct,checklist,created_at,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id,latitude,longitude').order('created_at',{ascending:false}),
+    sb.from('inspecoes').select('id,tipo,area,condicao,conformidade_pct,created_at,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id,latitude,longitude').order('created_at',{ascending:false}),
     sb.from('extintores').select('id,codigo,local,area,latitude,longitude'),
     sb.from('hidrantes').select('id,codigo,local,area,latitude,longitude'),
     sb.from('valvulas').select('id,codigo,local,area,latitude,longitude'),
@@ -128,33 +129,38 @@ async function carregar(){
   (cbR.data||[]).forEach(a=>ativos.casa_bomba[a.id]=a);
   const ef={}; (efR.data||[]).forEach(e=>ef[e.id]=e.nome);
 
-  // mantém só a inspeção MAIS RECENTE de cada ativo (já vem ordenado desc)
-  const vistos={}, abertas=[];
+  // mantém só a inspeção MAIS RECENTE de cada ativo (sem puxar checklist ainda)
+  const vistos={};
   (insR.data||[]).forEach(ins=>{
     const aId=ins.extintor_id||ins.hidrante_id||ins.valvula_id||ins.casa_bomba_id||ins.id;
     const key=ins.tipo+':'+aId;
-    if(vistos[key]) return; vistos[key]=1;
-    const itens=(Array.isArray(ins.checklist)?ins.checklist:[]).filter(it=>it && it.situacao==='nc').map(it=>it.item);
-    if(!itens.length) return; // ativo está conforme na última inspeção
+    if(vistos[key]) return; vistos[key]=ins;
+  });
+  const ult=Object.values(vistos);
+  // conformidade média (últimas inspeções)
+  let somaPct=0,n=0; ult.forEach(i=>{ if(i.conformidade_pct!=null){somaPct+=i.conformidade_pct;n++;} });
+  // só as NC (última inspeção reprovada)
+  const ncIns=ult.filter(i=>i.conformidade_pct!=null && i.conformidade_pct<100);
+  // agora sim, puxa o checklist SÓ dessas
+  const chk={};
+  if(ncIns.length){
+    const {data:cd}=await sb.from('inspecoes').select('id,checklist').in('id', ncIns.map(i=>i.id));
+    (cd||[]).forEach(r=>{ chk[r.id]=(Array.isArray(r.checklist)?r.checklist:[]).filter(it=>it&&it.situacao==='nc').map(it=>it.item); });
+  }
+  ncs=ncIns.map(ins=>{
+    const aId=ins.extintor_id||ins.hidrante_id||ins.valvula_id||ins.casa_bomba_id||ins.id;
     const a=(ativos[ins.tipo]||{})[aId]||{};
-    abertas.push({
+    return {
       tipo:ins.tipo, codigo:a.codigo||'', local:a.local||'', area:a.area||ins.area||'',
-      pct:ins.conformidade_pct, itens:itens, data:ins.created_at,
+      pct:ins.conformidade_pct, itens:chk[ins.id]||[], data:ins.created_at,
       resp:ins.responsavel_id?ef[ins.responsavel_id]:'',
       lat:a.latitude||ins.latitude, lng:a.longitude||ins.longitude,
       crit:criticidade(ins.conformidade_pct)
-    });
+    };
   });
-  ncs=abertas;
-
-  // KPIs
   $('kAtivos').textContent=ncs.length;
   $('kItens').textContent=ncs.reduce((s,x)=>s+x.itens.length,0);
   $('kCrit').textContent=ncs.filter(x=>x.crit==='critica').length;
-  const todasUlt=Object.values(vistos).length; // nº de ativos inspecionados (chaves vistas)
-  // conformidade média sobre as últimas inspeções de cada ativo
-  let somaPct=0,n=0; const vistos2={};
-  (insR.data||[]).forEach(ins=>{ const aId=ins.extintor_id||ins.hidrante_id||ins.valvula_id||ins.casa_bomba_id||ins.id; const k=ins.tipo+':'+aId; if(vistos2[k])return; vistos2[k]=1; if(ins.conformidade_pct!=null){somaPct+=ins.conformidade_pct;n++;} });
   $('kConf').textContent=n?(Math.round(somaPct/n)+'%'):'—';
   render();
 }
