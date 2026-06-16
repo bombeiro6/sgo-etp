@@ -227,7 +227,7 @@ function setView(v){
 async function carregarEfetivo(){
   if(!sb){ DEMO=true; state.efetivo=MOCK_EFETIVO; return; }
   try{
-    const { data, error } = await sb.from('efetivo').select('id,nome,turno').eq('status','ativo').order('nome');
+    const { data, error } = await sb.from('efetivo').select('id,nome,turno').eq('status','ativo').eq('tipo','operacional').order('nome');
     if(error) throw error;
     state.efetivo = data || [];
   }catch(e){ DEMO=true; state.efetivo=MOCK_EFETIVO; }
