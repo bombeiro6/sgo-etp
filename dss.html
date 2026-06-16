@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0A2240" />
+<title>DSS Diário · SGO-ETP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --navy:#0A2240;--navy2:#143257;--red:#C0392B;--teal:#007B6E;--green:#1F7A44;
+    --amber:#EF9F27;--bg:#eef1f5;--card:#fff;--line:#dfe5ec;--ink:#0A2240;--muted:#5b6b7b;--dim:#aebed4;
+  }
+  html,body{background:var(--bg);color:var(--ink);font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,sans-serif}
+  body{min-height:100vh}
+
+  header{background:var(--navy);color:#fff;border-bottom:3px solid var(--teal);position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(10,34,64,.18)}
+  .hwrap{max-width:760px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:11px}
+  .back{color:#aebed4;text-decoration:none;display:flex;align-items:center;flex:0 0 auto}
+  .logo{width:36px;height:36px;border-radius:10px;background:var(--teal);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .btitle{font-size:16px;font-weight:800;line-height:1.1}
+  .bsub{font-size:11px;color:var(--dim);margin-top:2px}
+
+  main{max-width:760px;margin:0 auto;padding:16px 14px 56px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .plabel{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .tema{font-size:18px;font-weight:800;line-height:1.25;color:var(--navy)}
+  .texto{font-size:14px;color:#33455b;line-height:1.55;margin-top:9px;white-space:pre-line}
+
+  label.f{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:12px 0 5px}
+  select,input[type=text]{width:100%;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;padding:13px;font-size:15px;font-family:inherit;outline:none}
+  select:focus,input[type=text]:focus{border-color:var(--teal)}
+
+  .btn{display:block;width:100%;text-align:center;background:var(--teal);color:#fff;border:0;border-radius:12px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;margin-top:14px;text-decoration:none}
+  .btn:disabled{opacity:.45}
+  .btn.red{background:var(--red)}
+  .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .btn.sm{padding:10px;font-size:13px;margin-top:0;width:auto}
+
+  .docnum{display:inline-block;background:var(--navy2);color:#aebed4;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.5px}
+  .qrbox{text-align:center;padding:8px 0}
+  .qrbox canvas,.qrbox img{width:210px;height:210px;border-radius:12px;border:1px solid var(--line);background:#fff;padding:8px}
+  .qrhint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .linkrow{display:flex;gap:8px;margin-top:10px}
+  .linkrow input{font-size:12px;color:var(--muted)}
+
+  .plist{margin-top:4px}
+  .pcount{font-size:13px;color:var(--muted);margin-bottom:8px}
+  .pitem{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #eef1f5}
+  .pitem:last-child{border-bottom:0}
+  .pav{width:30px;height:30px;border-radius:50%;background:#E1F5EE;color:#0F6E56;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto}
+  .pnome{font-size:14px;font-weight:600}
+  .pmeta{font-size:11px;color:var(--muted)}
+
+  .photo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pcard{border:1.5px dashed #c7d3df;border-radius:14px;padding:12px;text-align:center;cursor:pointer;position:relative;overflow:hidden;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .pcard.has{border-style:solid;border-color:var(--teal);padding:0}
+  .pcard img{width:100%;height:140px;object-fit:cover;display:block;border-radius:12px}
+  .pcard .cap{font-size:11.5px;color:var(--muted);font-weight:600}
+  .pcard .ok{position:absolute;top:6px;right:6px;background:var(--teal);color:#fff;border-radius:20px;font-size:10px;font-weight:800;padding:2px 8px}
+  .pcard input{display:none}
+
+  canvas#sig{width:100%;height:170px;background:#fff;border:1.5px solid var(--line);border-radius:12px;touch-action:none}
+  .sigbar{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .signame{font-size:12px;color:var(--muted)}
+
+  .kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .kpi{background:#f7f9fb;border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center}
+  .kpi .v{font-size:20px;font-weight:800;color:var(--teal)}
+  .kpi .l{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.2}
+  .hist{margin-top:12px}
+  .hitem{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #eef1f5;font-size:13px}
+  .hitem:last-child{border-bottom:0}
+  .htema{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hlink{color:var(--teal);font-weight:700;text-decoration:none;font-size:12px;flex:0 0 auto}
+
+  .msg{font-size:13px;border-radius:12px;padding:11px 13px;margin-top:10px;line-height:1.5}
+  .msg.err{background:#FCEBEB;color:#9B2D22}
+  .msg.ok{background:#E1F5EE;color:#0F6E56}
+  .center{text-align:center}
+  .big-ok{width:64px;height:64px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;margin:6px auto 12px}
+  .req{color:var(--red)}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<!-- LOGIN (apenas modo facilitador) -->
+<div id="login" style="position:fixed;inset:0;background:#0A2240;display:flex;align-items:center;justify-content:center;padding:24px;z-index:50">
+  <div style="width:100%;max-width:360px;text-align:center;color:#fff">
+    <div style="width:60px;height:60px;border-radius:16px;background:#007B6E;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <div style="font-size:20px;font-weight:800">DSS Diário</div>
+    <div style="font-size:12.5px;color:#aebed4;margin:4px 0 22px">Acesso do facilitador · SGO-ETP</div>
+    <input id="lpin" type="password" inputmode="numeric" placeholder="Código de acesso" autocomplete="off"
+      style="width:100%;border:1.5px solid #2c4a73;background:#143257;color:#fff;border-radius:12px;padding:14px;font-size:18px;text-align:center;letter-spacing:6px;outline:none"
+      onkeydown="if(event.key==='Enter')entrarSGO()">
+    <button onclick="entrarSGO()" style="width:100%;margin-top:12px;background:#007B6E;color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer">Entrar</button>
+    <a href="index.html" style="display:block;margin-top:14px;color:#aebed4;font-size:13px;text-decoration:none">‹ Voltar ao início</a>
+    <div id="lerr" style="color:#F09595;font-size:13px;min-height:18px;margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+<header>
+  <div class="hwrap">
+    <a class="back" href="index.html" id="backLink"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg></div>
+    <div><div class="btitle">DSS Diário</div><div class="bsub" id="hsub">Diálogo de Segurança · Terminal Parauapebas</div></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ====== TEMA DO DIA ====== -->
+  <div class="panel" id="pTema">
+    <div class="plabel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007B6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg><span id="temaData">Tema do dia</span></div>
+    <div class="tema" id="temaTitulo">carregando…</div>
+    <div class="texto" id="temaTexto"></div>
+  </div>
+
+  <!-- ====== FACILITADOR: ABERTURA ====== -->
+  <div class="panel hidden" id="pSetup">
+    <div class="plabel">Abrir DSS</div>
+    <label class="f">Turno</label>
+    <select id="selTurno">
+      <option value="A">Turno A — Alfa</option>
+      <option value="B">Turno B — Bravo</option>
+      <option value="C">Turno C — Charlie</option>
+      <option value="D">Turno D — Delta</option>
+      <option value="Administrativo">Administrativo</option>
+    </select>
+    <label class="f">Facilitador</label>
+    <select id="selFacil"><option value="">Selecione…</option></select>
+    <button class="btn" id="btnIniciar">Iniciar DSS</button>
+    <div id="setupMsg"></div>
+  </div>
+
+  <!-- ====== FACILITADOR: SESSÃO ATIVA ====== -->
+  <div class="hidden" id="pSessao">
+
+    <div class="panel center">
+      <span class="docnum" id="docNum">DSS-—</span>
+      <div class="plabel" style="justify-content:center;margin-top:12px">Presença por QR Code</div>
+      <div class="qrbox" id="qrbox"></div>
+      <div class="qrhint">Os colaboradores escaneiam o QR para confirmar presença. A lista atualiza sozinha abaixo.</div>
+      <div class="linkrow">
+        <input type="text" id="linkPres" readonly>
+        <button class="btn sm ghost" onclick="copiarLink()">Copiar</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="plabel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>Presenças confirmadas</div>
+      <div class="pcount" id="pcount">Aguardando confirmações…</div>
+      <div class="plist" id="plist"></div>
+    </div>
+
+    <div class="panel">
+      <div class="plabel">Evidências fotográficas <span class="req">obrigatórias</span></div>
+      <div class="photo">
+        <label class="pcard" id="cardEquipe">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9fb0c2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          <span class="cap">Foto da equipe</span>
+          <input type="file" accept="image/*" capture="environment" id="fEquipe">
+        </label>
+        <label class="pcard" id="cardApres">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9fb0c2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20v14H2z"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+          <span class="cap">Foto da apresentação</span>
+          <input type="file" accept="image/*" capture="environment" id="fApres">
+        </label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="plabel">Assinatura do facilitador <span class="req">obrigatória</span></div>
+      <canvas id="sig" width="700" height="340"></canvas>
+      <div class="sigbar">
+        <span class="signame" id="sigName">—</span>
+        <button class="btn sm ghost" onclick="limparAssinatura()">Limpar</button>
+      </div>
+    </div>
+
+    <button class="btn red" id="btnFinalizar">Finalizar e gerar PDF</button>
+    <div id="finalMsg"></div>
+  </div>
+
+  <!-- ====== FACILITADOR: CONCLUÍDO ====== -->
+  <div class="panel center hidden" id="pFinal">
+    <div class="big-ok"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <div class="tema">DSS registrado</div>
+    <div class="texto center" id="finalDoc" style="white-space:normal"></div>
+    <a class="btn" id="pdfLink" target="_blank" rel="noopener">Abrir PDF do documento</a>
+    <a class="btn ghost" href="index.html">Voltar ao início</a>
+  </div>
+
+  <!-- ====== KPIs / HISTÓRICO (facilitador) ====== -->
+  <div class="panel hidden" id="pKpi">
+    <div class="plabel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H4a1 1 0 0 1-1-1V3"/><path d="m7 14 4-4 3 3 5-6"/></svg>DSS no mês</div>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kRealiz">—</div><div class="l">realizados</div></div>
+      <div class="kpi"><div class="v" id="kPdf">—</div><div class="l">PDFs gerados</div></div>
+      <div class="kpi"><div class="v" id="kPart">—</div><div class="l">participações</div></div>
+    </div>
+    <div class="hist" id="hist"></div>
+  </div>
+
+  <!-- ====== MODO PRESENÇA (público via QR) ====== -->
+  <div class="hidden" id="pPresenca">
+    <div class="panel">
+      <div class="plabel">Confirmar presença no DSS</div>
+      <label class="f">Seu nome</label>
+      <input type="text" id="presNome" list="efetivoNomes" placeholder="Digite ou selecione seu nome" autocomplete="off">
+      <datalist id="efetivoNomes"></datalist>
+      <label class="f">Matrícula <span style="font-weight:500;color:#9fb0c2">(opcional)</span></label>
+      <input type="text" id="presMat" inputmode="numeric" placeholder="Matrícula" autocomplete="off">
+      <button class="btn" id="btnPresenca">Confirmar presença</button>
+      <div id="presMsg"></div>
+    </div>
+  </div>
+
+  <!-- ====== PRESENÇA CONFIRMADA ====== -->
+  <div class="panel center hidden" id="pPresOk">
+    <div class="big-ok"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <div class="tema">Presença confirmada!</div>
+    <div class="texto center" id="presOkNome" style="white-space:normal"></div>
+  </div>
+
+</main>
+</div><!-- /#app -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+const SUPABASE_URL="https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const PIN_SGO="1234";
+const BUCKET="inspecao-fotos";
+
+const sb = window.supabase ? supabase.createClient(SUPABASE_URL,SUPABASE_KEY) : null;
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const TOKEN_PRES = params.get('p');           // se presente => modo presença
+const PRESENCA = !!TOKEN_PRES;
+
+let temaHoje=null, efetivo=[], sessao=null, fotos={equipe:null,apres:null}, sigDrawn=false;
+
+function fmtData(d){
+  if(typeof d==='string'){ const m=d.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[3]+'/'+m[2]+'/'+m[1]; }
+  const x=new Date(d);return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear();
+}
+function fmtHora(d){const x=new Date(d);return String(x.getHours()).padStart(2,'0')+':'+String(x.getMinutes()).padStart(2,'0');}
+function isoDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function show(id){$(id).classList.remove('hidden');}
+function hide(id){$(id).classList.add('hidden');}
+function iniciais(n){return (n||'?').trim().split(/\s+/).map(p=>p[0]).slice(0,2).join('').toUpperCase();}
+
+/* ---------- LOGIN (facilitador) ---------- */
+function liberarSGO(){ $('login').style.display='none'; $('app').style.display='block'; }
+function entrarSGO(){
+  const v=($('lpin').value||'').trim();
+  if(v===PIN_SGO){ try{sessionStorage.setItem('sgo_login','1');}catch(e){} liberarSGO(); initFacilitador(); }
+  else { $('lerr').textContent='Código incorreto.'; }
+}
+
+/* ---------- TEMA DO DIA ---------- */
+async function carregarTema(){
+  const {data}=await sb.from('dss_temas').select('tema,texto,ordem').eq('ativo',true).order('ordem',{ascending:true});
+  if(data&&data.length){
+    const now=new Date(); const start=new Date(now.getFullYear(),0,0);
+    const doy=Math.floor((now-start)/86400000);
+    temaHoje=data[doy%data.length];
+  }
+  return temaHoje;
+}
+function pintarTema(t,dataTxt){
+  $('temaTitulo').textContent=t?t.tema:'—';
+  $('temaTexto').textContent=t?(t.texto||''):'';
+  if(dataTxt) $('temaData').textContent=dataTxt;
+}
+
+/* ===================================================== */
+/* =================  MODO PRESENÇA  =================== */
+/* ===================================================== */
+async function initPresenca(){
+  $('backLink').setAttribute('href','index.html');
+  $('hsub').textContent='Confirmação de presença';
+  const {data,error}=await sb.from('dss_sessions').select('id,tema,texto,data,turno,status,facilitador_nome').eq('token',TOKEN_PRES).maybeSingle();
+  if(error||!data){
+    pintarTema(null,'Sessão');
+    $('temaTitulo').textContent='QR inválido ou sessão não encontrada';
+    return;
+  }
+  sessao=data;
+  pintarTema({tema:data.tema,texto:data.texto}, 'DSS · '+fmtData(data.data));
+  // nomes para autocompletar
+  const {data:ef}=await sb.from('efetivo').select('nome').order('nome');
+  const dl=$('efetivoNomes'); (ef||[]).forEach(e=>{const o=document.createElement('option');o.value=e.nome;dl.appendChild(o);});
+  show('pPresenca');
+  $('btnPresenca').addEventListener('click',confirmarPresenca);
+}
+async function confirmarPresenca(){
+  const nome=($('presNome').value||'').trim();
+  const mat=($('presMat').value||'').trim();
+  const msg=$('presMsg');
+  if(nome.length<3){ msg.className='msg err'; msg.textContent='Digite seu nome completo.'; return; }
+  $('btnPresenca').disabled=true; msg.className='msg'; msg.textContent='Confirmando…';
+  try{
+    // evita duplicidade simples (mesmo nome na mesma sessão)
+    const {data:ex}=await sb.from('dss_participantes').select('id').eq('session_id',sessao.id).ilike('nome',nome);
+    if(ex&&ex.length){ throw new Error('Sua presença já estava confirmada.'); }
+    const {error}=await sb.from('dss_participantes').insert({session_id:sessao.id,nome:nome,matricula:mat||null});
+    if(error) throw error;
+    hide('pPresenca'); hide('pTema');
+    $('presOkNome').textContent=nome+' — registrado às '+fmtHora(new Date());
+    show('pPresOk');
+  }catch(e){
+    msg.className='msg err'; msg.textContent=(e.message||'Não foi possível confirmar. Tente de novo.');
+    $('btnPresenca').disabled=false;
+  }
+}
+
+/* ===================================================== */
+/* ===============  MODO FACILITADOR  ================== */
+/* ===================================================== */
+async function initFacilitador(){
+  if(!sb){ return; }
+  await carregarTema();
+  pintarTema(temaHoje, 'Tema de '+fmtData(new Date()));
+  // efetivo p/ select de facilitador
+  const {data:ef}=await sb.from('efetivo').select('id,nome,turno').order('nome');
+  efetivo=ef||[];
+  const sel=$('selFacil');
+  efetivo.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=e.nome;o.dataset.nome=e.nome;sel.appendChild(o);});
+  // retomar sessão em andamento (após refresh)
+  let ativa=null; try{ ativa=JSON.parse(sessionStorage.getItem('dss_ativa')||'null'); }catch(e){}
+  if(ativa&&ativa.id){ sessao=ativa; abrirSessaoAtiva(true); }
+  else { show('pSetup'); }
+  carregarKpis();
+  $('btnIniciar').addEventListener('click',iniciarDSS);
+  $('btnFinalizar').addEventListener('click',finalizarDSS);
+}
+
+function gpsOpcional(){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res({});
+    const t=setTimeout(()=>res({}),5000);
+    navigator.geolocation.getCurrentPosition(
+      p=>{clearTimeout(t);res({latitude:p.coords.latitude,longitude:p.coords.longitude});},
+      ()=>{clearTimeout(t);res({});},
+      {enableHighAccuracy:true,timeout:5000,maximumAge:0}
+    );
+  });
+}
+
+async function iniciarDSS(){
+  const sel=$('selFacil'); const fid=sel.value;
+  const fnome=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].textContent:'';
+  const turno=$('selTurno').value;
+  const msg=$('setupMsg');
+  if(!fid){ msg.className='msg err'; msg.textContent='Selecione o facilitador.'; return; }
+  if(!temaHoje){ msg.className='msg err'; msg.textContent='Tema do dia não carregou. Recarregue a página.'; return; }
+  $('btnIniciar').disabled=true; msg.className='msg'; msg.textContent='Abrindo sessão…';
+  try{
+    const now=new Date(); const dia=isoDay(now);
+    const {count}=await sb.from('dss_sessions').select('id',{count:'exact',head:true}).eq('data',dia);
+    const seq=String((count||0)+1).padStart(3,'0');
+    const numero='DSS-'+dia.replace(/-/g,'')+'-'+seq;
+    const token=(crypto.randomUUID?crypto.randomUUID():'tk'+Date.now()+Math.random().toString(36).slice(2));
+    const gps=await gpsOpcional();
+    const {data,error}=await sb.from('dss_sessions').insert({
+      numero_doc:numero, data:dia, tema:temaHoje.tema, texto:temaHoje.texto||'',
+      facilitador_id:fid, facilitador_nome:fnome, turno:turno, status:'em_andamento',
+      token:token, latitude:gps.latitude||null, longitude:gps.longitude||null
+    }).select().single();
+    if(error) throw error;
+    sessao={id:data.id,numero_doc:numero,token:token,tema:temaHoje.tema,texto:temaHoje.texto||'',turno:turno,facilitador_nome:fnome,data:dia};
+    try{ sessionStorage.setItem('dss_ativa',JSON.stringify(sessao)); }catch(e){}
+    abrirSessaoAtiva(false);
+  }catch(e){
+    msg.className='msg err'; msg.textContent='Erro ao abrir: '+(e.message||e); $('btnIniciar').disabled=false;
+  }
+}
+
+function abrirSessaoAtiva(retomando){
+  hide('pSetup'); show('pSessao'); show('pKpi');
+  $('docNum').textContent=sessao.numero_doc;
+  $('sigName').textContent=sessao.facilitador_nome||'';
+  const base=location.origin+location.pathname;
+  const url=base+'?p='+encodeURIComponent(sessao.token);
+  $('linkPres').value=url;
+  // QR
+  const box=$('qrbox'); box.innerHTML='';
+  const cv=document.createElement('canvas');
+  box.appendChild(cv);
+  if(window.QRCode&&QRCode.toCanvas){ QRCode.toCanvas(cv,url,{width:210,margin:1,color:{dark:'#0A2240',light:'#ffffff'}},function(){}); }
+  setupAssinatura();
+  setupFotos();
+  pollPresencas(); setInterval(pollPresencas,4000);
+}
+
+/* ---------- presenças (lista ao vivo) ---------- */
+async function pollPresencas(){
+  if(!sessao) return;
+  const {data}=await sb.from('dss_participantes').select('nome,matricula,created_at').eq('session_id',sessao.id).order('created_at',{ascending:true});
+  const lst=data||[];
+  $('pcount').textContent=lst.length?(lst.length+(lst.length===1?' presença confirmada':' presenças confirmadas')):'Aguardando confirmações…';
+  const el=$('plist'); el.innerHTML='';
+  lst.forEach(p=>{
+    const d=document.createElement('div'); d.className='pitem';
+    d.innerHTML='<div class="pav">'+iniciais(p.nome)+'</div><div style="flex:1;min-width:0"><div class="pnome">'+escapeHtml(p.nome)+'</div><div class="pmeta">'+(p.matricula?('mat. '+escapeHtml(p.matricula)+' · '):'')+fmtHora(p.created_at)+'</div></div>';
+    el.appendChild(d);
+  });
+}
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ---------- fotos ---------- */
+function setupFotos(){
+  $('fEquipe').addEventListener('change',e=>handleFoto(e,'equipe','cardEquipe','Foto da equipe'));
+  $('fApres').addEventListener('change',e=>handleFoto(e,'apres','cardApres','Foto da apresentação'));
+}
+function handleFoto(ev,key,cardId,cap){
+  const file=ev.target.files&&ev.target.files[0]; if(!file) return;
+  resizeImg(file,1280,0.7).then(r=>{
+    fotos[key]=r;
+    const card=$(cardId); card.classList.add('has');
+    card.innerHTML='<img src="'+r.dataUrl+'"><span class="ok">✓ '+cap+'</span>';
+    // mantém o input p/ permitir troca
+    const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment');
+    inp.addEventListener('change',e=>handleFoto(e,key,cardId,cap)); card.appendChild(inp);
+    // upload em segundo plano
+    uploadFoto(key,r.blob);
+  });
+}
+function resizeImg(file,maxDim,q){
+  return new Promise((res,rej)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let w=img.naturalWidth,h=img.naturalHeight;
+      if(w>h&&w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}
+      else if(h>=w&&h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      const dataUrl=c.toDataURL('image/jpeg',q);
+      c.toBlob(b=>res({dataUrl,blob:b,w,h}),'image/jpeg',q);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('imagem'));};
+    img.src=url;
+  });
+}
+async function uploadFoto(key,blob){
+  try{
+    const path='dss/'+sessao.id+'/'+key+'-'+Date.now()+'.jpg';
+    const {error}=await sb.storage.from(BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:false});
+    if(!error){ fotos[key].url=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl; }
+  }catch(e){/* tenta de novo no finalizar */}
+}
+
+/* ---------- assinatura ---------- */
+let sctx,sdraw=false,slast=null;
+function setupAssinatura(){
+  const cv=$('sig'); sctx=cv.getContext('2d'); sctx.lineWidth=2.4; sctx.lineCap='round'; sctx.lineJoin='round'; sctx.strokeStyle='#0A2240';
+  function pos(e){const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)};}
+  function down(e){e.preventDefault();sdraw=true;slast=pos(e);}
+  function move(e){if(!sdraw)return;e.preventDefault();const p=pos(e);sctx.beginPath();sctx.moveTo(slast.x,slast.y);sctx.lineTo(p.x,p.y);sctx.stroke();slast=p;sigDrawn=true;}
+  function up(){sdraw=false;}
+  cv.addEventListener('mousedown',down);cv.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',up);
+}
+function limparAssinatura(){const cv=$('sig');sctx.clearRect(0,0,cv.width,cv.height);sigDrawn=false;}
+
+/* ---------- finalizar + PDF ---------- */
+async function finalizarDSS(){
+  const msg=$('finalMsg'); msg.className='msg';
+  if(!fotos.equipe||!fotos.apres){ msg.className='msg err'; msg.textContent='Capture as duas fotos obrigatórias.'; return; }
+  if(!sigDrawn){ msg.className='msg err'; msg.textContent='Assinatura do facilitador é obrigatória.'; return; }
+  const {data:parts}=await sb.from('dss_participantes').select('nome,matricula,created_at').eq('session_id',sessao.id).order('created_at',{ascending:true});
+  if(!parts||!parts.length){ msg.className='msg err'; msg.textContent='Nenhuma presença confirmada ainda.'; return; }
+  $('btnFinalizar').disabled=true; msg.textContent='Gerando documento…';
+  try{
+    // garante upload das fotos
+    if(!fotos.equipe.url) await uploadFoto('equipe',fotos.equipe.blob);
+    if(!fotos.apres.url) await uploadFoto('apres',fotos.apres.blob);
+    // assinatura
+    const sigData=$('sig').toDataURL('image/png');
+    const sigBlob=await (await fetch(sigData)).blob();
+    let sigUrl=null;
+    try{ const sp='dss/'+sessao.id+'/assinatura-'+Date.now()+'.png';
+      const {error:se}=await sb.storage.from(BUCKET).upload(sp,sigBlob,{contentType:'image/png',upsert:false});
+      if(!se) sigUrl=sb.storage.from(BUCKET).getPublicUrl(sp).data.publicUrl;
+    }catch(e){}
+    // PDF
+    const pdfBlob=await gerarPDF(parts,sigData);
+    let pdfUrl=null;
+    const pp='dss/'+sessao.id+'/'+sessao.numero_doc+'-'+Date.now()+'.pdf';
+    const {error:pe}=await sb.storage.from(BUCKET).upload(pp,pdfBlob,{contentType:'application/pdf',upsert:false});
+    if(!pe) pdfUrl=sb.storage.from(BUCKET).getPublicUrl(pp).data.publicUrl;
+    // atualiza sessão
+    await sb.from('dss_sessions').update({
+      status:'finalizado', finalizado_at:new Date().toISOString(),
+      foto_equipe:fotos.equipe.url||null, foto_apresentacao:fotos.apres.url||null,
+      assinatura:sigUrl, pdf_url:pdfUrl
+    }).eq('id',sessao.id);
+    try{ sessionStorage.removeItem('dss_ativa'); }catch(e){}
+    // tela final
+    hide('pSessao'); hide('pTema'); hide('pKpi'); show('pFinal');
+    $('finalDoc').innerHTML='Documento <b>'+sessao.numero_doc+'</b> · '+parts.length+' participante(s) · '+fmtData(new Date());
+    if(pdfUrl){ $('pdfLink').setAttribute('href',pdfUrl); }
+    else { $('pdfLink').classList.add('hidden'); }
+  }catch(e){
+    msg.className='msg err'; msg.textContent='Erro ao finalizar: '+(e.message||e); $('btnFinalizar').disabled=false;
+  }
+}
+
+async function gerarPDF(parts,sigData){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210, M=14, CW=W-2*M; let y=0;
+  const now=new Date();
+  // cabeçalho
+  doc.setFillColor(10,34,64); doc.rect(0,0,W,24,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('DSS Diário',M,12);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(174,190,212);
+  doc.text('Diálogo de Segurança · Brigada — Terminal Parauapebas',M,18);
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(sessao.numero_doc,W-M,12,{align:'right'});
+  y=32;
+  // metadados
+  doc.setTextColor(40,55,75); doc.setFontSize(10); doc.setFont('helvetica','normal');
+  const meta='Data: '+fmtData(sessao.data)+'      Hora: '+fmtHora(now)+'      Turno: '+sessao.turno+'      Facilitador: '+(sessao.facilitador_nome||'');
+  doc.text(meta,M,y); y+=8;
+  doc.setDrawColor(223,229,236); doc.line(M,y,W-M,y); y+=7;
+  // tema
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(10,34,64);
+  doc.text('Tema: '+sessao.tema,M,y,{maxWidth:CW}); y+=7;
+  if(sessao.texto){
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(60,72,90);
+    const linhas=doc.splitTextToSize(sessao.texto,CW); doc.text(linhas,M,y); y+=linhas.length*5+3;
+  }
+  doc.setDrawColor(223,229,236); doc.line(M,y,W-M,y); y+=7;
+  // participantes
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(10,34,64);
+  doc.text('Participantes ('+parts.length+')',M,y); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,55,75);
+  const colW=CW/2; let col=0, yStart=y;
+  parts.forEach((p,i)=>{
+    const x=M+col*colW;
+    const txt=(i+1)+'. '+p.nome+(p.matricula?(' ('+p.matricula+')'):'');
+    doc.text(doc.splitTextToSize(txt,colW-4),x,y);
+    if(col===0&&(i%2===0)){} 
+    // duas colunas: alterna
+    if(col===0){col=1;}else{col=0;y+=5.2;}
+  });
+  if(col===1) y+=5.2;
+  y+=4;
+  // fotos
+  const need=70; if(y+need>285){doc.addPage();y=20;}
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(10,34,64);
+  doc.text('Evidências',M,y); y+=4;
+  const pw=(CW-8)/2; 
+  function imgH(f){let h=pw*(f.h/f.w); if(h>62){h=62;} return h;}
+  const h1=imgH(fotos.equipe), h2=imgH(fotos.apres), hmax=Math.max(h1,h2);
+  try{ doc.addImage(fotos.equipe.dataUrl,'JPEG',M,y,pw,h1); }catch(e){}
+  try{ doc.addImage(fotos.apres.dataUrl,'JPEG',M+pw+8,y,pw,h2); }catch(e){}
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(91,107,123);
+  doc.text('Foto da equipe',M,y+hmax+4); doc.text('Foto da apresentação',M+pw+8,y+hmax+4);
+  y+=hmax+10;
+  // assinatura
+  if(y+34>285){doc.addPage();y=20;}
+  doc.setDrawColor(223,229,236); doc.line(M,y,W-M,y); y+=6;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(10,34,64);
+  doc.text('Assinatura do facilitador',M,y); y+=3;
+  try{ doc.addImage(sigData,'PNG',M,y,60,28); }catch(e){}
+  y+=29; doc.setDrawColor(120,130,145); doc.line(M,y,M+60,y); y+=4;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(40,55,75);
+  doc.text(sessao.facilitador_nome||'',M,y);
+  // rodapé em todas as páginas
+  const np=doc.internal.getNumberOfPages();
+  for(let i=1;i<=np;i++){
+    doc.setPage(i);
+    doc.setFontSize(7.5); doc.setTextColor(150,160,172); doc.setFont('helvetica','normal');
+    doc.text('Documento gerado automaticamente pelo SGO-ETP — evidência auditável · '+sessao.numero_doc+' · '+fmtData(now)+' '+fmtHora(now),M,291);
+    doc.text(i+'/'+np,W-M,291,{align:'right'});
+  }
+  return doc.output('blob');
+}
+
+/* ---------- KPIs / histórico do mês ---------- */
+async function carregarKpis(){
+  try{
+    const now=new Date(); const ini=isoDay(new Date(now.getFullYear(),now.getMonth(),1));
+    const {data}=await sb.from('dss_sessions').select('id,numero_doc,tema,turno,data,status,pdf_url').gte('data',ini).order('data',{ascending:false});
+    const lst=data||[];
+    const realiz=lst.filter(s=>s.status==='finalizado');
+    $('kRealiz').textContent=realiz.length;
+    $('kPdf').textContent=lst.filter(s=>s.pdf_url).length;
+    // participações do mês
+    let part=0;
+    if(lst.length){
+      const ids=lst.map(s=>s.id);
+      const {count}=await sb.from('dss_participantes').select('id',{count:'exact',head:true}).in('session_id',ids);
+      part=count||0;
+    }
+    $('kPart').textContent=part;
+    const h=$('hist'); h.innerHTML='';
+    lst.slice(0,6).forEach(s=>{
+      const d=document.createElement('div'); d.className='hitem';
+      const link=s.pdf_url?('<a class="hlink" href="'+s.pdf_url+'" target="_blank" rel="noopener">PDF</a>'):'<span class="pmeta">—</span>';
+      d.innerHTML='<span class="pmeta" style="flex:0 0 auto">'+fmtData(s.data)+' ·'+s.turno+'</span><span class="htema">'+escapeHtml(s.tema||'')+'</span>'+link;
+      h.appendChild(d);
+    });
+  }catch(e){}
+}
+
+function copiarLink(){ const i=$('linkPres'); i.select(); try{document.execCommand('copy');}catch(e){} }
+
+/* ===================================================== */
+/* =====================  BOOT  ======================== */
+/* ===================================================== */
+(function(){
+  if(!sb){ document.body.innerHTML='<p style="padding:24px;font-family:sans-serif">Falha ao carregar o Supabase. Verifique a conexão.</p>'; return; }
+  if(PRESENCA){
+    // modo público: sem PIN
+    liberarSGO();
+    initPresenca();
+  } else {
+    // modo facilitador: PIN (reaproveita login da brigada)
+    let ok=false; try{ ok=sessionStorage.getItem('sgo_login')==='1'; }catch(e){}
+    if(ok){ liberarSGO(); initFacilitador(); }
+    else { setTimeout(()=>{const i=$('lpin'); if(i) i.focus();},150); }
+  }
+})();
+</script>
+</body>
+</html>
