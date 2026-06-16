@@ -255,6 +255,25 @@
       </div>
     </div>
 
+    <div class="card" style="border-top:4px solid #C0392B">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <i data-lucide="alert-triangle" style="color:#C0392B;width:22px;height:22px"></i>
+        <h2 style="margin:0;font-size:16px;font-weight:800;color:#0A2240">Alerta de Vencimentos</h2>
+      </div>
+      <p style="color:#5b6b7b;font-size:12.5px;margin:0 0 12px">Planilha em semáforo: mostra só o que está vencido ou vence em até 60 dias. Ideal para gestão.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button onclick="baixarVencimentos('extintor')" style="flex:1;min-width:150px;background:#0A2240;color:#fff;border:0;border-radius:10px;padding:13px 8px;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
+          <i data-lucide="flame-kindling" style="width:17px;height:17px"></i> Extintores
+        </button>
+        <button onclick="baixarVencimentos('mangueira')" style="flex:1;min-width:150px;background:#0A2240;color:#fff;border:0;border-radius:10px;padding:13px 8px;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
+          <i data-lucide="git-commit-vertical" style="width:17px;height:17px"></i> Mangueiras
+        </button>
+      </div>
+      <button onclick="resumoVencimentosWhatsApp()" style="width:100%;margin-top:8px;background:#1d9e75;color:#fff;border:0;border-radius:10px;padding:12px;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <i data-lucide="message-circle" style="width:18px;height:18px"></i> Gerar resumo para WhatsApp
+      </button>
+    </div>
+
   </main>
 </div>
 
@@ -652,6 +671,105 @@ const _S={
   numC:{font:{name:'Arial',sz:10,color:{rgb:'111111'}},alignment:{horizontal:'center',vertical:'center'},border:_bd}
 };
 function _kpi(c){ return {font:{name:'Arial',sz:18,bold:true,color:{rgb:c}},fill:{patternType:'solid',fgColor:{rgb:'EAF1F0'}},alignment:{horizontal:'center',vertical:'center'}}; }
+
+// ====== ALERTA DE VENCIMENTOS (semáforo) ======
+async function baixarVencimentos(fonte){
+  let _ok=false; try{ _ok=sessionStorage.getItem('sgo_excel')==='1'; }catch(e){}
+  if(!_ok){
+    const code=prompt('Código para baixar a planilha:');
+    if(code===null) return;
+    if((code||'').trim()!==PIN_EXCEL){ alert('Código incorreto. Acesso restrito.'); return; }
+    try{ sessionStorage.setItem('sgo_excel','1'); }catch(e){}
+  }
+  if(!sb){ alert('Sem conexão com o banco.'); return; }
+  if(typeof XLSX==='undefined'){ alert('A biblioteca de Excel ainda não carregou — aguarde 1-2s e tente de novo.'); return; }
+  try{
+    const hoje=new Date(); hoje.setHours(0,0,0,0);
+    const diasDe=(d)=> Math.round((new Date(d+'T00:00:00') - hoje)/86400000);
+    const fmt=(d)=>{ try{ return new Date(d+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return d; } };
+    let itens=[], titulo, col1, col2;
+    if(fonte==='extintor'){
+      const r=await sb.from('extintores').select('codigo,local,validade_carga,validade_hidrostatico');
+      (r.data||[]).forEach(e=>{
+        if(e.validade_carga) itens.push({item:e.codigo, local:e.local||'—', oque:'Carga', venc:e.validade_carga});
+        if(e.validade_hidrostatico) itens.push({item:e.codigo, local:e.local||'—', oque:'Teste hidrostático', venc:e.validade_hidrostatico});
+      });
+      titulo='ALERTA DE VENCIMENTOS · EXTINTORES'; col1='Extintor'; col2='Local';
+    } else {
+      const r=await sb.from('mangueiras').select('numero_lacre,tag_hidrante,validade');
+      (r.data||[]).forEach(m=>{ if(m.validade) itens.push({item:m.numero_lacre||'(sem lacre)', local:m.tag_hidrante||'—', oque:'Mangueira', venc:m.validade}); });
+      titulo='ALERTA DE VENCIMENTOS · MANGUEIRAS'; col1='Lacre'; col2='Hidrante';
+    }
+    itens=itens.map(x=>({...x, dias:diasDe(x.venc)})).filter(x=>x.dias<=60).sort((a,b)=>a.dias-b.dias);
+    if(!itens.length){ alert('Nenhum item vencido ou vencendo em até 60 dias.'); return; }
+    const fx=(d)=> d<0?'venc': d<=30?'a30':'a60';
+    const nV=itens.filter(x=>x.dias<0).length, n30=itens.filter(x=>x.dias>=0&&x.dias<=30).length, n60=itens.filter(x=>x.dias>30).length;
+
+    const E=XLSX.utils.encode_cell, ws={};
+    const set=(r,c,v,st)=>{ const ref=E({r,c}); ws[ref]={t:(typeof v==='number'?'n':'s'),v}; if(st)ws[ref].s=st; };
+    const B={style:'thin',color:{rgb:'E2E2E2'}}, bd={top:B,bottom:B,left:B,right:B};
+    const stT={font:{name:'Arial',sz:14,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'0A2240'}},alignment:{horizontal:'left',vertical:'center'}};
+    const stS={font:{name:'Arial',sz:9,color:{rgb:'556070'}},alignment:{horizontal:'left',vertical:'center'}};
+    const num=(fg,bg)=>({font:{name:'Arial',sz:22,bold:true,color:{rgb:fg}},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:'center',vertical:'center'}});
+    const lbl=(fg,bg)=>({font:{name:'Arial',sz:9,bold:true,color:{rgb:fg}},fill:{patternType:'solid',fgColor:{rgb:bg}},alignment:{horizontal:'center',vertical:'center'}});
+    const hdr={font:{name:'Arial',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'0A2240'}},alignment:{horizontal:'center',vertical:'center'},border:bd};
+    const rowFill={venc:'FBE4E4',a30:'FCEFD6',a60:'FBF8DE'};
+    const sitBg={venc:'C0392B',a30:'BA7517',a60:'8A7012'}, sitTx={venc:'VENCIDO',a30:'ATÉ 30 DIAS',a60:'31 A 60 DIAS'};
+    const cTxt=(f,al)=>({font:{name:'Arial',sz:10,color:{rgb:'111111'}},fill:{patternType:'solid',fgColor:{rgb:f}},alignment:{horizontal:al||'left',vertical:'center'},border:bd});
+    const cSit=(fa)=>({font:{name:'Arial',sz:9,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:sitBg[fa]}},alignment:{horizontal:'center',vertical:'center'},border:bd});
+
+    set(0,0,titulo,stT);
+    set(1,0,'Terminal Parauapebas · gerado em '+new Date().toLocaleString('pt-BR'),stS);
+    set(3,0,nV,num('FFFFFF','C0392B')); set(3,2,n30,num('FFFFFF','BA7517')); set(3,4,n60,num('5F4A08','FBE08A'));
+    set(4,0,'VENCIDOS',lbl('FFFFFF','C0392B')); set(4,2,'ATÉ 30 DIAS',lbl('FFFFFF','BA7517')); set(4,4,'31 A 60 DIAS',lbl('5F4A08','FBE08A'));
+    const heads=['Situação',col1,col2,'O que vence','Vencimento','Dias'];
+    heads.forEach((h,c)=> set(6,c,h,hdr));
+    let r=7;
+    itens.forEach(x=>{
+      const fa=fx(x.dias), f=rowFill[fa];
+      set(r,0,sitTx[fa],cSit(fa));
+      set(r,1,x.item,cTxt(f));
+      set(r,2,x.local,cTxt(f));
+      set(r,3,x.oque,cTxt(f));
+      set(r,4,fmt(x.venc),cTxt(f,'center'));
+      set(r,5,x.dias,cTxt(f,'center'));
+      r++;
+    });
+    ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:5}});
+    ws['!merges']=[
+      {s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}},
+      {s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:3}},{s:{r:3,c:4},e:{r:3,c:5}},
+      {s:{r:4,c:0},e:{r:4,c:1}},{s:{r:4,c:2},e:{r:4,c:3}},{s:{r:4,c:4},e:{r:4,c:5}}
+    ];
+    ws['!cols']=[{wch:14},{wch:16},{wch:26},{wch:18},{wch:13},{wch:8}];
+    ws['!rows']=[{hpt:28},{hpt:15},{hpt:6},{hpt:30},{hpt:16},{hpt:6},{hpt:22}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Vencimentos');
+    const hojeISO=new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, 'SGO-ETP_Vencimentos_'+(fonte==='extintor'?'Extintores':'Mangueiras')+'_'+hojeISO+'.xlsx');
+  }catch(e){ alert('Erro ao gerar a planilha: '+(e.message||e)); }
+}
+
+async function resumoVencimentosWhatsApp(){
+  if(!sb){ alert('Sem conexão.'); return; }
+  try{
+    const hoje=new Date(); hoje.setHours(0,0,0,0);
+    const d=(x)=> Math.round((new Date(x+'T00:00:00')-hoje)/86400000);
+    const ex=await sb.from('extintores').select('validade_carga,validade_hidrostatico');
+    const mg=await sb.from('mangueiras').select('validade');
+    let exV=0,ex30=0,mgV=0,mg30=0;
+    (ex.data||[]).forEach(e=>{[e.validade_carga,e.validade_hidrostatico].forEach(v=>{ if(!v)return; const k=d(v); if(k<0)exV++; else if(k<=30)ex30++; });});
+    (mg.data||[]).forEach(m=>{ if(!m.validade)return; const k=d(m.validade); if(k<0)mgV++; else if(k<=30)mg30++; });
+    const hojeBR=new Date().toLocaleDateString('pt-BR');
+    const msg=`*SGO-ETP — Alerta de Vencimentos* (${hojeBR})\n\n`+
+      `*Extintores*\n🔴 Vencidos: ${exV}\n🟠 Vencem em até 30 dias: ${ex30}\n\n`+
+      `*Mangueiras*\n🔴 Vencidas: ${mgV}\n🟠 Vencem em até 30 dias: ${mg30}\n\n`+
+      `Planilha completa disponível no sistema (Painel de Gestores).`;
+    try{ await navigator.clipboard.writeText(msg); }catch(e){}
+    if(navigator.share){ try{ await navigator.share({text:msg}); return; }catch(e){} }
+    window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  }catch(e){ alert('Erro ao gerar o resumo: '+(e.message||e)); }
+}
 function _wsResumo(total,conf,ncc,media,semfoto,porTipo,porResp){
   const ws={}; const E=XLSX.utils.encode_cell;
   const set=(r,c,v,st)=>{ const ref=E({r:r,c:c}); ws[ref]={t:(typeof v==='number'?'n':'s'),v:v}; if(st)ws[ref].s=st; };
