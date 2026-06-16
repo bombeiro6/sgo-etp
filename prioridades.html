@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0A2240" />
+<title>Prioridades Operacionais · SGO-ETP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{--navy:#0A2240;--navy2:#143257;--red:#C0392B;--teal:#007B6E;--amber:#EF9F27;--bg:#eef1f5;--card:#fff;--line:#dfe5ec;--ink:#0A2240;--muted:#5b6b7b;--dim:#aebed4}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,sans-serif}
+  header{background:var(--navy);color:#fff;border-bottom:3px solid var(--red);position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(10,34,64,.18)}
+  .hwrap{max-width:820px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:11px}
+  .back{color:#aebed4;text-decoration:none;display:flex;flex:0 0 auto}
+  .logo{width:36px;height:36px;border-radius:10px;background:var(--red);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .btitle{font-size:16px;font-weight:800;line-height:1.1}
+  .bsub{font-size:11px;color:var(--dim);margin-top:2px}
+  main{max-width:820px;margin:0 auto;padding:14px 14px 56px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:11px 6px;text-align:center}
+  .kpi .v{font-size:21px;font-weight:800}
+  .kpi .l{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.15}
+  .kpi.crit .v{color:var(--red)} .kpi.venc .v{color:#B8531F}
+
+  .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+  .chip{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:20px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+  .nc{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:14px;padding:13px 14px;margin-bottom:10px}
+  .nc.c-critica{border-left-color:var(--red)} .nc.c-moderada{border-left-color:var(--amber)} .nc.c-baixa{border-left-color:#1F7A44}
+  .nctop{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .ncnum{font-size:12px;font-weight:800;color:var(--muted)}
+  .badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  .b-critica{background:#FCEBEB;color:#9B2D22} .b-moderada{background:#FAEEDA;color:#9A6112} .b-baixa{background:#E1F5EE;color:#0F6E56}
+  .b-aberta{background:#FCEBEB;color:#9B2D22} .b-tratamento{background:#FAEEDA;color:#9A6112} .b-encerrada{background:#eef1f5;color:#5b6b7b}
+  .ncdesc{font-size:14.5px;font-weight:600;line-height:1.35;color:var(--navy)}
+  .ncmeta{font-size:12px;color:var(--muted);margin-top:7px;display:flex;flex-wrap:wrap;gap:4px 14px}
+  .ncmeta b{color:#33455b;font-weight:700}
+  .venc{color:var(--red);font-weight:800}
+  .ncact{margin-top:10px;display:flex;gap:8px;align-items:center}
+  .ncact select{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)}
+  .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:40px 16px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div id="login" style="position:fixed;inset:0;background:#0A2240;display:flex;align-items:center;justify-content:center;padding:24px;z-index:50">
+  <div style="width:100%;max-width:360px;text-align:center;color:#fff">
+    <div style="width:60px;height:60px;border-radius:16px;background:#C0392B;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    </div>
+    <div style="font-size:20px;font-weight:800">Prioridades Operacionais</div>
+    <div style="font-size:12.5px;color:#aebed4;margin:4px 0 22px">Não conformidades · SGO-ETP</div>
+    <input id="lpin" type="password" inputmode="numeric" placeholder="Código de acesso" autocomplete="off"
+      style="width:100%;border:1.5px solid #2c4a73;background:#143257;color:#fff;border-radius:12px;padding:14px;font-size:18px;text-align:center;letter-spacing:6px;outline:none"
+      onkeydown="if(event.key==='Enter')entrarSGO()">
+    <button onclick="entrarSGO()" style="width:100%;margin-top:12px;background:#C0392B;color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer">Entrar</button>
+    <a href="index.html" style="display:block;margin-top:14px;color:#aebed4;font-size:13px;text-decoration:none">‹ Voltar ao início</a>
+    <div id="lerr" style="color:#F09595;font-size:13px;min-height:18px;margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+<header>
+  <div class="hwrap">
+    <a class="back" href="index.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+    <div><div class="btitle">Prioridades Operacionais</div><div class="bsub">Não conformidades · ir ao local e verificar</div></div>
+  </div>
+</header>
+<main>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="kAbertas">—</div><div class="l">abertas</div></div>
+    <div class="kpi"><div class="v" id="kTrat">—</div><div class="l">em tratamento</div></div>
+    <div class="kpi crit"><div class="v" id="kCrit">—</div><div class="l">críticas</div></div>
+    <div class="kpi venc"><div class="v" id="kVenc">—</div><div class="l">vencidas</div></div>
+  </div>
+  <div class="chips" id="chips">
+    <div class="chip on" data-f="abertas">Em aberto</div>
+    <div class="chip" data-f="critica">Críticas</div>
+    <div class="chip" data-f="moderada">Moderadas</div>
+    <div class="chip" data-f="baixa">Baixas</div>
+    <div class="chip" data-f="todas">Todas</div>
+  </div>
+  <div id="lista"></div>
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const PIN_SGO="1234";
+const sb=window.supabase?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+const $=id=>document.getElementById(id);
+let todas=[], efmap={}, filtro='abertas';
+
+function liberarSGO(){ $('login').style.display='none'; $('app').style.display='block'; }
+function entrarSGO(){ const v=($('lpin').value||'').trim(); if(v===PIN_SGO){ try{sessionStorage.setItem('sgo_login','1');}catch(e){} liberarSGO(); carregar(); } else { $('lerr').textContent='Código incorreto.'; } }
+
+function hoje0(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); }
+function fmtData(s){ if(!s) return '—'; const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); return m?(m[3]+'/'+m[2]+'/'+m[1]):s; }
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const pesoC={critica:0,moderada:1,baixa:2}, pesoS={aberta:0,tratamento:1,encerrada:2};
+
+async function carregar(){
+  if(!sb) return;
+  const [{data:nc},{data:ef}]=await Promise.all([
+    sb.from('nao_conformidades').select('*'),
+    sb.from('efetivo').select('id,nome')
+  ]);
+  efmap={}; (ef||[]).forEach(e=>efmap[e.id]=e.nome);
+  todas=nc||[];
+  // KPIs
+  const abertas=todas.filter(x=>x.status==='aberta').length;
+  const trat=todas.filter(x=>x.status==='tratamento').length;
+  const crit=todas.filter(x=>x.status!=='encerrada'&&x.criticidade==='critica').length;
+  const venc=todas.filter(x=>x.status!=='encerrada'&&x.prazo&&new Date(x.prazo)<hoje0()).length;
+  $('kAbertas').textContent=abertas; $('kTrat').textContent=trat; $('kCrit').textContent=crit; $('kVenc').textContent=venc;
+  render();
+}
+
+function render(){
+  let lst=todas.slice();
+  if(filtro==='abertas') lst=lst.filter(x=>x.status!=='encerrada');
+  else if(filtro!=='todas') lst=lst.filter(x=>x.criticidade===filtro&&x.status!=='encerrada');
+  lst.sort((a,b)=>{
+    const sa=pesoS[a.status]??9, sb_=pesoS[b.status]??9; if(sa!==sb_)return sa-sb_;
+    const ca=pesoC[a.criticidade]??9, cb=pesoC[b.criticidade]??9; if(ca!==cb)return ca-cb;
+    const pa=a.prazo?new Date(a.prazo).getTime():9e15, pb=b.prazo?new Date(b.prazo).getTime():9e15; return pa-pb;
+  });
+  const el=$('lista');
+  if(!lst.length){ el.innerHTML='<div class="empty">Nenhuma não conformidade neste filtro.<br>Quando houver NCs cadastradas no banco, elas aparecem aqui priorizadas por criticidade e prazo.</div>'; return; }
+  el.innerHTML='';
+  const t0=hoje0();
+  lst.forEach(x=>{
+    const venc=(x.status!=='encerrada'&&x.prazo&&new Date(x.prazo)<t0);
+    const resp=x.responsavel_id?(efmap[x.responsavel_id]||''):'';
+    const div=document.createElement('div'); div.className='nc c-'+(x.criticidade||'baixa');
+    div.innerHTML=
+      '<div class="nctop">'+
+        '<span class="ncnum">NC '+(x.numero!=null?('#'+x.numero):'')+'</span>'+
+        '<span class="badge b-'+(x.criticidade||'baixa')+'">'+(x.criticidade||'—')+'</span>'+
+        '<span class="badge b-'+(x.status||'aberta')+'">'+(x.status||'—')+'</span>'+
+      '</div>'+
+      '<div class="ncdesc">'+esc(x.descricao||'(sem descrição)')+'</div>'+
+      '<div class="ncmeta">'+
+        (x.area?'<span>📍 <b>'+esc(x.area)+'</b></span>':'')+
+        (x.ativo_tipo?'<span>Ativo: <b>'+esc(x.ativo_tipo)+'</b></span>':'')+
+        '<span>Prazo: <b class="'+(venc?'venc':'')+'">'+fmtData(x.prazo)+(venc?' (vencida)':'')+'</b></span>'+
+        (resp?'<span>Resp.: <b>'+esc(resp)+'</b></span>':'')+
+      '</div>'+
+      (x.status!=='encerrada'?(
+      '<div class="ncact">'+
+        '<select data-id="'+x.id+'">'+
+          '<option value="">Atualizar status…</option>'+
+          (x.status!=='tratamento'?'<option value="tratamento">Marcar em tratamento</option>':'')+
+          '<option value="encerrada">Marcar encerrada</option>'+
+        '</select>'+
+      '</div>'):'');
+    el.appendChild(div);
+  });
+  el.querySelectorAll('select[data-id]').forEach(s=>s.addEventListener('change',mudarStatus));
+}
+
+async function mudarStatus(ev){
+  const id=ev.target.getAttribute('data-id'); const novo=ev.target.value; if(!novo) return;
+  ev.target.disabled=true;
+  const patch={status:novo, updated_at:new Date().toISOString()};
+  if(novo==='encerrada') patch.encerrada_em=new Date().toISOString();
+  const {error}=await sb.from('nao_conformidades').update(patch).eq('id',id);
+  if(error){ ev.target.disabled=false; alert('Não foi possível atualizar.'); return; }
+  carregar();
+}
+
+(function(){
+  if(!sb){ document.body.innerHTML='<p style="padding:24px;font-family:sans-serif">Falha ao carregar o Supabase.</p>'; return; }
+  document.getElementById('chips').addEventListener('click',e=>{
+    const c=e.target.closest('.chip'); if(!c) return;
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on');
+    filtro=c.getAttribute('data-f'); render();
+  });
+  let ok=false; try{ ok=sessionStorage.getItem('sgo_login')==='1'; }catch(e){}
+  if(ok){ liberarSGO(); carregar(); } else { setTimeout(()=>{const i=$('lpin'); if(i) i.focus();},150); }
+})();
+</script>
+</body>
+</html>
