@@ -197,15 +197,22 @@
     <a class="btn ghost" href="index.html">Voltar ao início</a>
   </div>
 
-  <!-- ====== KPIs / HISTÓRICO (facilitador) ====== -->
+  <!-- ====== FECHAMENTO DO CICLO 21→20 (facilitador) ====== -->
   <div class="panel hidden" id="pKpi">
-    <div class="plabel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H4a1 1 0 0 1-1-1V3"/><path d="m7 14 4-4 3 3 5-6"/></svg>DSS no mês</div>
+    <div class="plabel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H4a1 1 0 0 1-1-1V3"/><path d="m7 14 4-4 3 3 5-6"/></svg>Fechamento do ciclo</div>
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:11px">
+      <button class="btn sm ghost" onclick="mudarCiclo(-1)">‹</button>
+      <span class="pmeta" id="cicloRange" style="font-weight:700;color:var(--navy)">—</span>
+      <button class="btn sm ghost" onclick="mudarCiclo(1)">›</button>
+    </div>
     <div class="kpis">
-      <div class="kpi"><div class="v" id="kRealiz">—</div><div class="l">realizados</div></div>
+      <div class="kpi"><div class="v" id="kRealiz">—</div><div class="l">DSS realizados</div></div>
       <div class="kpi"><div class="v" id="kPdf">—</div><div class="l">PDFs gerados</div></div>
       <div class="kpi"><div class="v" id="kPart">—</div><div class="l">participações</div></div>
     </div>
     <div class="hist" id="hist"></div>
+    <button class="btn ghost" id="btnZip" onclick="baixarZip()">Baixar todos os PDFs do ciclo (ZIP)</button>
+    <div id="zipMsg"></div>
   </div>
 
   <!-- ====== MODO PRESENÇA (público via QR) ====== -->
@@ -235,6 +242,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 const SUPABASE_URL="https://wcyftjpsbifyvuqzxmbs.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
@@ -595,15 +603,28 @@ async function gerarPDF(parts,sigData){
 }
 
 /* ---------- KPIs / histórico do mês ---------- */
+/* ---------- Fechamento do ciclo 21→20 ---------- */
+let cicloOffset=0, cicloSessoes=[];
+function cicloDatas(offset){
+  const now=new Date();
+  let y=now.getFullYear(), m=now.getMonth(); // mês do INÍCIO do ciclo (dia 21)
+  if(now.getDate()<=20){ m-=1; }            // antes do dia 21 => ciclo começou no mês anterior
+  const start=new Date(y,m+offset,21);
+  const end=new Date(y,m+offset+1,20);
+  return {startISO:isoDay(start), endISO:isoDay(end), startTxt:fmtData(isoDay(start)), endTxt:fmtData(isoDay(end))};
+}
+function mudarCiclo(d){ cicloOffset+=d; carregarKpis(); }
+
 async function carregarKpis(){
   try{
-    const now=new Date(); const ini=isoDay(new Date(now.getFullYear(),now.getMonth(),1));
-    const {data}=await sb.from('dss_sessions').select('id,numero_doc,tema,turno,data,status,pdf_url').gte('data',ini).order('data',{ascending:false});
-    const lst=data||[];
+    const c=cicloDatas(cicloOffset);
+    $('cicloRange').textContent=c.startTxt+'  a  '+c.endTxt;
+    const {data}=await sb.from('dss_sessions').select('id,numero_doc,tema,turno,data,status,pdf_url')
+      .gte('data',c.startISO).lte('data',c.endISO).order('data',{ascending:false});
+    const lst=data||[]; cicloSessoes=lst;
     const realiz=lst.filter(s=>s.status==='finalizado');
     $('kRealiz').textContent=realiz.length;
     $('kPdf').textContent=lst.filter(s=>s.pdf_url).length;
-    // participações do mês
     let part=0;
     if(lst.length){
       const ids=lst.map(s=>s.id);
@@ -612,13 +633,32 @@ async function carregarKpis(){
     }
     $('kPart').textContent=part;
     const h=$('hist'); h.innerHTML='';
-    lst.slice(0,6).forEach(s=>{
+    if(!lst.length){ h.innerHTML='<div class="pmeta" style="padding:8px 0">Nenhum DSS neste ciclo.</div>'; }
+    lst.forEach(s=>{
       const d=document.createElement('div'); d.className='hitem';
       const link=s.pdf_url?('<a class="hlink" href="'+s.pdf_url+'" target="_blank" rel="noopener">PDF</a>'):'<span class="pmeta">—</span>';
-      d.innerHTML='<span class="pmeta" style="flex:0 0 auto">'+fmtData(s.data)+' ·'+s.turno+'</span><span class="htema">'+escapeHtml(s.tema||'')+'</span>'+link;
+      d.innerHTML='<span class="pmeta" style="flex:0 0 auto">'+fmtData(s.data)+' · '+s.turno+'</span><span class="htema">'+escapeHtml(s.tema||'')+'</span>'+link;
       h.appendChild(d);
     });
   }catch(e){}
+}
+
+async function baixarZip(){
+  const msg=$('zipMsg'); const com=cicloSessoes.filter(s=>s.pdf_url);
+  if(!com.length){ msg.className='msg err'; msg.textContent='Nenhum PDF neste ciclo.'; return; }
+  if(!window.JSZip){ msg.className='msg err'; msg.textContent='Não foi possível carregar o compactador.'; return; }
+  const btn=$('btnZip'); btn.disabled=true; msg.className='msg';
+  const zip=new JSZip(); let ok=0;
+  for(let i=0;i<com.length;i++){
+    msg.textContent='Baixando '+(i+1)+'/'+com.length+'…';
+    try{ const r=await fetch(com[i].pdf_url); const b=await r.blob(); zip.file((com[i].numero_doc||('dss-'+i))+'.pdf', b); ok++; }catch(e){}
+  }
+  msg.textContent='Compactando…';
+  const blob=await zip.generateAsync({type:'blob'});
+  const c=cicloDatas(cicloOffset);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='DSS_'+c.startISO+'_a_'+c.endISO+'.zip'; a.click();
+  msg.className='msg ok'; msg.textContent=ok+' PDF(s) baixados no ZIP.'; btn.disabled=false;
 }
 
 function copiarLink(){ const i=$('linkPres'); i.select(); try{document.execCommand('copy');}catch(e){} }
