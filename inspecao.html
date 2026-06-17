@@ -195,11 +195,11 @@ const ITENS = [
 ];
 
 const app = document.getElementById('app');
-let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
+let state = { extintor:null, respostas:{}, obsItem:{}, foto:null, efetivo:[] };
 let unlocked = false;
 let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
 try { unlocked = sessionStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
-const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
+const PIN_EQUIPE = "Emergênciavale";
 const PIN_ADMIN  = "9999";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
 /* ---------- Helpers ---------- */
@@ -246,7 +246,7 @@ function ordenarPorNumero(arr){
 function inspecaoDemo(){
   TREINO=true; unlocked=true;
   state.extintor={id:'treino',codigo:'TREINO-01',tipo:'ABC',capacidade:'6 kg',local:'Extintor de treinamento',area:'Treinamento',validade_carga:'2027-01-01',cor_anel:'Amarelo',equipe:'Treinamento'};
-  state.respostas={}; state.foto=null; state.ultimaInsp=null; retirado=false;
+  state.respostas={}; state.obsItem={}; state.foto=null; state.ultimaInsp=null; retirado=false;
   renderInspecao();
 }
 async function listaExtintores(){
@@ -292,7 +292,7 @@ async function abrirExtintor(codigo){
     catch(e){ DEMO=true; data=MOCK_EXT.find(x=>x.codigo===codigo)||MOCK_EXT[0]; }
   }
   if(!data){ app.innerHTML = erro(`Extintor "${codigo}" não encontrado.`); return; }
-  state.extintor = data; state.respostas = {}; state.foto = null; state.ultimaInsp = null; retirado = false;
+  state.extintor = data; state.respostas = {}; state.obsItem = {}; state.foto = null; state.ultimaInsp = null; retirado = false;
   if(sb && !DEMO){
     try{
       const r = await sb.from('inspecoes').select('created_at,condicao').eq('extintor_id',data.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
@@ -358,7 +358,7 @@ function lockHTML(){
       <div class="lock-ic">🔒</div>
       <h2 style="margin:0 0 4px;font-size:17px">Acesso da equipe</h2>
       <p style="color:var(--muted);font-size:14px;margin:0 0 14px">As instruções de uso acima são públicas. Para acessar o sistema de inspeção dos extintores, a equipe de bombeiros deve informar o código de acesso.</p>
-      <input id="pin" type="password" inputmode="numeric" placeholder="Código da equipe" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key==='Enter')desbloquear()">
+      <input id="pin" type="password" inputmode="text" placeholder="Código da equipe" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key==='Enter')desbloquear()">
       <button class="save" style="margin-top:12px" onclick="desbloquear()">Desbloquear inspeção</button>
     </div>`;
 }
@@ -401,6 +401,7 @@ function inspecaoHTML(){
             <button id="nc${i}" onclick="resp(${i},'nc')">NC</button>
             <button id="na${i}" onclick="resp(${i},'na')">NA</button>
           </div>
+          <input id="obsItem${i}" placeholder="Observação do item (opcional)" oninput="setObsItem(${i},this.value)" style="margin-top:8px;font-size:13px;padding:9px;border:1.5px solid var(--line);border-radius:9px;width:100%">
         </div>`).join('')}
     </div>
 
@@ -493,7 +494,9 @@ function atualizaFieldsHTML(){
     <div class="field"><label>Ano de fabricação</label><input id="updAno" type="number" inputmode="numeric" value="${e.ano_fabricacao||''}" placeholder="ex: 2024"></div>
     <div class="field"><label>Cor do anel</label><select id="updAnel">${cores}</select></div>
     <div class="field"><label>Validade da carga</label><input id="updCarga" type="date" value="${e.validade_carga||''}"></div>
-    <div class="field"><label>Teste hidrostático</label><input id="updHidro" type="date" value="${e.validade_hidrostatico||''}"></div>
+    <div class="field"><label>Teste hidrostático (validade)</label><input id="updHidro" type="date" value="${e.validade_hidrostatico||''}">
+      <button type="button" onclick="retesteHoje()" style="margin-top:6px;width:100%;border:1.5px solid var(--teal);background:#f3fbfa;color:var(--teal);border-radius:9px;padding:9px;font-weight:700;font-size:13px">Reteste feito hoje → validade +5 anos</button>
+    </div>
   </div>`;
 }
 function setAtualiza(v){
@@ -501,6 +504,12 @@ function setAtualiza(v){
   document.getElementById('upd-sim').className = v?'on-ok':'';
   document.getElementById('upd-nao').className = v?'':'on-ok';
   document.getElementById('updBox').innerHTML = v?atualizaFieldsHTML():'';
+  if(!v) window._retesteHoje=false;
+}
+function retesteHoje(){
+  const d=new Date(); d.setFullYear(d.getFullYear()+5);
+  const el=document.getElementById('updHidro'); if(el) el.value=d.toISOString().slice(0,10);
+  window._retesteHoje=true;
 }
 
 function resp(i,estado){
@@ -509,6 +518,7 @@ function resp(i,estado){
   document.getElementById('nc'+i).className = estado==='nc'?'on-nc':'';
   document.getElementById('na'+i).className = estado==='na'?'on-na':'';
 }
+function setObsItem(i,v){ state.obsItem[i]=v; }
 
 /* Comprime a foto antes de enviar (mantém leve) */
 function capturarFoto(input){
@@ -559,7 +569,7 @@ async function salvar(){
   btn.disabled=true; btn.classList.add('busy'); btn.textContent='Salvando…';
 
   // monta checklist e conformidade (OK/NC/NA — NA não conta)
-  const checklist=ITENS.map((it,i)=>({item:it, situacao:state.respostas[i]}));
+  const checklist=ITENS.map((it,i)=>({item:it, situacao:state.respostas[i], obs:(state.obsItem[i]||'').trim()||null}));
   const nOk=checklist.filter(c=>c.situacao==='ok').length;
   const nNc=checklist.filter(c=>c.situacao==='nc').length;
   const base=nOk+nNc;
@@ -619,7 +629,8 @@ async function salvar(){
       const anel=(document.getElementById('updAnel')?.value||'').trim(); if(anel) upd.cor_anel=anel;
       const carga=(document.getElementById('updCarga')?.value||'').trim(); if(carga) upd.validade_carga=carga;
       const hidro=(document.getElementById('updHidro')?.value||'').trim(); if(hidro) upd.validade_hidrostatico=hidro;
-      if(Object.keys(upd).length){ try{ await sb.from('extintores').update(upd).eq('id',state.extintor.id); }catch(e){} }
+      if(window._retesteHoje){ upd.data_reteste = new Date().toISOString().slice(0,10); }
+      if(Object.keys(upd).length){ const {error:updErr}=await sb.from('extintores').update(upd).eq('id',state.extintor.id); if(updErr) throw updErr; }
     }
 
     // 4) se foi retirado, registra a troca (série/selo do novo extintor)
