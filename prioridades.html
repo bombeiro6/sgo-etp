@@ -89,6 +89,9 @@
     <div class="chip" data-f="valvula">Válvulas</div>
     <div class="chip" data-f="casa_bomba">Casas de bomba</div>
   </div>
+  <div id="obsbox" style="background:#eef3f8;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:12.5px;color:#33455b;line-height:1.5">
+    <b style="color:var(--navy)">Como ler:</b> cada item é um ativo cuja <b>última inspeção reprovou</b>. Vá ao local, confira os itens marcados com ✕ e registre uma <b>nova inspeção</b> — quando ficar conforme, ele sai desta lista sozinho. A criticidade vem do % de conformidade da inspeção.
+  </div>
   <div id="lista"></div>
   <div class="crit-note">Criticidade pela conformidade da inspeção: &lt;90% crítica · 90–96% moderada · ≥97% baixa.</div>
 </main>
@@ -115,7 +118,7 @@ async function carregar(){
   if(!sb) return;
   $('lista').innerHTML='<div class="empty">Carregando…</div>';
   const [insR,exR,hiR,vaR,cbR,efR]=await Promise.all([
-    sb.from('inspecoes').select('id,tipo,area,condicao,conformidade_pct,created_at,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id,latitude,longitude').order('created_at',{ascending:false}),
+    sb.from('inspecoes').select('id,tipo,area,condicao,conformidade_pct,observacoes,created_at,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id,latitude,longitude').order('created_at',{ascending:false}),
     sb.from('extintores').select('id,codigo,local,area,latitude,longitude'),
     sb.from('hidrantes').select('id,codigo,local,area,latitude,longitude'),
     sb.from('valvulas').select('id,codigo,local,area,latitude,longitude'),
@@ -153,6 +156,7 @@ async function carregar(){
     return {
       tipo:ins.tipo, codigo:a.codigo||'', local:a.local||'', area:a.area||ins.area||'',
       pct:ins.conformidade_pct, itens:chk[ins.id]||[], data:ins.created_at,
+      obs:(ins.observacoes||'').trim(),
       resp:ins.responsavel_id?ef[ins.responsavel_id]:'',
       lat:a.latitude||ins.latitude, lng:a.longitude||ins.longitude,
       crit:criticidade(ins.conformidade_pct)
@@ -178,6 +182,7 @@ function render(){
     const onde=[x.local,x.area].filter(Boolean).join(' · ');
     const mapa=(x.lat&&x.lng)?('<a class="mapbtn" target="_blank" rel="noopener" href="https://www.google.com/maps?q='+x.lat+','+x.lng+'">Ver no mapa</a>'):'';
     const itensHtml=x.itens.map(i=>'<li>'+esc(i)+'</li>').join('');
+    const obsHtml=x.obs?('<div class="ncmeta" style="margin-top:8px;background:#f7f9fb;border-radius:9px;padding:8px 10px;display:block"><b>Observação da equipe:</b> '+esc(x.obs)+'</div>'):'';
     const div=document.createElement('div'); div.className='nc c-'+x.crit;
     div.innerHTML=
       '<div class="nctop">'+
@@ -187,6 +192,7 @@ function render(){
       '</div>'+
       (onde?'<div class="ncmeta" style="margin-top:0">📍 <b>'+esc(onde)+'</b></div>':'')+
       '<ul class="ncitens">'+itensHtml+'</ul>'+
+      obsHtml+
       '<div class="ncmeta">'+
         '<span>Inspeção: <b>'+fmtData(x.data)+'</b></span>'+
         (x.resp?'<span>Resp.: <b>'+esc(x.resp)+'</b></span>':'')+
