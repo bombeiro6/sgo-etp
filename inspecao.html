@@ -199,7 +199,7 @@ let state = { extintor:null, respostas:{}, obsItem:{}, foto:null, efetivo:[] };
 let unlocked = false;
 let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
 try { unlocked = sessionStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
-const PIN_EQUIPE = "Emergênciavale";
+const PIN_EQUIPE = "Emergenciavale";
 const PIN_ADMIN  = "9999";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
 /* ---------- Helpers ---------- */
