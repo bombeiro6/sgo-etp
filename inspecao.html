@@ -43,7 +43,7 @@
   .toggle button.on-na{background:#64748b;border-color:#64748b;color:#fff}
   select,textarea,input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
   textarea{min-height:70px;resize:vertical}
-  .photo-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed var(--teal);color:var(--teal);background:#f3fbfa;border-radius:10px;padding:16px;font-weight:700;font-size:14px;width:100%;cursor:pointer}
+  .photo-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed var(--teal);color:var(--teal);background:#f3fbfa;border-radius:10px;padding:16px;font-weight:700;font-size:15px;cursor:pointer;border-radius:10px}
   .photo-prev{margin-top:10px;border-radius:10px;width:100%;max-height:230px;object-fit:cover;display:none}
   .save{width:100%;background:var(--teal);color:#fff;border:0;border-radius:12px;padding:16px;font-size:16px;font-weight:800;letter-spacing:.3px;box-shadow:0 4px 14px rgba(0,123,110,.35)}
   .save:disabled{opacity:.55;box-shadow:none}
@@ -77,7 +77,7 @@
   .steps{margin:0;padding-left:0;list-style:none;counter-reset:st}
   .steps li{counter-increment:st;position:relative;padding:8px 0 8px 38px;font-size:14px;line-height:1.35;border-bottom:1px solid var(--line)}
   .steps li:last-child{border-bottom:0}
-  .steps li::before{content:counter(st);position:absolute;left:0;top:7px;width:26px;height:26px;background:var(--teal);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .steps li::before{content:counter(st);position:absolute;left:0;top:7px;width:26px;height:26px;background:var(--teal);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
   .funciona{font-size:14px;line-height:1.45;color:#2b3a4d}
   .att{background:var(--ncbg);border-left:4px solid var(--nc);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.4;color:#7a1d1d;font-weight:600}
   .emerg{text-align:center;font-size:13px;font-weight:700;color:var(--navy);background:var(--warnbg);border-radius:10px;padding:10px;margin-top:4px}
@@ -114,7 +114,7 @@
 <script>
 /* ===== CONFIG SGO-ETP ===== */
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_YfVpQ6lGhMiYCddTl1v3W9-34w4qHPvP_Cxw";
 const BUCKET = "inspecao-fotos";
 
 /* Cliente Supabase próprio via fetch (sem CDN externo — funciona em rede corporativa) */
@@ -147,12 +147,12 @@ function makeClient(url, key){
   function from(table){
     return {
       select(c){ return query(table).select(c); },
-      insert(obj){ return fetch(`${url}/rest/v1/${table}`,{method:'POST',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:await errOf(r)})); },
-      update(obj){ return { eq:(c,v)=>fetch(`${url}/rest/v1/${table}?${c}=eq.${encodeURIComponent(v)}`,{method:'PATCH',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:await errOf(r)})) }; }
+      insert(obj){ return fetch(`${url}/rest/v1/${table}`,{method:'POST',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:r.ok?null:await r.json().catch(()=>({message:'POST erro'}))})); },
+      update(obj){ return { eq:(c,v)=>fetch(`${url}/rest/v1/${table}?${c}=eq.${encodeURIComponent(v)}`,{method:'PATCH',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:r.ok?null:await r.json().catch(()=>({message:'PATCH erro'}))})); }; }
     };
   }
   const storage={ from(bucket){ return {
-    upload(path,file,opts){ return fetch(`${url}/storage/v1/object/${bucket}/${path}`,{method:'POST',headers:{...H,'Content-Type':(opts&&opts.contentType)||'application/octet-stream'},body:file}).then(async r=>({error:await errOf(r)})); },
+    upload(path,file,opts){ return fetch(`${url}/storage/v1/object/${bucket}/${path}`,{method:'POST',headers:{...H,'Content-Type':(opts&&opts.contentType)||'application/octet-stream'},body:file}).then(async r=>({error:r.ok?null:await r.json().catch(()=>({message:'Upload erro'}))})); },
     getPublicUrl(path){ return {data:{publicUrl:`${url}/storage/v1/object/public/${bucket}/${path}`}}; }
   };}};
   return { from, storage };
@@ -168,7 +168,7 @@ const MOCK_EXT = [
   {id:'demo-3', codigo:'EXT-TERM-003', tipo:'CO2', capacidade:'6 kg', local:'Sala elétrica', area:'Terminal', validade_carga:'2026-11-30', validade_hidrostatico:'2030-11-30', status:'ativo'}
 ];
 const MOCK_EFETIVO = [{id:'d1',nome:'Brigadista (demo)'},{id:'d2',nome:'Supervisor (demo)'}];
-function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão com o banco. Na prévia do chat é normal; no site, verifique se a rede libera o domínio supabase.co.</div>' : ''; }
+function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão com o banco. Na prévia do chat é normal; no site, verifique se a VPN está ativa.</div>' : ''; }
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
 const CORES_LACRE = ["Roxo","Amarelo","Verde","Azul","Vermelho","Laranja","Preto","Branco","Cinza"];
@@ -259,7 +259,8 @@ async function listaExtintores(){
   }
   if(!data.length){ app.innerHTML = bannerDemo()+'<div class="card">Nenhum extintor cadastrado ainda.</div>'; return; }
   TREINO=false; data = ordenarPorNumero(data);
-  app.innerHTML = bannerDemo()+'<button class="ghost no-print" style="margin-bottom:14px" onclick="inspecaoDemo()">🎓 Inspeção demonstrativa (treinamento)</button>'+'<h2 class="sec">Selecione o extintor</h2>' + data.map(e=>{
+  app.innerHTML = bannerDemo()+'<button class="ghost no-print" style="margin-bottom:14px" onclick="inspecaoDemo()">🎓 Inspeção demonstrativa (treinamento)</button>'+'<h2 class="sec">Selecione um extintor</h2>' +
+    data.map(e=>{
     const dias = diasAte(e.validade_carga);
     const aviso = dias!==null && dias<0 ? ' · ⚠ carga vencida' : (dias!==null && dias<30 ? ` · vence em ${dias}d` : '');
     return `<div class="list-item" onclick="abrirExtintor('${e.codigo}')">
@@ -309,11 +310,11 @@ const FIRE_CLASSES = {
   C:{color:'#2563c9', label:'Classe C — Elétricos', sub:'Equipamentos energizados', svg:'<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="#fff"/>'}
 };
 const EDU = {
-  ABC:{classes:['A','B','C'], funciona:'Pó químico seco (fosfato monoamônico) que interrompe a reação química do fogo e forma uma camada que abafa as chamas. É o mais versátil — cobre as três classes mais comuns.', atencao:'Deixa resíduo de pó que exige limpeza do equipamento após o uso. No disparo, forma uma nuvem de pó que dificulta a visão por alguns instantes — mantenha sempre uma rota de saída livre.'},
-  BC:{classes:['B','C'], funciona:'Pó químico à base de bicarbonato que interrompe a reação química do fogo. Não combate fogo em materiais sólidos.', atencao:'Não use em incêndio de papel, madeira ou tecido (classe A) — não é eficaz.'},
-  CO2:{classes:['B','C'], funciona:'Gás carbônico que abafa o fogo retirando o oxigênio e ainda resfria. Não deixa resíduo — ideal para painéis e equipamentos elétricos/eletrônicos.', atencao:'O difusor fica muito gelado — não toque na parte metálica. Evite ambiente fechado sem ventilação (risco de asfixia) e perde eficácia ao ar livre/vento.'},
-  AGUA:{classes:['A'], funciona:'Água sob pressão que resfria o material em combustão abaixo da temperatura de ignição. Indicado apenas para sólidos.', atencao:'NUNCA use em equipamento elétrico energizado (risco de choque) nem em líquidos inflamáveis (espalha o fogo).'},
-  ESPUMA:{classes:['A','B'], funciona:'Forma uma película de espuma que abafa as chamas e isola a superfície de líquidos inflamáveis, evitando a reignição.', atencao:'Não use em equipamento elétrico energizado (risco de choque).'}
+  ABC:{classes:['A','B','C'], funciona:'Pó químico seco (fosfato monoamônico) que interrompe a reação química do fogo e forma uma camada que abafa as chamas. É o mais versátil — cobre a maioria dos incêndios.', atencao:'Use em ambientes internos com cuidado — deixa resíduo que requer limpeza.'},
+  BC:{classes:['B','C'], funciona:'Pó químico à base de bicarbonato que interrompe a reação química do fogo. Não combate fogo em materiais sólidos.', atencao:'Não use em incêndio de papel, madeira ou tecidos.'},
+  CO2:{classes:['B','C'], funciona:'Gás carbônico que abafa o fogo retirando o oxigênio e ainda resfria. Não deixa resíduo — ideal para painéis e equipamentos elétricos/eletrônicos.', atencao:'Cuidado com o frio extremo — pode causar queimadura ao toque. Mantenha os braços afastados.'},
+  AGUA:{classes:['A'], funciona:'Água sob pressão que resfria o material em combustão abaixo da temperatura de ignição. Indicado apenas para sólidos.', atencao:'NUNCA use em equipamento elétrico ou em fogo de classe B/C — risco de choque elétrico ou explosão.'},
+  ESPUMA:{classes:['A','B'], funciona:'Forma uma película de espuma que abafa as chamas e isola a superfície de líquidos inflamáveis, evitando a reignição.', atencao:'Não use em equipamento elétrico energizado ou em classe C.'}
 };
 const PASSOS = [
   'Mantenha o extintor na vertical, rompa o lacre e puxe a trava de segurança.',
@@ -323,7 +324,7 @@ const PASSOS = [
 ];
 function eduContent(tipo){
   const e = EDU[tipo] || EDU.ABC;
-  const badges = e.classes.map(c=>{const f=FIRE_CLASSES[c];return `<div class="cls"><div class="ic" style="background:${f.color}"><svg width="22" height="22" viewBox="0 0 24 24">${f.svg}</svg></div><div class="txt"><b>${f.label}</b><span>${f.sub}</span></div></div>`;}).join('');
+  const badges = e.classes.map(c=>{const f=FIRE_CLASSES[c];return `<div class="cls"><div class="ic" style="background:${f.color}"><svg width="22" height="22" viewBox="0 0 24 24">${f.svg}</svg></div><div class="txt"><b>${f.label}</b><span>${f.sub}</span></div></div>`}).join('');
   return `
     <div class="card"><h3>Para que serve</h3><div class="classes">${badges}</div></div>
     <div class="card"><h3>Como funciona</h3><p class="funciona">${e.funciona}</p></div>
@@ -495,7 +496,7 @@ function atualizaFieldsHTML(){
     <div class="field"><label>Cor do anel</label><select id="updAnel">${cores}</select></div>
     <div class="field"><label>Validade da carga</label><input id="updCarga" type="date" value="${e.validade_carga||''}"></div>
     <div class="field"><label>Teste hidrostático (validade)</label><input id="updHidro" type="date" value="${e.validade_hidrostatico||''}">
-      <button type="button" onclick="retesteHoje()" style="margin-top:6px;width:100%;border:1.5px solid var(--teal);background:#f3fbfa;color:var(--teal);border-radius:9px;padding:9px;font-weight:700;font-size:13px">Reteste feito hoje → validade +5 anos</button>
+      <button type="button" onclick="retesteHoje()" style="margin-top:6px;width:100%;border:1.5px solid var(--teal);background:#f3fbfa;color:var(--teal);border-radius:9px;padding:9px;font-weight:700;font-size:13px;cursor:pointer">Reteste hoje (próximos 5 anos)</button>
     </div>
   </div>`;
 }
@@ -662,7 +663,7 @@ function telaAdminGate(){
   app.innerHTML = '<div class="card" style="text-align:center;max-width:420px;margin:0 auto">'
     +'<div style="font-size:42px">🔐</div>'
     +'<h2 style="margin:6px 0 4px;font-size:17px">Área restrita</h2>'
-    +'<p style="color:var(--muted);font-size:14px;margin:0 0 14px">A geração de QR Codes é exclusiva do administrador. Esta etiqueta não deve ser escaneada da tela — ela é colada no extintor e lida no local.</p>'
+    +'<p style="color:var(--muted);font-size:14px;margin:0 0 14px">A geração de QR Codes é exclusiva do administrador. Esta etiqueta não deve ser escaneada da tela — ela é colada no extintor.</p>'
     +'<input id="apin" type="password" inputmode="numeric" placeholder="Senha do administrador" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key===String.fromCharCode(13))entrarAdmin()">'
     +'<button class="save" style="margin-top:12px" onclick="entrarAdmin()">Entrar</button></div>';
 }
