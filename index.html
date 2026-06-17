@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#0A2240" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
 <title>SGO-ETP · Brigada de Emergência — Terminal Parauapebas</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
@@ -248,26 +250,27 @@ function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; 
   }catch(e){ /* silencioso */ }
 })();
 
-/* ===== Card Prioridades: contagem de não conformidades ===== */
+/* ===== Card Prioridades: NCs das inspeções (última por ativo) ===== */
 (async function(){
   try{
     if(!window.supabase) return;
     const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    const {data}=await sb.from('nao_conformidades').select('status,criticidade,prazo');
-    const nc=data||[];
-    const t0=new Date(); const hoje=new Date(t0.getFullYear(),t0.getMonth(),t0.getDate());
-    const abertas=nc.filter(x=>x.status!=='encerrada');
-    const crit=abertas.filter(x=>x.criticidade==='critica').length;
-    const venc=abertas.filter(x=>x.prazo&&new Date(x.prazo)<hoje).length;
+    const {data}=await sb.from('inspecoes')
+      .select('tipo,conformidade_pct,created_at,extintor_id,hidrante_id,valvula_id,casa_bomba_id')
+      .order('created_at',{ascending:false});
+    const ins=data||[]; const visto={}; let abertas=0, crit=0;
+    ins.forEach(r=>{
+      const aId=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(!aId) return;
+      const k=r.tipo+':'+aId; if(visto[k]) return; visto[k]=1;
+      if(r.conformidade_pct!=null && r.conformidade_pct<100){ abertas++; if(r.conformidade_pct<90) crit++; }
+    });
     const bEl=document.getElementById('prioStatus');
     const rEl=document.getElementById('prioResumo');
     if(bEl){
-      if(!abertas.length){ bEl.textContent='tudo em dia'; bEl.style.background='#E1F5EE'; bEl.style.color='#0F6E56'; }
-      else { bEl.textContent=abertas.length+(abertas.length===1?' aberta':' abertas'); }
+      if(!abertas){ bEl.textContent='tudo em dia'; bEl.style.background='#E1F5EE'; bEl.style.color='#0F6E56'; }
+      else { bEl.textContent=abertas+(abertas===1?' ativo com NC':' ativos com NC'); }
     }
-    if(rEl){
-      if(abertas.length){ rEl.textContent=crit+' crítica(s) · '+venc+' vencida(s) · ir ao local e verificar'; }
-    }
+    if(rEl && abertas){ rEl.textContent=crit+' crítica(s) · ir ao local e verificar'; }
   }catch(e){ /* silencioso */ }
 })();</script>
 </div><!-- /#app -->
