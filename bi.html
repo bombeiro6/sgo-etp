@@ -15,14 +15,25 @@
   header h1{font-size:15px;margin:0;font-weight:700}
   header small{display:block;font-weight:400;opacity:.75;font-size:11px}
   .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .lead{background:linear-gradient(135deg,#0A2240,#143257);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:14px}
+  .lead h2{margin:0 0 8px;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:#7FE0CC;font-weight:800}
+  .lead p{margin:0;font-size:14.5px;line-height:1.55}
+  .lead b{color:#fff}
   .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
-  .kpi .v{font-size:26px;font-weight:800;line-height:1}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c,#94a3b8)}
+  .kpi .v{font-size:25px;font-weight:800;line-height:1;color:var(--c,#0A2240)}
   .kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:5px}
+  .kpi .s{font-size:11px;color:var(--muted);margin-top:3px}
   .grid{display:grid;grid-template-columns:1fr;gap:14px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
-  .card h3{margin:0 0 10px;font-size:14px;color:var(--ink)}
+  .card h3{margin:0 0 4px;font-size:14px;color:var(--ink)}
+  .card .hint{font-size:11.5px;color:var(--muted);margin:0 0 10px}
   .cv{position:relative;height:260px}
+  .cyc-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:4px 0 12px}
+  .cyc{border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center}
+  .cyc .v{font-size:22px;font-weight:800;line-height:1}
+  .cyc .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:4px}
   .gate{max-width:380px;margin:60px auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
   .gate input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;margin:12px 0}
   .btn{width:100%;background:var(--teal);color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer}
@@ -30,17 +41,13 @@
   .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
   @keyframes s{to{transform:rotate(360deg)}}
   .err{color:var(--red);font-size:13px;margin-top:8px;min-height:16px}
-  .cyc-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
-  .cyc{border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center}
-  .cyc .v{font-size:22px;font-weight:800;line-height:1}
-  .cyc .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:4px}
   @media(min-width:760px){ .kpis{grid-template-columns:repeat(4,1fr)} .grid{grid-template-columns:1fr 1fr} .full{grid-column:1 / -1} .cyc-kpis{grid-template-columns:repeat(4,1fr)} }
 </style>
 </head>
 <body>
 <header>
   <div class="mark">BI</div>
-  <div><h1>BI Gerencial — SGO-ETP<small>Emergência Terminal Parauapebas · Vale</small></h1></div>
+  <div><h1>BI Gerencial — SGO-ETP<small>Bombeiros · Emergência Terminal Parauapebas · Vale</small></h1></div>
 </header>
 <div class="wrap" id="app">
   <div class="loading"><div class="spin"></div>Carregando…</div>
@@ -49,12 +56,12 @@
 <script>
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
-const PIN_GESTOR = "gestor2026"; // << mesmo código do painel de gestores
+const PIN_GESTOR = "gestor2026";
 const NAVY='#0A2240', TEAL='#007B6E', GREEN='#1F7A44', RED='#C0392B', ORANGE='#C98A00', GRAY='#94a3b8';
 let sb=null; try{ if(window.supabase) sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
 const app=document.getElementById('app');
 let gestorOk=false; try{ gestorOk=sessionStorage.getItem('sgo_gestor')==='1'; }catch(e){}
-const _tipo={extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de Bomba'};
+const _tipoLbl={extintor:'Extintores',hidrante:'Hidrantes',valvula:'Válvulas',casa_bomba:'Casas de bomba'};
 
 function start(){ if(gestorOk) carregar(); else gate(); }
 function gate(){
@@ -86,20 +93,21 @@ async function carregar(){
     ]);
     const ins=insR.data||[];
     const efN={}; (efR.data||[]).forEach(e=>efN[e.id]=e.nome);
-    const totalAtivos=(exR.data||[]).length+(hdR.data||[]).length+(vlR.data||[]).length+(cbR.data||[]).length;
-    render(ins, efN, totalAtivos, manR.data||[]);
+    const totByTipo={ extintor:(exR.data||[]).length, hidrante:(hdR.data||[]).length, valvula:(vlR.data||[]).length, casa_bomba:(cbR.data||[]).length };
+    render(ins, efN, totByTipo, manR.data||[]);
   }catch(e){ app.innerHTML='<div class="loading">Erro ao carregar: '+(e.message||e)+'</div>'; }
 }
 
-function render(ins, efN, totalAtivos, ncMan){
+function render(ins, efN, totByTipo, ncMan){
   const total=ins.length;
   const conf=ins.filter(r=>r.condicao==='conforme').length;
   const ncs=total-conf;
-  const media= total? (ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
+  const media= total? +(ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : 0;
+  const totalAtivos=totByTipo.extintor+totByTipo.hidrante+totByTipo.valvula+totByTipo.casa_bomba;
   const insSet=new Set(); ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id) insSet.add(id); });
   const cobertura= totalAtivos? Math.round(insSet.size/totalAtivos*100) : 0;
 
-  // ===== Ciclo de não conformidades =====
+  // ---- Ciclo de NC ----
   const bydate=ins.slice().sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
   const seen={}, latest=[];
   bydate.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(!id)return; const k=r.tipo+':'+id; if(seen[k])return; seen[k]=1; latest.push({id,pct:r.conformidade_pct}); });
@@ -112,16 +120,54 @@ function render(ins, efN, totalAtivos, ncMan){
   let notaAberta=0, notaFechada=0, semNota=0;
   abertasArr.forEach(x=>{ const s=manMap[x.id]; if(s==='aberta')notaAberta++; else if(s==='fechada')notaFechada++; else semNota++; });
 
+  // ---- NC por área (ranked) ----
+  const ncArea={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const a=r.area||'—'; ncArea[a]=(ncArea[a]||0)+1; });
+  const ncAreaOrd=Object.keys(ncArea).map(a=>[a,ncArea[a]]).sort((x,y)=>y[1]-x[1]);
+  const areaTop = ncAreaOrd.length? ncAreaOrd[0] : null;
+
+  // ---- NC por tipo ----
+  const ncTipo={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const t=_tipoLbl[r.tipo]||r.tipo||'—'; ncTipo[t]=(ncTipo[t]||0)+1; });
+
+  // ---- Turno ----
+  const turno={}; ins.forEach(r=>{ const t=(r.turno||'—').trim()||'—'; turno[t]=(turno[t]||0)+1; });
+  const turnoOrd=Object.keys(turno).map(t=>[t,turno[t]]).sort((a,b)=>b[1]-a[1]);
+  const turnoTop = turnoOrd.length? turnoOrd[0] : null;
+
+  // ---- Cobertura por tipo ----
+  const tipoKeys=['extintor','hidrante','valvula','casa_bomba'];
+  const inspByTipo={}; tipoKeys.forEach(k=>inspByTipo[k]=new Set());
+  ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id&&inspByTipo[r.tipo]) inspByTipo[r.tipo].add(id); });
+
+  // ---- Responsáveis ----
+  const resp={}; ins.forEach(r=>{ const n=efN[r.responsavel_id]||'—'; resp[n]=(resp[n]||0)+1; });
+  const respOrd=Object.keys(resp).map(n=>[n,resp[n]]).sort((a,b)=>b[1]-a[1]).slice(0,15);
+
+  // ---- Cores por meta ----
+  const cConf = media>=97?GREEN : media>=90?ORANGE : RED;
+  const cCob  = cobertura>=80?GREEN : cobertura>=50?ORANGE : RED;
+  const cAb   = abertas>0?RED:GREEN;
+  const statusConf = media>=97?'excelente' : media>=90?'boa, com pontos de atenção' : 'abaixo da meta — requer ação';
+
+  // ---- Leitura executiva ----
+  let lead='Foram <b>'+total+' inspeções</b> registradas, com conformidade média de <b>'+media+'%</b> ('+statusConf+'). ';
+  lead+='A cobertura está em <b>'+cobertura+'%</b> — '+insSet.size+' de '+totalAtivos+' ativos já inspecionados. ';
+  if(areaTop) lead+='A área que mais concentra não conformidades é <b>'+areaTop[0]+'</b> ('+areaTop[1]+'). ';
+  if(turnoTop) lead+='O turno mais ativo é o <b>Turno '+turnoTop[0]+'</b> ('+turnoTop[1]+' inspeções). ';
+  lead+='No ciclo de NC: <b>'+sanadas+' sanadas</b> pela equipe e <b>'+abertas+' abertas</b>';
+  lead+= notaAberta?(' ('+notaAberta+' já com nota de manutenção aberta).'):'.';
+
   app.innerHTML=`
+    <div class="lead"><h2>Leitura executiva</h2><p>${lead}</p></div>
     <div class="kpis">
-      <div class="kpi"><div class="v" style="color:${NAVY}">${total}</div><div class="l">Inspeções</div></div>
-      <div class="kpi"><div class="v" style="color:${TEAL}">${media}%</div><div class="l">Conformidade média</div></div>
-      <div class="kpi"><div class="v" style="color:${RED}">${ncs}</div><div class="l">Não conformes</div></div>
-      <div class="kpi"><div class="v" style="color:${ORANGE}">${cobertura}%</div><div class="l">Cobertura</div></div>
+      <div class="kpi" style="--c:${NAVY}"><div class="v">${total}</div><div class="l">Inspeções realizadas</div></div>
+      <div class="kpi" style="--c:${cConf}"><div class="v">${media}%</div><div class="l">Conformidade média</div></div>
+      <div class="kpi" style="--c:${cCob}"><div class="v">${cobertura}%</div><div class="l">Cobertura</div><div class="s">${insSet.size} de ${totalAtivos} ativos</div></div>
+      <div class="kpi" style="--c:${cAb}"><div class="v">${abertas}</div><div class="l">NCs abertas</div><div class="s">${sanadas} já sanadas</div></div>
     </div>
     <div class="grid">
       <div class="card full">
         <h3>Ciclo de não conformidades</h3>
+        <p class="hint">Da NC encontrada até o fechamento: o que a equipe resolveu e o que foi para manutenção.</p>
         <div class="cyc-kpis">
           <div class="cyc"><div class="v" style="color:${ORANGE}">${encontradas}</div><div class="l">Encontradas (histórico)</div></div>
           <div class="cyc"><div class="v" style="color:${GREEN}">${sanadas}</div><div class="l">Sanadas pela equipe</div></div>
@@ -129,55 +175,57 @@ function render(ins, efN, totalAtivos, ncMan){
           <div class="cyc"><div class="v" style="color:${TEAL}">${notaFechada}</div><div class="l">Nota fechada</div></div>
         </div>
         <div class="cv" style="height:240px"><canvas id="c7"></canvas></div>
-        <p style="font-size:12px;color:var(--muted);margin:10px 2px 0">Das <b>${abertas}</b> abertas: <b style="color:${NAVY}">${notaAberta}</b> com nota de manutenção aberta · <b style="color:${TEAL}">${notaFechada}</b> nota fechada (aguardando re-inspeção) · <b style="color:${GRAY}">${semNota}</b> ainda sem nota.</p>
+        <p class="hint" style="margin-top:10px">Das <b>${abertas}</b> abertas: <b style="color:${NAVY}">${notaAberta}</b> com nota de manutenção aberta · <b style="color:${TEAL}">${notaFechada}</b> nota fechada (aguardando re-inspeção) · <b style="color:${GRAY}">${semNota}</b> ainda sem nota.</p>
       </div>
-      <div class="card full"><h3>Conformidade ao longo do tempo</h3><div class="cv"><canvas id="c1"></canvas></div></div>
-      <div class="card"><h3>Não conformidades por área</h3><div class="cv"><canvas id="c2"></canvas></div></div>
-      <div class="card"><h3>Não conformidades por tipo de ativo</h3><div class="cv"><canvas id="c3"></canvas></div></div>
-      <div class="card"><h3>Inspeções por turno</h3><div class="cv"><canvas id="c4"></canvas></div></div>
-      <div class="card"><h3>Cobertura de inspeção</h3><div class="cv"><canvas id="c6"></canvas></div></div>
-      <div class="card full"><h3>Produtividade por responsável</h3><div class="cv" style="height:${Math.max(260, 0)}px"><canvas id="c5"></canvas></div></div>
+      <div class="card full"><h3>Conformidade ao longo do tempo</h3><p class="hint">Média diária de conformidade. A linha tracejada é a meta de 90%.</p><div class="cv"><canvas id="c1"></canvas></div></div>
+      <div class="card"><h3>Não conformidades por área</h3><p class="hint">Onde concentrar esforço — da maior para a menor.</p><div class="cv"><canvas id="c2"></canvas></div></div>
+      <div class="card"><h3>Não conformidades por tipo de ativo</h3><p class="hint">Qual família de ativo mais reprova.</p><div class="cv"><canvas id="c3"></canvas></div></div>
+      <div class="card full"><h3>Cobertura por tipo de ativo</h3><p class="hint">Quantos ativos de cada tipo já foram inspecionados, frente ao total cadastrado.</p><div class="cv"><canvas id="ccov"></canvas></div></div>
+      <div class="card"><h3>Inspeções por turno</h3><p class="hint">Volume de inspeções lançadas por cada turno.</p><div class="cv"><canvas id="c4"></canvas></div></div>
+      <div class="card"><h3>Produtividade por responsável</h3><p class="hint">Inspeções lançadas por pessoa (top 15).</p><div class="cv"><canvas id="c5"></canvas></div></div>
     </div>`;
 
   Chart.defaults.font.family='-apple-system,Segoe UI,Roboto,sans-serif';
   Chart.defaults.color='#5b6b7b';
   const baseOpt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
 
-  // 7) Ciclo de NC (funil)
+  // Ciclo (funil)
   new Chart(c7,{type:'bar',data:{labels:['Encontradas','Sanadas equipe','Abertas','c/ nota aberta','nota fechada','sem nota'],
-    datasets:[{data:[encontradas,sanadas,abertas,notaAberta,notaFechada,semNota],
-    backgroundColor:[ORANGE,GREEN,RED,NAVY,TEAL,GRAY],borderRadius:6}]},
+    datasets:[{data:[encontradas,sanadas,abertas,notaAberta,notaFechada,semNota],backgroundColor:[ORANGE,GREEN,RED,NAVY,TEAL,GRAY],borderRadius:6}]},
     options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
 
-  // 1) Conformidade ao longo do tempo (por dia)
-  const porDia={};
-  ins.forEach(r=>{ const d=(r.created_at||'').slice(0,10); if(!d)return; (porDia[d]=porDia[d]||[]).push(r.conformidade_pct||0); });
+  // Conformidade/dia + meta
+  const porDia={}; ins.forEach(r=>{ const d=(r.created_at||'').slice(0,10); if(!d)return; (porDia[d]=porDia[d]||[]).push(r.conformidade_pct||0); });
   const dias=Object.keys(porDia).sort();
   const labDias=dias.map(d=>d.slice(8,10)+'/'+d.slice(5,7));
   const medDia=dias.map(d=>{ const a=porDia[d]; return Math.round(a.reduce((s,x)=>s+x,0)/a.length); });
-  new Chart(c1,{type:'line',data:{labels:labDias,datasets:[{data:medDia,borderColor:TEAL,backgroundColor:'rgba(0,123,110,.12)',fill:true,tension:.3,pointBackgroundColor:TEAL,pointRadius:4}]},options:Object.assign({},baseOpt,{scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}})});
+  new Chart(c1,{type:'line',data:{labels:labDias,datasets:[
+      {label:'Conformidade',data:medDia,borderColor:TEAL,backgroundColor:'rgba(0,123,110,.12)',fill:true,tension:.3,pointBackgroundColor:TEAL,pointRadius:3},
+      {label:'Meta 90%',data:dias.map(()=>90),borderColor:ORANGE,borderDash:[6,5],pointRadius:0,fill:false}
+    ]},options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}})});
 
-  // 2) NC por área
-  const ncArea={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const a=r.area||'—'; ncArea[a]=(ncArea[a]||0)+1; });
-  new Chart(c2,{type:'bar',data:{labels:Object.keys(ncArea),datasets:[{data:Object.values(ncArea),backgroundColor:RED,borderRadius:6}]},options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
+  // NC por área (horizontal ranked)
+  new Chart(c2,{type:'bar',data:{labels:ncAreaOrd.map(x=>x[0]),datasets:[{data:ncAreaOrd.map(x=>x[1]),backgroundColor:RED,borderRadius:5}]},
+    options:Object.assign({},baseOpt,{indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{precision:0}}}})});
 
-  // 3) NC por tipo
-  const ncTipo={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const t=_tipo[r.tipo]||r.tipo||'—'; ncTipo[t]=(ncTipo[t]||0)+1; });
-  new Chart(c3,{type:'doughnut',data:{labels:Object.keys(ncTipo),datasets:[{data:Object.values(ncTipo),backgroundColor:[NAVY,TEAL,ORANGE,RED,GRAY]}]},options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}}})});
+  // NC por tipo
+  new Chart(c3,{type:'doughnut',data:{labels:Object.keys(ncTipo),datasets:[{data:Object.values(ncTipo),backgroundColor:[NAVY,TEAL,ORANGE,RED,GRAY]}]},
+    options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}}})});
 
-  // 4) Inspeções por turno
-  const turno={}; ins.forEach(r=>{ const t=(r.turno||'—').trim()||'—'; turno[t]=(turno[t]||0)+1; });
-  new Chart(c4,{type:'bar',data:{labels:Object.keys(turno).map(t=>'Turno '+t),datasets:[{data:Object.values(turno),backgroundColor:NAVY,borderRadius:6}]},options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
+  // Cobertura por tipo (grouped)
+  new Chart(ccov,{type:'bar',data:{labels:tipoKeys.map(k=>_tipoLbl[k]),datasets:[
+      {label:'Inspecionados',data:tipoKeys.map(k=>inspByTipo[k].size),backgroundColor:GREEN,borderRadius:5},
+      {label:'Total cadastrado',data:tipoKeys.map(k=>totByTipo[k]),backgroundColor:'#cdd8e6',borderRadius:5}
+    ]},options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
 
-  // 6) Cobertura
-  const cobV=Math.min(insSet.size,totalAtivos);
-  new Chart(c6,{type:'doughnut',data:{labels:['Inspecionados','Pendentes'],datasets:[{data:[cobV, Math.max(0,totalAtivos-cobV)],backgroundColor:[GREEN,'#e2e8f0']}]},options:Object.assign({},baseOpt,{cutout:'68%',plugins:{legend:{display:true,position:'bottom'}}})});
+  // Inspeções por turno
+  new Chart(c4,{type:'bar',data:{labels:turnoOrd.map(t=>'Turno '+t[0]),datasets:[{data:turnoOrd.map(t=>t[1]),backgroundColor:NAVY,borderRadius:6}]},
+    options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
 
-  // 5) Produtividade por responsável (top, horizontal)
-  const resp={}; ins.forEach(r=>{ const n=efN[r.responsavel_id]||'—'; resp[n]=(resp[n]||0)+1; });
-  const ord=Object.keys(resp).map(n=>[n,resp[n]]).sort((a,b)=>b[1]-a[1]).slice(0,15);
-  const c5box=document.getElementById('c5').parentElement; c5box.style.height=Math.max(260, ord.length*26+40)+'px';
-  new Chart(c5,{type:'bar',data:{labels:ord.map(x=>x[0]),datasets:[{data:ord.map(x=>x[1]),backgroundColor:TEAL,borderRadius:5}]},options:Object.assign({},baseOpt,{indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{precision:0}}}})});
+  // Produtividade
+  const c5box=document.getElementById('c5').parentElement; c5box.style.height=Math.max(260, respOrd.length*26+40)+'px';
+  new Chart(c5,{type:'bar',data:{labels:respOrd.map(x=>x[0]),datasets:[{data:respOrd.map(x=>x[1]),backgroundColor:TEAL,borderRadius:5}]},
+    options:Object.assign({},baseOpt,{indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{precision:0}}}})});
 }
 
 start();
