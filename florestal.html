@@ -348,7 +348,6 @@ async function salvar(){
   const resp=$('resp').value;
   if(!resp){ alert('Selecione o responsável.'); return; }
   if(state.focos===null || state.aceiros===null){ alert('Responda os itens de vigilância (focos e aceiros).'); return; }
-  if(!state.acao){ alert('Selecione a ação após a ronda.'); return; }
   state.vegetacao=$('vegetacao').value||null;
   const btn=$('btnSalvar'); btn.disabled=true; btn.textContent='Salvando…';
   try{ sessionStorage.setItem('sgo_inspetor', resp); }catch(e){}
@@ -366,7 +365,7 @@ async function salvar(){
     const {error}=await sb.from('monitoramento_florestal').insert({
       responsavel_id:resp, nivel_alerta:state.nivel, vegetacao:state.vegetacao,
       focos_fumaca:state.focos, aceiros_ok:state.aceiros,
-      observacao:(('Ação: '+(ACAO_TXT[state.acao]?ACAO_TXT[state.acao][0]:state.acao)+'.')+(($('obs').value||'').trim()?(' '+$('obs').value.trim()):'')), evidencias, ...gps,
+      observacao:((state.acao?('Ação: '+(ACAO_TXT[state.acao]?ACAO_TXT[state.acao][0]:state.acao)+'. '):'')+(($('obs').value||'').trim())).trim()||null, evidencias, ...gps,
       clima_temp: state.clima?state.clima.temp:null,
       clima_umidade: state.clima?state.clima.umidade:null,
       clima_desc: state.clima?state.clima.desc:null
