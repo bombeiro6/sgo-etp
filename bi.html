@@ -30,7 +30,11 @@
   .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
   @keyframes s{to{transform:rotate(360deg)}}
   .err{color:var(--red);font-size:13px;margin-top:8px;min-height:16px}
-  @media(min-width:760px){ .kpis{grid-template-columns:repeat(4,1fr)} .grid{grid-template-columns:1fr 1fr} .full{grid-column:1 / -1} }
+  .cyc-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+  .cyc{border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center}
+  .cyc .v{font-size:22px;font-weight:800;line-height:1}
+  .cyc .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:4px}
+  @media(min-width:760px){ .kpis{grid-template-columns:repeat(4,1fr)} .grid{grid-template-columns:1fr 1fr} .full{grid-column:1 / -1} .cyc-kpis{grid-template-columns:repeat(4,1fr)} }
 </style>
 </head>
 <body>
@@ -71,28 +75,42 @@ async function carregar(){
   app.innerHTML='<div class="loading"><div class="spin"></div>Montando indicadores…</div>';
   if(!sb){ app.innerHTML='<div class="loading">Sem conexão com o banco.</div>'; return; }
   try{
-    const [insR,efR,exR,hdR,vlR,cbR]=await Promise.all([
+    const [insR,efR,exR,hdR,vlR,cbR,manR]=await Promise.all([
       sb.from('inspecoes').select('created_at,condicao,conformidade_pct,area,turno,responsavel_id,tipo,extintor_id,hidrante_id,valvula_id,casa_bomba_id'),
       sb.from('efetivo').select('id,nome'),
       sb.from('extintores').select('id').eq('status','ativo'),
       sb.from('hidrantes').select('id').eq('status','ativo'),
       sb.from('valvulas').select('id').eq('status','ativo'),
-      sb.from('casas_bombas').select('id').eq('status','ativo')
+      sb.from('casas_bombas').select('id').eq('status','ativo'),
+      sb.from('nc_manutencao').select('ativo_id,status')
     ]);
     const ins=insR.data||[];
     const efN={}; (efR.data||[]).forEach(e=>efN[e.id]=e.nome);
     const totalAtivos=(exR.data||[]).length+(hdR.data||[]).length+(vlR.data||[]).length+(cbR.data||[]).length;
-    render(ins, efN, totalAtivos);
+    render(ins, efN, totalAtivos, manR.data||[]);
   }catch(e){ app.innerHTML='<div class="loading">Erro ao carregar: '+(e.message||e)+'</div>'; }
 }
 
-function render(ins, efN, totalAtivos){
+function render(ins, efN, totalAtivos, ncMan){
   const total=ins.length;
   const conf=ins.filter(r=>r.condicao==='conforme').length;
   const ncs=total-conf;
   const media= total? (ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : '0';
   const insSet=new Set(); ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id) insSet.add(id); });
   const cobertura= totalAtivos? Math.round(insSet.size/totalAtivos*100) : 0;
+
+  // ===== Ciclo de não conformidades =====
+  const bydate=ins.slice().sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  const seen={}, latest=[];
+  bydate.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(!id)return; const k=r.tipo+':'+id; if(seen[k])return; seen[k]=1; latest.push({id,pct:r.conformidade_pct}); });
+  const everNC=new Set(); ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id && r.conformidade_pct!=null && r.conformidade_pct<100) everNC.add(id); });
+  const encontradas=everNC.size;
+  const abertasArr=latest.filter(x=>x.pct!=null && x.pct<100);
+  const abertas=abertasArr.length;
+  const sanadas=latest.filter(x=>everNC.has(x.id) && x.pct===100).length;
+  const manMap={}; (ncMan||[]).forEach(m=>{ manMap[m.ativo_id]=m.status; });
+  let notaAberta=0, notaFechada=0, semNota=0;
+  abertasArr.forEach(x=>{ const s=manMap[x.id]; if(s==='aberta')notaAberta++; else if(s==='fechada')notaFechada++; else semNota++; });
 
   app.innerHTML=`
     <div class="kpis">
@@ -102,6 +120,17 @@ function render(ins, efN, totalAtivos){
       <div class="kpi"><div class="v" style="color:${ORANGE}">${cobertura}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="grid">
+      <div class="card full">
+        <h3>Ciclo de não conformidades</h3>
+        <div class="cyc-kpis">
+          <div class="cyc"><div class="v" style="color:${ORANGE}">${encontradas}</div><div class="l">Encontradas (histórico)</div></div>
+          <div class="cyc"><div class="v" style="color:${GREEN}">${sanadas}</div><div class="l">Sanadas pela equipe</div></div>
+          <div class="cyc"><div class="v" style="color:${RED}">${abertas}</div><div class="l">Abertas hoje</div></div>
+          <div class="cyc"><div class="v" style="color:${TEAL}">${notaFechada}</div><div class="l">Nota fechada</div></div>
+        </div>
+        <div class="cv" style="height:240px"><canvas id="c7"></canvas></div>
+        <p style="font-size:12px;color:var(--muted);margin:10px 2px 0">Das <b>${abertas}</b> abertas: <b style="color:${NAVY}">${notaAberta}</b> com nota de manutenção aberta · <b style="color:${TEAL}">${notaFechada}</b> nota fechada (aguardando re-inspeção) · <b style="color:${GRAY}">${semNota}</b> ainda sem nota.</p>
+      </div>
       <div class="card full"><h3>Conformidade ao longo do tempo</h3><div class="cv"><canvas id="c1"></canvas></div></div>
       <div class="card"><h3>Não conformidades por área</h3><div class="cv"><canvas id="c2"></canvas></div></div>
       <div class="card"><h3>Não conformidades por tipo de ativo</h3><div class="cv"><canvas id="c3"></canvas></div></div>
@@ -113,6 +142,12 @@ function render(ins, efN, totalAtivos){
   Chart.defaults.font.family='-apple-system,Segoe UI,Roboto,sans-serif';
   Chart.defaults.color='#5b6b7b';
   const baseOpt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+
+  // 7) Ciclo de NC (funil)
+  new Chart(c7,{type:'bar',data:{labels:['Encontradas','Sanadas equipe','Abertas','c/ nota aberta','nota fechada','sem nota'],
+    datasets:[{data:[encontradas,sanadas,abertas,notaAberta,notaFechada,semNota],
+    backgroundColor:[ORANGE,GREEN,RED,NAVY,TEAL,GRAY],borderRadius:6}]},
+    options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
 
   // 1) Conformidade ao longo do tempo (por dia)
   const porDia={};
