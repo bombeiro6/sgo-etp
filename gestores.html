@@ -375,7 +375,7 @@ function montarTextoStatus(d){
   const nivel = mf ? (mf.nivel_alerta||'').toUpperCase() : '—';
 
   const L=[];
-  L.push('🚒 *SGO-ETP · Status SPCI*');
+  L.push('🚒 *SGO-ETP · Bombeiros SPCI*');
   L.push('📍 Terminal Parauapebas · '+new Date().toLocaleDateString('pt-BR'));
   L.push('');
   L.push('🏆 *RANKING POR EQUIPE*');
@@ -395,7 +395,10 @@ function montarTextoStatus(d){
   if(man.length) L.push('🧵 Mangueiras: '+man.length+(manVenc?(' — ⚠ '+manVenc+' venc.'):' — ✅'));
   L.push('🔥 Alerta florestal: '+nivel+(mf&&mf.focos_fumaca?' — ⚠ focos avistados':''));
   L.push('');
-  L.push('👉 Equipes: vamos subir no ranking! Registrem as inspeções escaneando o QR Code no próprio ativo. Quantidade conta, mas inspeção bem feita conta mais.');
+  const topTeam = (rank[0] && rank[0].total>0) ? rank[0].nome : null;
+  if(topTeam) L.push('🏅 Destaque da vez: parabéns Equipe '+topTeam+', liderando o ranking! 👏');
+  L.push('📲 Assumiu o plantão? Deixe a marca da sua equipe: poste 1 foto no *Mural dos Bombeiros* — inspeção em campo, prevenção ou NC corrigida. Leva 30s e fica pra todo mundo ver.');
+  L.push('🎯 Cada inspeção bem feita é uma vida protegida. Esse é o nosso placar de orgulho — não de cobrança. Bora! 🔥');
   return L.join('\n');
 }
 async function statusZap(){

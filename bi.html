@@ -85,20 +85,22 @@ async function carregar(){
     const [insR,efR,exR,hdR,vlR,cbR,manR]=await Promise.all([
       sb.from('inspecoes').select('created_at,condicao,conformidade_pct,area,turno,responsavel_id,tipo,extintor_id,hidrante_id,valvula_id,casa_bomba_id'),
       sb.from('efetivo').select('id,nome'),
-      sb.from('extintores').select('id').eq('status','ativo'),
-      sb.from('hidrantes').select('id').eq('status','ativo'),
-      sb.from('valvulas').select('id').eq('status','ativo'),
-      sb.from('casas_bombas').select('id').eq('status','ativo'),
+      sb.from('extintores').select('id,local').eq('status','ativo'),
+      sb.from('hidrantes').select('id,local').eq('status','ativo'),
+      sb.from('valvulas').select('id,local').eq('status','ativo'),
+      sb.from('casas_bombas').select('id,local').eq('status','ativo'),
       sb.from('nc_manutencao').select('ativo_id,status')
     ]);
     const ins=insR.data||[];
     const efN={}; (efR.data||[]).forEach(e=>efN[e.id]=e.nome);
+    const localMap={};
+    [exR,hdR,vlR,cbR].forEach(R=>(R.data||[]).forEach(a=>{ localMap[a.id]=a.local||''; }));
     const totByTipo={ extintor:(exR.data||[]).length, hidrante:(hdR.data||[]).length, valvula:(vlR.data||[]).length, casa_bomba:(cbR.data||[]).length };
-    render(ins, efN, totByTipo, manR.data||[]);
+    render(ins, efN, totByTipo, manR.data||[], localMap);
   }catch(e){ app.innerHTML='<div class="loading">Erro ao carregar: '+(e.message||e)+'</div>'; }
 }
 
-function render(ins, efN, totByTipo, ncMan){
+function render(ins, efN, totByTipo, ncMan, localMap){
   const total=ins.length;
   const conf=ins.filter(r=>r.condicao==='conforme').length;
   const ncs=total-conf;
@@ -120,9 +122,9 @@ function render(ins, efN, totByTipo, ncMan){
   let notaAberta=0, notaFechada=0, semNota=0;
   abertasArr.forEach(x=>{ const s=manMap[x.id]; if(s==='aberta')notaAberta++; else if(s==='fechada')notaFechada++; else semNota++; });
 
-  // ---- NC por área (ranked) ----
-  const ncArea={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const a=r.area||'—'; ncArea[a]=(ncArea[a]||0)+1; });
-  const ncAreaOrd=Object.keys(ncArea).map(a=>[a,ncArea[a]]).sort((x,y)=>y[1]-x[1]);
+  // ---- NC por local (acionável) ----
+  const ncLocal={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; const l=(localMap&&localMap[id])||r.area||'(sem local)'; ncLocal[l]=(ncLocal[l]||0)+1; });
+  const ncAreaOrd=Object.keys(ncLocal).map(a=>[a,ncLocal[a]]).sort((x,y)=>y[1]-x[1]).slice(0,12);
   const areaTop = ncAreaOrd.length? ncAreaOrd[0] : null;
 
   // ---- NC por tipo ----
@@ -151,7 +153,7 @@ function render(ins, efN, totByTipo, ncMan){
   // ---- Leitura executiva ----
   let lead='Foram <b>'+total+' inspeções</b> registradas, com conformidade média de <b>'+media+'%</b> ('+statusConf+'). ';
   lead+='A cobertura está em <b>'+cobertura+'%</b> — '+insSet.size+' de '+totalAtivos+' ativos já inspecionados. ';
-  if(areaTop) lead+='A área que mais concentra não conformidades é <b>'+areaTop[0]+'</b> ('+areaTop[1]+'). ';
+  if(areaTop) lead+='O local que mais concentra não conformidades é <b>'+areaTop[0]+'</b> ('+areaTop[1]+'). ';
   if(turnoTop) lead+='O turno mais ativo é o <b>Turno '+turnoTop[0]+'</b> ('+turnoTop[1]+' inspeções). ';
   lead+='No ciclo de NC: <b>'+sanadas+' sanadas</b> pela equipe e <b>'+abertas+' abertas</b>';
   lead+= notaAberta?(' ('+notaAberta+' já com nota de manutenção aberta).'):'.';
@@ -178,7 +180,7 @@ function render(ins, efN, totByTipo, ncMan){
         <p class="hint" style="margin-top:10px">Das <b>${abertas}</b> abertas: <b style="color:${NAVY}">${notaAberta}</b> com nota de manutenção aberta · <b style="color:${TEAL}">${notaFechada}</b> nota fechada (aguardando re-inspeção) · <b style="color:${GRAY}">${semNota}</b> ainda sem nota.</p>
       </div>
       <div class="card full"><h3>Conformidade ao longo do tempo</h3><p class="hint">Média diária de conformidade. A linha tracejada é a meta de 90%.</p><div class="cv"><canvas id="c1"></canvas></div></div>
-      <div class="card"><h3>Não conformidades por área</h3><p class="hint">Onde concentrar esforço — da maior para a menor.</p><div class="cv"><canvas id="c2"></canvas></div></div>
+      <div class="card"><h3>Não conformidades por local</h3><p class="hint">Onde concentrar esforço — locais com mais NC (top 12).</p><div class="cv"><canvas id="c2"></canvas></div></div>
       <div class="card"><h3>Não conformidades por tipo de ativo</h3><p class="hint">Qual família de ativo mais reprova.</p><div class="cv"><canvas id="c3"></canvas></div></div>
       <div class="card full"><h3>Cobertura por tipo de ativo</h3><p class="hint">Quantos ativos de cada tipo já foram inspecionados, frente ao total cadastrado.</p><div class="cv"><canvas id="ccov"></canvas></div></div>
       <div class="card"><h3>Inspeções por turno</h3><p class="hint">Volume de inspeções lançadas por cada turno.</p><div class="cv"><canvas id="c4"></canvas></div></div>
