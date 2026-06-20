@@ -82,63 +82,53 @@ async function carregar(){
   app.innerHTML='<div class="loading"><div class="spin"></div>Montando indicadores…</div>';
   if(!sb){ app.innerHTML='<div class="loading">Sem conexão com o banco.</div>'; return; }
   try{
-    const [insR,efR,exR,hdR,vlR,cbR,manR]=await Promise.all([
-      sb.from('inspecoes').select('created_at,condicao,conformidade_pct,area,turno,responsavel_id,tipo,extintor_id,hidrante_id,valvula_id,casa_bomba_id'),
+    const [insR,efR,cicloR,ncR,covR]=await Promise.all([
+      sb.from('inspecoes').select('created_at,condicao,conformidade_pct,turno,responsavel_id'),
       sb.from('efetivo').select('id,nome'),
-      sb.from('extintores').select('id,local').eq('status','ativo'),
-      sb.from('hidrantes').select('id,local').eq('status','ativo'),
-      sb.from('valvulas').select('id,local').eq('status','ativo'),
-      sb.from('casas_bombas').select('id,local').eq('status','ativo'),
-      sb.from('nc_manutencao').select('ativo_id,status')
+      sb.from('vw_ciclo_nc').select('*'),
+      sb.from('vw_nc_aberta').select('tipo,local'),
+      sb.from('vw_cobertura_tipo').select('*')
     ]);
     const ins=insR.data||[];
     const efN={}; (efR.data||[]).forEach(e=>efN[e.id]=e.nome);
-    const localMap={};
-    [exR,hdR,vlR,cbR].forEach(R=>(R.data||[]).forEach(a=>{ localMap[a.id]=a.local||''; }));
-    const totByTipo={ extintor:(exR.data||[]).length, hidrante:(hdR.data||[]).length, valvula:(vlR.data||[]).length, casa_bomba:(cbR.data||[]).length };
-    render(ins, efN, totByTipo, manR.data||[], localMap);
+    const ciclo=(cicloR.data&&cicloR.data[0])||{encontradas:0,sanadas:0,abertas:0,nota_aberta:0,nota_fechada:0,sem_nota:0};
+    render(ins, efN, ciclo, ncR.data||[], covR.data||[]);
   }catch(e){ app.innerHTML='<div class="loading">Erro ao carregar: '+(e.message||e)+'</div>'; }
 }
 
-function render(ins, efN, totByTipo, ncMan, localMap){
+function render(ins, efN, ciclo, ncAbertas, cobRows){
   const total=ins.length;
   const conf=ins.filter(r=>r.condicao==='conforme').length;
   const ncs=total-conf;
   const media= total? +(ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1) : 0;
-  const totalAtivos=totByTipo.extintor+totByTipo.hidrante+totByTipo.valvula+totByTipo.casa_bomba;
-  const insSet=new Set(); ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id) insSet.add(id); });
-  const cobertura= totalAtivos? Math.round(insSet.size/totalAtivos*100) : 0;
 
-  // ---- Ciclo de NC ----
-  const bydate=ins.slice().sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
-  const seen={}, latest=[];
-  bydate.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(!id)return; const k=r.tipo+':'+id; if(seen[k])return; seen[k]=1; latest.push({id,pct:r.conformidade_pct}); });
-  const everNC=new Set(); ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id && r.conformidade_pct!=null && r.conformidade_pct<100) everNC.add(id); });
-  const encontradas=everNC.size;
-  const abertasArr=latest.filter(x=>x.pct!=null && x.pct<100);
-  const abertas=abertasArr.length;
-  const sanadas=latest.filter(x=>everNC.has(x.id) && x.pct===100).length;
-  const manMap={}; (ncMan||[]).forEach(m=>{ manMap[m.ativo_id]=m.status; });
-  let notaAberta=0, notaFechada=0, semNota=0;
-  abertasArr.forEach(x=>{ const s=manMap[x.id]; if(s==='aberta')notaAberta++; else if(s==='fechada')notaFechada++; else semNota++; });
+  // ---- Cobertura (view) ----
+  const covMap={}; cobRows.forEach(c=>{ covMap[c.tipo]={total:+c.total||0, insp:+c.inspecionados||0}; });
+  const totalAtivos=cobRows.reduce((s,c)=>s+(+c.total||0),0);
+  const inspTot=cobRows.reduce((s,c)=>s+(+c.inspecionados||0),0);
+  const cobertura= totalAtivos? Math.round(inspTot/totalAtivos*100) : 0;
 
-  // ---- NC por local (acionável) ----
-  const ncLocal={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; const l=(localMap&&localMap[id])||r.area||'(sem local)'; ncLocal[l]=(ncLocal[l]||0)+1; });
+  // ---- Ciclo de NC (view) ----
+  const encontradas=+ciclo.encontradas||0, sanadas=+ciclo.sanadas||0, abertas=+ciclo.abertas||0;
+  const notaAberta=+ciclo.nota_aberta||0, notaFechada=+ciclo.nota_fechada||0, semNota=+ciclo.sem_nota||0;
+
+  // ---- NC por local (view) ----
+  const ncLocal={}; (ncAbertas||[]).forEach(r=>{ const l=r.local||'(sem local)'; ncLocal[l]=(ncLocal[l]||0)+1; });
   const ncAreaOrd=Object.keys(ncLocal).map(a=>[a,ncLocal[a]]).sort((x,y)=>y[1]-x[1]).slice(0,12);
   const areaTop = ncAreaOrd.length? ncAreaOrd[0] : null;
 
-  // ---- NC por tipo ----
-  const ncTipo={}; ins.filter(r=>r.condicao!=='conforme').forEach(r=>{ const t=_tipoLbl[r.tipo]||r.tipo||'—'; ncTipo[t]=(ncTipo[t]||0)+1; });
+  // ---- NC por tipo (view) ----
+  const ncTipo={}; (ncAbertas||[]).forEach(r=>{ const t=_tipoLbl[r.tipo]||r.tipo||'—'; ncTipo[t]=(ncTipo[t]||0)+1; });
 
   // ---- Turno ----
   const turno={}; ins.forEach(r=>{ const t=(r.turno||'—').trim()||'—'; turno[t]=(turno[t]||0)+1; });
   const turnoOrd=Object.keys(turno).map(t=>[t,turno[t]]).sort((a,b)=>b[1]-a[1]);
   const turnoTop = turnoOrd.length? turnoOrd[0] : null;
 
-  // ---- Cobertura por tipo ----
+  // ---- Cobertura por tipo (view) ----
   const tipoKeys=['extintor','hidrante','valvula','casa_bomba'];
-  const inspByTipo={}; tipoKeys.forEach(k=>inspByTipo[k]=new Set());
-  ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(id&&inspByTipo[r.tipo]) inspByTipo[r.tipo].add(id); });
+  const inspByTipo={}, totByTipo={};
+  tipoKeys.forEach(k=>{ inspByTipo[k]=(covMap[k]&&covMap[k].insp)||0; totByTipo[k]=(covMap[k]&&covMap[k].total)||0; });
 
   // ---- Responsáveis ----
   const resp={}; ins.forEach(r=>{ const n=efN[r.responsavel_id]||'—'; resp[n]=(resp[n]||0)+1; });
@@ -152,7 +142,7 @@ function render(ins, efN, totByTipo, ncMan, localMap){
 
   // ---- Leitura executiva ----
   let lead='Foram <b>'+total+' inspeções</b> registradas, com conformidade média de <b>'+media+'%</b> ('+statusConf+'). ';
-  lead+='A cobertura está em <b>'+cobertura+'%</b> — '+insSet.size+' de '+totalAtivos+' ativos já inspecionados. ';
+  lead+='A cobertura está em <b>'+cobertura+'%</b> — '+inspTot+' de '+totalAtivos+' ativos já inspecionados. ';
   if(areaTop) lead+='O local que mais concentra não conformidades é <b>'+areaTop[0]+'</b> ('+areaTop[1]+'). ';
   if(turnoTop) lead+='O turno mais ativo é o <b>Turno '+turnoTop[0]+'</b> ('+turnoTop[1]+' inspeções). ';
   lead+='No ciclo de NC: <b>'+sanadas+' sanadas</b> pela equipe e <b>'+abertas+' abertas</b>';
@@ -163,7 +153,7 @@ function render(ins, efN, totByTipo, ncMan, localMap){
     <div class="kpis">
       <div class="kpi" style="--c:${NAVY}"><div class="v">${total}</div><div class="l">Inspeções realizadas</div></div>
       <div class="kpi" style="--c:${cConf}"><div class="v">${media}%</div><div class="l">Conformidade média</div></div>
-      <div class="kpi" style="--c:${cCob}"><div class="v">${cobertura}%</div><div class="l">Cobertura</div><div class="s">${insSet.size} de ${totalAtivos} ativos</div></div>
+      <div class="kpi" style="--c:${cCob}"><div class="v">${cobertura}%</div><div class="l">Cobertura</div><div class="s">${inspTot} de ${totalAtivos} ativos</div></div>
       <div class="kpi" style="--c:${cAb}"><div class="v">${abertas}</div><div class="l">NCs abertas</div><div class="s">${sanadas} já sanadas</div></div>
     </div>
     <div class="grid">
@@ -216,7 +206,7 @@ function render(ins, efN, totByTipo, ncMan, localMap){
 
   // Cobertura por tipo (grouped)
   new Chart(ccov,{type:'bar',data:{labels:tipoKeys.map(k=>_tipoLbl[k]),datasets:[
-      {label:'Inspecionados',data:tipoKeys.map(k=>inspByTipo[k].size),backgroundColor:GREEN,borderRadius:5},
+      {label:'Inspecionados',data:tipoKeys.map(k=>inspByTipo[k]),backgroundColor:GREEN,borderRadius:5},
       {label:'Total cadastrado',data:tipoKeys.map(k=>totByTipo[k]),backgroundColor:'#cdd8e6',borderRadius:5}
     ]},options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
 
