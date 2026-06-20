@@ -40,6 +40,7 @@
   .toggle button{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;color:var(--muted);min-width:48px}
   .toggle button.on-ok{background:var(--ok);border-color:var(--ok);color:#fff}
   .toggle button.on-nc{background:var(--nc);border-color:var(--nc);color:#fff}
+  .toggle button.on-na{background:#64748b;border-color:#64748b;color:#fff}
   select,textarea,input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
   .check input.med{width:96px;flex:0 0 auto;text-align:center;padding:10px}
   textarea{min-height:70px;resize:vertical}
@@ -53,8 +54,7 @@
   .list-item .m{font-size:12px;color:var(--muted);margin-top:2px}
   .chev{color:var(--teal);font-size:20px;font-weight:800}
   .qr-item{text-align:center;padding:16px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:#fff}
-  .qr-item canvas,.qr-item img{max-width:200px;height:auto}
-  .qr-item .qrc{display:flex;justify-content:center}
+  .qr-item canvas{max-width:200px;height:auto}
   .qr-item .c{font-weight:800;margin-top:8px}
   .qr-item .m{font-size:12px;color:var(--muted)}
   .success{text-align:center;padding:30px 16px}
@@ -86,12 +86,6 @@
   .lock-card{text-align:center}
   .lock-ic{width:62px;height:62px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 12px}
   @media print{header,.tabs,.no-print{display:none}.qr-item{page-break-inside:avoid}}
-
-  /* ===== Responsivo PC (apenas CSS, sem custo de carga/banco) ===== */
-  @media(min-width:700px){
-    .wrap{max-width:640px;padding:24px}
-    body{font-size:16px}
-  }
 </style>
 </head>
 <body>
@@ -111,17 +105,56 @@
   <div class="loading"><div class="spin"></div>Carregando…</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- QR: tenta primeiro o arquivo no próprio repositório (funciona na rede da Vale); se não houver, usa o CDN -->
-<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 /* ===== CONFIG SGO-ETP ===== */
 const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const BUCKET = "inspecao-fotos";
+
+/* Cliente Supabase próprio via fetch (sem CDN externo — funciona em rede corporativa) */
+function makeClient(url, key){
+  const H = { apikey:key, Authorization:'Bearer '+key };
+  const errOf = async r => r.ok ? null : (await r.json().catch(()=>({message:'HTTP '+r.status})));
+  function query(table){
+    const st={select:'*',filters:[],order:'',limit:'',single:false};
+    const run=async()=>{
+      let q=`${url}/rest/v1/${table}?select=${encodeURIComponent(st.select)}`;
+      st.filters.forEach(f=>q+='&'+f); q+=st.order+st.limit;
+      try{
+        const r=await fetch(q,{headers:H});
+        let data=await r.json();
+        if(!r.ok) return {data:null,error:data};
+        if(st.single) data=Array.isArray(data)?(data[0]||null):data;
+        return {data,error:null};
+      }catch(e){ return {data:null,error:e}; }
+    };
+    const api={
+      select(c){ st.select=c||'*'; return api; },
+      eq(c,v){ st.filters.push(`${c}=eq.${encodeURIComponent(v)}`); return api; },
+      order(c,o){ st.order=`&order=${c}.${(o&&o.ascending===false)?'desc':'asc'}`; return api; },
+      limit(n){ st.limit=`&limit=${n}`; return api; },
+      maybeSingle(){ st.single=true; return run(); },
+      then(res,rej){ return run().then(res,rej); }
+    };
+    return api;
+  }
+  function from(table){
+    return {
+      select(c){ return query(table).select(c); },
+      insert(obj){ return fetch(`${url}/rest/v1/${table}`,{method:'POST',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:await errOf(r)})); },
+      update(obj){ return { eq:(c,v)=>fetch(`${url}/rest/v1/${table}?${c}=eq.${encodeURIComponent(v)}`,{method:'PATCH',headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(obj)}).then(async r=>({error:await errOf(r)})) }; }
+    };
+  }
+  const storage={ from(bucket){ return {
+    upload(path,file,opts){ return fetch(`${url}/storage/v1/object/${bucket}/${path}`,{method:'POST',headers:{...H,'Content-Type':(opts&&opts.contentType)||'application/octet-stream'},body:file}).then(async r=>({error:await errOf(r)})); },
+    getPublicUrl(path){ return {data:{publicUrl:`${url}/storage/v1/object/public/${bucket}/${path}`}}; }
+  };}};
+  return { from, storage };
+}
+
 let sb = null, DEMO = false;
-try { if (window.supabase) { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } else { DEMO = true; } }
-catch(e){ DEMO = true; }
+try { sb = makeClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){ DEMO = true; }
 
 /* Dados de exemplo para modo demonstração (quando não há conexão — ex.: prévia do chat) */
 const MOCK_EXT = [
@@ -130,10 +163,9 @@ const MOCK_EXT = [
   {id:'demo-3', codigo:'HID-008', tag:'HD-601121', local:'Escritório central', area:'Terminal', qtd_mangueiras:8, venc_hidrostatico:'2026-04-30', status:'ativo'}
 ];
 const MOCK_EFETIVO = [{id:'d1',nome:'Brigadista (demo)'},{id:'d2',nome:'Supervisor (demo)'}];
-function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão (a prévia do chat bloqueia o acesso). Publique no GitHub para usar os dados reais.</div>' : ''; }
+function bannerDemo(){ return DEMO ? '<div class="alert warn" style="margin:0 0 14px">🔌 Modo demonstração — sem conexão com o banco. Na prévia do chat é normal; no site, verifique se a rede libera o domínio supabase.co.</div>' : ''; }
 
 /* Itens do checklist (baseados no cartão físico + boa prática IT/NBR) */
-const CORES_LACRE = ["Roxo","Amarelo","Verde","Azul","Vermelho","Laranja","Preto","Branco","Cinza"];
 const ITENS = [
   // Coluna do hidrante
   {s:'Coluna do hidrante', t:'Sem vazamento'},
@@ -149,7 +181,7 @@ const ITENS = [
   // Caixa de abrigo das mangueiras
   {s:'Caixa de abrigo das mangueiras', t:'Estrutura da caixa'},
   {s:'Caixa de abrigo das mangueiras', t:'Portas'},
-  {s:'Caixa de abrigo das mangueiras', t:'Vidros'},
+  {s:'Caixa de abrigo das mangueiras', t:'Acrílico'},
   {s:'Caixa de abrigo das mangueiras', t:'Lacre'},
   {s:'Caixa de abrigo das mangueiras', t:'Pintura'},
   {s:'Caixa de abrigo das mangueiras', t:'Suporte para mangueiras'},
@@ -163,9 +195,8 @@ const ITENS = [
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
-try { unlocked = sessionStorage.getItem('sgo_unlock_hid')==='1'; } catch(e){}
+try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
 const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
-const PIN_ADMIN  = "9999";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
@@ -176,34 +207,21 @@ function lastInspetor(){ try{ return sessionStorage.getItem('sgo_inspetor')||'';
 /* ---------- Router ---------- */
 async function init(){
   await carregarEfetivo();
-  const tok = getParam('t');
   const cod = getParam('hid');
-  if(tok){ await abrirPorToken(tok); }
-  else if(cod){ await abrirExtintor(cod); }
+  if(cod){ await abrirExtintor(cod); }
   else { await listaExtintores(); }
 }
 function setView(v){
   document.getElementById('tab-insp').classList.toggle('active', v==='inspecao');
   document.getElementById('tab-qr').classList.toggle('active', v==='qr');
   if(v==='qr') telaQR();
-  else { const tok=getParam('t'),cod=getParam('hid'); if(tok)abrirPorToken(tok); else if(cod)abrirExtintor(cod); else listaExtintores(); }
-}
-
-async function abrirPorToken(token){
-  app.innerHTML = '<div class="loading"><div class="spin"></div>Carregando hidrante…</div>';
-  let data=null;
-  if(sb){
-    try{ const r = await sb.from('hidrantes').select('codigo').eq('token',token).maybeSingle(); if(r.error) throw r.error; data=r.data; }
-    catch(e){ data=null; }
-  }
-  if(!data){ app.innerHTML = erro('QR inválido ou hidrante não encontrado.'); return; }
-  await abrirExtintor(data.codigo);
+  else { const cod=getParam('hid'); cod?abrirExtintor(cod):listaExtintores(); }
 }
 
 async function carregarEfetivo(){
   if(!sb){ DEMO=true; state.efetivo=MOCK_EFETIVO; return; }
   try{
-    const { data, error } = await sb.from('efetivo').select('id,nome,turno').eq('status','ativo').eq('tipo','operacional').order('nome');
+    const { data, error } = await sb.from('efetivo').select('id,nome').eq('status','ativo').order('nome');
     if(error) throw error;
     state.efetivo = data || [];
   }catch(e){ DEMO=true; state.efetivo=MOCK_EFETIVO; }
@@ -322,8 +340,9 @@ function inspecaoHTML(){
     <div class="check">
       <div class="lbl">${x.it.t}</div>
       <div class="toggle">
-        <button id="ok${x.i}" onclick="resp(${x.i},true)">OK</button>
-        <button id="nc${x.i}" onclick="resp(${x.i},false)">NC</button>
+        <button id="ok${x.i}" onclick="resp(${x.i},'ok')">OK</button>
+        <button id="nc${x.i}" onclick="resp(${x.i},'nc')">NC</button>
+        <button id="na${x.i}" onclick="resp(${x.i},'na')">NA</button>
       </div>
     </div>`;
   const e = state.extintor;
@@ -363,7 +382,7 @@ function inspecaoHTML(){
       <h2 class="sec">Mangueiras do abrigo</h2>
       ${(state.mangueiras||[]).length ? state.mangueiras.map((m,i)=>`
         <div class="check">
-          <div class="lbl">Lacre ${m.numero_lacre||'—'}<span style="display:block;font-size:12px;color:var(--muted)">Validade: ${fmtData(m.validade)} · Cor: ${m.cor_lacre||'—'}</span></div>
+          <div class="lbl">Lacre ${m.numero_lacre||'—'}<span style="display:block;font-size:12px;color:var(--muted)">Validade: ${fmtData(m.validade)}</span></div>
           <button class="ghost" style="width:auto;padding:8px 14px;margin:0" onclick="trocarMangueira(${i})">Trocar</button>
         </div>`).join('') : '<p style="color:var(--muted);font-size:13px;margin:0">Nenhuma mangueira cadastrada.</p>'}
       <div id="trocaMangBox"></div>
@@ -395,7 +414,7 @@ function inspecaoHTML(){
 
 function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlock_hid','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -407,8 +426,6 @@ function trocarMangueira(i){
       <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Trocando a mangueira de lacre <b>${m.numero_lacre||'—'}</b>. Informe a nova:</p>
       <input id="novoLacre" placeholder="Novo nº de lacre" style="margin-bottom:8px">
       <input id="novaValidade" type="date" style="margin-bottom:8px">
-      <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:2px;font-weight:700">Cor do novo lacre</label>
-      <select id="novaCor" style="margin-bottom:8px">${CORES_LACRE.map(c=>`<option ${c==='Amarelo'?'selected':''}>${c}</option>`).join('')}</select>
       <button class="save" onclick="confirmarTrocaMang(${i})">Confirmar troca</button>
     </div>`;
 }
@@ -417,17 +434,16 @@ async function confirmarTrocaMang(i){
   const m=state.mangueiras[i];
   const lacre=(document.getElementById('novoLacre').value||'').trim();
   const validade=document.getElementById('novaValidade').value||null;
-  const cor=(document.getElementById('novaCor')||{}).value||null;
-  if(!lacre && !validade && !cor){ alert('Informe o novo lacre, a validade ou a cor.'); return; }
+  if(!lacre && !validade){ alert('Informe o novo lacre ou a nova validade.'); return; }
   if(DEMO || !sb){
     alert('Troca de mangueira registrada (modo demonstração).');
-    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade; m.cor_lacre=cor||m.cor_lacre;
+    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade;
     document.getElementById('inspArea').innerHTML=inspecaoHTML(); return;
   }
   try{
-    await sb.from('trocas_mangueiras').insert({mangueira_id:m.id, hidrante_id:state.extintor.id, lacre_anterior:m.numero_lacre, validade_anterior:m.validade, lacre_novo:lacre||null, validade_nova:validade||null, cor_anterior:m.cor_lacre||null, cor_nova:cor||null});
-    await sb.from('mangueiras').update({numero_lacre:lacre||m.numero_lacre, validade:validade||m.validade, cor_lacre:cor||m.cor_lacre}).eq('id',m.id);
-    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade; m.cor_lacre=cor||m.cor_lacre;
+    await sb.from('trocas_mangueiras').insert({mangueira_id:m.id, hidrante_id:state.extintor.id, lacre_anterior:m.numero_lacre, validade_anterior:m.validade, lacre_novo:lacre||null, validade_nova:validade||null});
+    await sb.from('mangueiras').update({numero_lacre:lacre||m.numero_lacre, validade:validade||m.validade}).eq('id',m.id);
+    m.numero_lacre=lacre||m.numero_lacre; m.validade=validade||m.validade;
     const novoVenc = state.mangueiras.map(x=>x.validade).filter(Boolean).sort()[0]||null;
     await sb.from('hidrantes').update({venc_hidrostatico:novoVenc}).eq('id',state.extintor.id);
     state.extintor.venc_hidrostatico=novoVenc;
@@ -436,10 +452,11 @@ async function confirmarTrocaMang(i){
   }catch(err){ alert('Erro ao registrar troca: '+(err.message||err)); }
 }
 
-function resp(i,ok){
-  state.respostas[i]=ok;
-  document.getElementById('ok'+i).className = ok?'on-ok':'';
-  document.getElementById('nc'+i).className = ok?'':'on-nc';
+function resp(i,st){
+  state.respostas[i]=st;
+  document.getElementById('ok'+i).className = st==='ok'?'on-ok':'';
+  document.getElementById('nc'+i).className = st==='nc'?'on-nc':'';
+  document.getElementById('na'+i).className = st==='na'?'on-na':'';
 }
 
 /* Comprime a foto antes de enviar (mantém leve) */
@@ -461,25 +478,6 @@ function capturarFoto(input){
 }
 
 /* ---------- Salvar ---------- */
-/* ===== Caminho B: verificação de presença por GPS ===== */
-let _foraLocal=false;
-const RAIO_TOLERANCIA = 60; // metros de tolerância (GPS oscila em área industrial)
-function obterLocal(){
-  return new Promise(res=>{
-    if(!navigator.geolocation) return res(null);
-    navigator.geolocation.getCurrentPosition(
-      p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),
-      ()=>res(null),
-      {enableHighAccuracy:true,timeout:10000,maximumAge:0}
-    );
-  });
-}
-function distanciaMetros(la1,lo1,la2,lo2){
-  const R=6371000, rad=x=>x*Math.PI/180;
-  const dla=rad(la2-la1), dlo=rad(lo2-lo1);
-  const a=Math.sin(dla/2)**2+Math.cos(rad(la1))*Math.cos(rad(la2))*Math.sin(dlo/2)**2;
-  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
-}
 async function salvar(){
   const total=ITENS.length, respondidos=Object.keys(state.respostas).length;
   if(respondidos<total){ alert(`Marque todos os itens (${respondidos}/${total}).`); return; }
@@ -490,10 +488,12 @@ async function salvar(){
   const btn=document.getElementById('btnSalvar');
   btn.disabled=true; btn.classList.add('busy'); btn.textContent='Salvando…';
 
-  // monta checklist e conformidade (itens OK/NC)
-  const checklist=ITENS.map((it,i)=>({secao:it.s, item:it.t, conforme:state.respostas[i]}));
-  const conformes=checklist.filter(c=>c.conforme).length;
-  const pct=Math.round(conformes/total*100);
+  // monta checklist e conformidade (OK/NC/NA — NA não entra no cálculo)
+  const checklist=ITENS.map((it,i)=>{ const st=state.respostas[i]; return {secao:it.s, item:it.t, situacao:st, conforme: st==='ok'?true:(st==='nc'?false:null)}; });
+  const na=checklist.filter(c=>c.situacao==='na').length;
+  const denom=total-na;
+  const conformes=checklist.filter(c=>c.situacao==='ok').length;
+  const pct=denom>0?Math.round(conformes/denom*100):100;
   const condicao = pct===100 ? 'conforme' : 'nao_conforme';
   // medições do Anexo I (numéricas, opcionais)
   const g=id=>{const el=document.getElementById(id); return el&&el.value!==''?el.value:null;};
@@ -515,29 +515,11 @@ async function salvar(){
       if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
     }
 
-    // Caminho B — captura de presença por GPS
-    _foraLocal=false;
-    const loc = await obterLocal();
-    let gps = {};
-    if(loc){
-      gps.latitude=loc.lat; gps.longitude=loc.lng; gps.gps_precisao=loc.acc;
-      const ax=state.extintor.latitude, ay=state.extintor.longitude;
-      if(ax!=null && ay!=null){
-        const d=distanciaMetros(loc.lat,loc.lng,ax,ay);
-        gps.distancia_ativo=d; gps.fora_do_local=d>RAIO_TOLERANCIA; _foraLocal=gps.fora_do_local;
-      } else {
-        try{ await sb.from('hidrantes').update({latitude:loc.lat,longitude:loc.lng}).eq('id',state.extintor.id); }catch(e){}
-        gps.fora_do_local=false;
-      }
-    }
-
     // 2) insere na tabela inspecoes existente
-    const _insp = state.efetivo.find(f=>String(f.id)===String(inspetor));
-    const _turno = (_insp && ['A','B','C','D'].includes((_insp.turno||'').trim())) ? (_insp.turno).trim() : null;
     const { error:insErr } = await sb.from('inspecoes').insert({
       tipo:'hidrante', area:state.extintor.area, hidrante_id:state.extintor.id,
-      responsavel_id:inspetor, turno:_turno, checklist:checklistFull, conformidade_pct:pct, condicao,
-      observacoes:document.getElementById('obs').value||null, evidencias, ...gps
+      responsavel_id:inspetor, checklist:checklistFull, conformidade_pct:pct, condicao,
+      observacoes:document.getElementById('obs').value||null, evidencias
     });
     if(insErr) throw insErr;
 
@@ -556,7 +538,6 @@ function telaSucesso(pct, condicao){
   app.innerHTML = `<div class="card"><div class="success">
     <div class="ico" style="${ok?'':'background:var(--ncbg);color:var(--nc)'}">${ok?'✓':'!'}</div>
     <h2>Inspeção registrada</h2>
-    ${_foraLocal?'<p style="color:var(--nc);font-weight:700;margin:0 0 4px">⚠ Inspeção salva FORA do local do ativo — sujeita a revisão</p>':''}
     <p style="color:var(--muted);margin:0 0 4px">${state.extintor.codigo} · conformidade ${pct}%</p>
     <p style="font-weight:700;color:${ok?'var(--ok)':'var(--nc)'}">${ok?'Conforme':'Não conforme — abrir tratativa'}</p>
     <button class="save" style="margin-top:16px" onclick="${getParam('hid')?'location.reload()':'listaExtintores()'}">${getParam('hid')?'Nova inspeção':'‹ Voltar à lista'}</button>
@@ -564,27 +545,12 @@ function telaSucesso(pct, condicao){
 }
 
 /* ---------- Aba QR Codes ---------- */
-function adminOK(){ try{return sessionStorage.getItem('sgo_admin')==='1';}catch(e){return false;} }
-function telaAdminGate(){
-  app.innerHTML = '<div class="card" style="text-align:center;max-width:420px;margin:0 auto">'
-    +'<div style="font-size:42px">🔐</div>'
-    +'<h2 style="margin:6px 0 4px;font-size:17px">Área restrita</h2>'
-    +'<p style="color:var(--muted);font-size:14px;margin:0 0 14px">A geração de QR Codes é exclusiva do administrador. Esta etiqueta não deve ser escaneada da tela — ela é colada no hidrante e lida no local.</p>'
-    +'<input id="apin" type="password" inputmode="numeric" placeholder="Senha do administrador" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key===String.fromCharCode(13))entrarAdmin()">'
-    +'<button class="save" style="margin-top:12px" onclick="entrarAdmin()">Entrar</button></div>';
-}
-function entrarAdmin(){
-  const v=(document.getElementById('apin').value||'').trim();
-  if(v===PIN_ADMIN){ try{sessionStorage.setItem('sgo_admin','1');}catch(e){} telaQR(); }
-  else alert('Senha incorreta.');
-}
 async function telaQR(){
-  if(!adminOK()){ telaAdminGate(); return; }
   app.innerHTML='<div class="loading"><div class="spin"></div>Gerando QR Codes…</div>';
   let data;
   if(!sb){ DEMO=true; data=MOCK_EXT; }
   else{
-    try{ const r = await sb.from('hidrantes').select('codigo,local,qtd_mangueiras,token').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
+    try{ const r = await sb.from('hidrantes').select('codigo,local,qtd_mangueiras').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
     catch(e){ DEMO=true; data=MOCK_EXT; }
   }
   const base = location.href.split('?')[0];
@@ -593,11 +559,11 @@ async function telaQR(){
     return;
   }
   app.innerHTML = bannerDemo()+'<h2 class="sec no-print">Imprima e cole em cada abrigo de hidrante</h2>' +
-    data.map(e=>`<div class="qr-item"><div id="q-${e.codigo}" class="qrc"></div>
+    data.map(e=>`<div class="qr-item"><canvas id="q-${e.codigo}"></canvas>
       <div class="c">${e.codigo}</div><div class="m">${e.local||''}</div></div>`).join('') +
     '<button class="ghost no-print" onclick="window.print()">🖨 Imprimir todos</button>';
   data.forEach(e=>{
-    new QRCode(document.getElementById('q-'+e.codigo), {text:`${base}?t=${e.token||e.codigo}`, width:200, height:200, correctLevel:QRCode.CorrectLevel.M});
+    QRCode.toCanvas(document.getElementById('q-'+e.codigo), `${base}?hid=${e.codigo}`, {width:200,margin:1});
   });
 }
 
