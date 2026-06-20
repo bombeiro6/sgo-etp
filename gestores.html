@@ -255,6 +255,18 @@
       </div>
     </div>
 
+    <div class="card" style="border-top:4px solid #1d9e75">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <i data-lucide="hard-drive-download" style="color:#1d9e75;width:22px;height:22px"></i>
+        <h2 style="margin:0;font-size:16px;font-weight:800;color:#0A2240">Backup completo (Excel)</h2>
+      </div>
+      <p style="color:#5b6b7b;font-size:12.5px;margin:0 0 12px">Um único arquivo .xlsx com todo o sistema em abas — inspeções, NCs abertas, notas de manutenção, cadastros, DSS, efetivo e mural. Inclui a coluna <b>Área</b> (Terminal · Níquel · Cobre). Recomendado mensalmente.</p>
+      <button onclick="baixarBackupCompleto()" style="width:100%;background:#1d9e75;color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+        Baixar backup (.xlsx)
+      </button>
+    </div>
+
     <div class="card" style="border-top:4px solid #C0392B">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <i data-lucide="alert-triangle" style="color:#C0392B;width:22px;height:22px"></i>
@@ -871,6 +883,119 @@ async function baixarExcel(tipoFiltro){
     const hoje=new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, 'SGO-ETP_'+rot+'_'+hoje+'.xlsx');
   }catch(e){ alert('Erro ao gerar a planilha: '+(e.message||e)); }
+}
+
+function _wsSimple(headers, rows){
+  const ws=XLSX.utils.aoa_to_sheet([headers].concat(rows.length?rows:[headers.map(()=>'—')]));
+  const E=XLSX.utils.encode_cell;
+  for(let c=0;c<headers.length;c++){ const ref=E({r:0,c:c}); if(ws[ref]) ws[ref].s=_S.hdr; }
+  ws['!cols']=headers.map(h=>({wch:Math.min(46,Math.max(12,String(h).length+4))}));
+  ws['!rows']=[{hpt:22}];
+  return ws;
+}
+async function baixarBackupCompleto(){
+  let _ok=false; try{ _ok=sessionStorage.getItem('sgo_excel')==='1'; }catch(e){}
+  if(!_ok){
+    const code=prompt('Código para baixar o backup:');
+    if(code===null) return;
+    if((code||'').trim()!==PIN_EXCEL){ alert('Código incorreto. Acesso restrito.'); return; }
+    try{ sessionStorage.setItem('sgo_excel','1'); }catch(e){}
+  }
+  if(!sb){ alert('Sem conexão com o banco.'); return; }
+  if(typeof XLSX==='undefined'){ alert('A biblioteca de Excel ainda não carregou — aguarde 1-2s e tente de novo.'); return; }
+  try{
+    const [insR,efR,exR,hdR,vlR,cbR,manR,dssR,murR]=await Promise.all([
+      sb.from('inspecoes').select('created_at,tipo,area,turno,conformidade_pct,condicao,observacoes,checklist,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id').order('created_at',{ascending:false}),
+      sb.from('efetivo').select('id,nome,funcao,turno,status'),
+      sb.from('extintores').select('*'),
+      sb.from('hidrantes').select('*'),
+      sb.from('valvulas').select('*'),
+      sb.from('casas_bombas').select('*'),
+      sb.from('nc_manutencao').select('*'),
+      sb.from('dss_sessions').select('*').order('data',{ascending:false}),
+      sb.from('mural_fotos').select('categoria,legenda,autor,created_at').order('created_at',{ascending:false})
+    ]);
+    const ins=insR.data||[];
+    const efN={}; (efR.data||[]).forEach(x=>efN[x.id]=x.nome);
+    const aMap={extintor:{},hidrante:{},valvula:{},casa_bomba:{}};
+    (exR.data||[]).forEach(a=>aMap.extintor[a.id]=a);
+    (hdR.data||[]).forEach(a=>aMap.hidrante[a.id]=a);
+    (vlR.data||[]).forEach(a=>aMap.valvula[a.id]=a);
+    (cbR.data||[]).forEach(a=>aMap.casa_bomba[a.id]=a);
+    const fmt=(iso)=>{ try{return iso?new Date(iso).toLocaleString('pt-BR'):'—';}catch(e){return iso||'—';} };
+    const fmtD=(iso)=>{ try{return iso?new Date(iso).toLocaleDateString('pt-BR'):'—';}catch(e){return iso||'—';} };
+    const obs=(o)=>(o||'—').replace(/[\r\n]+/g,' | ');
+    const assetOf=(r)=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; return (aMap[r.tipo] && aMap[r.tipo][id]) || {}; };
+    const cod=(r)=>assetOf(r).codigo||'—';
+    const loc=(r)=>assetOf(r).local||'—';
+    const crit=(p)=> p==null?'—':(p<90?'Crítica':(p<97?'Moderada':'Baixa'));
+    const reprovados=(r)=>{ const cl=Array.isArray(r.checklist)?r.checklist:[]; return cl.filter(it=>it&&(it.situacao==='nc'||it.conforme===false)).map(it=>it.item).filter(Boolean).join('; ')||'—'; };
+
+    const insHeaders=['Data/Hora','Tipo','Ativo','Área','Local','Conf. %','Condição','Responsável','Turno','Observações'];
+    const insRows=ins.map(r=>[fmt(r.created_at),_tipoTxt(r.tipo),cod(r),r.area||'—',loc(r),r.conformidade_pct,(r.condicao==='conforme'?'Conforme':'NÃO CONFORME'),efN[r.responsavel_id]||'—',(r.turno||'').trim()||'—',obs(r.observacoes)]);
+
+    const vis={}, ncAb=[];
+    ins.forEach(r=>{ const id=r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; if(!id)return; const k=r.tipo+':'+id; if(vis[k])return; vis[k]=1; if(r.conformidade_pct!=null && r.conformidade_pct<100) ncAb.push(r); });
+    const ncHeaders=['Ativo','Tipo','Área','Local','Conf. %','Criticidade','Itens reprovados','Data','Responsável'];
+    const ncRows=ncAb.map(r=>[cod(r),_tipoTxt(r.tipo),r.area||'—',loc(r),r.conformidade_pct,crit(r.conformidade_pct),reprovados(r),fmt(r.created_at),efN[r.responsavel_id]||'—']);
+
+    const manHeaders=['Ativo','Tipo','Área','Nº da nota (OM)','Status','Aberta em','Fechada em'];
+    const manRows=(manR.data||[]).map(m=>[m.ativo_codigo||'—',_tipoTxt(m.tipo),m.area||'—',m.nota_numero||'—',(m.status==='fechada'?'Fechada':'Aberta'),fmtD(m.aberta_em),fmtD(m.fechada_em)]);
+
+    const exHeaders=['Código','Tipo','Área','Local','Status','Validade carga','Teste hidrostático'];
+    const exRows=(exR.data||[]).map(a=>[a.codigo||'—',a.tipo||'—',a.area||'—',a.local||'—',a.status||'—',fmtD(a.validade_carga),fmtD(a.validade_hidrostatico)]);
+
+    const hdHeaders=['Código','TAG','Local','Área','Nº mangueiras','Venc. hidrostático','Status'];
+    const hdRows=(hdR.data||[]).map(a=>[a.codigo||'—',a.tag||'—',a.local||'—',a.area||'—',(a.qtd_mangueiras!=null?a.qtd_mangueiras:'—'),fmtD(a.venc_hidrostatico),a.status||'—']);
+
+    const vcHeaders=['Código','TAG','Local','Área','Tipo','Status'];
+    const vcRows=[].concat(
+      (vlR.data||[]).map(a=>[a.codigo||'—',a.tag||'—',a.local||'—',a.area||'—','Válvula',a.status||'—']),
+      (cbR.data||[]).map(a=>[a.codigo||'—',a.tag||'—',a.local||'—',a.area||'—','Casa de bomba',a.status||'—'])
+    );
+
+    const dssHeaders=['Nº doc','Data','Tema','Facilitador','Turno','Status'];
+    const dssRows=(dssR.data||[]).map(s=>[s.numero_doc||'—',fmtD(s.data),s.tema||'—',(s.facilitador_nome||s.facilitador||'—'),(s.turno||'—'),s.status||'—']);
+
+    const efHeaders=['Nome','Função','Turno','Status'];
+    const efRows=(efR.data||[]).map(e=>[e.nome||'—',e.funcao||'—',e.turno||'—',e.status||'—']);
+
+    const muHeaders=['Categoria','Legenda','Autor','Data'];
+    const muRows=(murR.data||[]).map(m=>[m.categoria||'—',m.legenda||'—',m.autor||'—',fmtD(m.created_at)]);
+
+    const total=ins.length, conf=ins.filter(r=>r.condicao==='conforme').length;
+    const media= total?(ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1):'0';
+    const resumo=[
+      ['SGO-ETP · BACKUP COMPLETO'],
+      ['Gerado em', new Date().toLocaleString('pt-BR')],
+      [],
+      ['Inspeções', total],
+      ['Conformes', conf],
+      ['Não conformes (registros)', total-conf],
+      ['Conformidade média', media+'%'],
+      ['NCs abertas (por ativo)', ncAb.length],
+      ['Notas de manutenção', (manR.data||[]).length],
+      ['Extintores', (exR.data||[]).length],
+      ['Hidrantes', (hdR.data||[]).length],
+      ['Válvulas', (vlR.data||[]).length],
+      ['Casas de bomba', (cbR.data||[]).length],
+      ['Efetivo', (efR.data||[]).length]
+    ];
+    const wsRes=XLSX.utils.aoa_to_sheet(resumo); wsRes['!cols']=[{wch:30},{wch:26}];
+
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsRes, 'Resumo');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(insHeaders,insRows), 'Inspeções');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(ncHeaders,ncRows), 'NCs abertas');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(manHeaders,manRows), 'Notas manutenção');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(exHeaders,exRows), 'Extintores');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(hdHeaders,hdRows), 'Hidrantes');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(vcHeaders,vcRows), 'Válvulas-Casas');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(dssHeaders,dssRows), 'DSS');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(efHeaders,efRows), 'Efetivo');
+    XLSX.utils.book_append_sheet(wb, _wsSimple(muHeaders,muRows), 'Mural');
+    XLSX.writeFile(wb, 'SGO-ETP_Backup_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  }catch(e){ alert('Erro ao gerar o backup: '+(e.message||e)); }
 }
 
 function entrarGestor(){
