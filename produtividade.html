@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGO-ETP · Produtividade</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --navy:#0A2240; --navy2:#143257; --teal:#007B6E; --bg:#eef1f5; --card:#fff; --line:#dfe5ec; --ink:#0A2240; --muted:#5b6b7b; --green:#1F7A44; --red:#C0392B; --orange:#C98A00; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(10,34,64,.18)}
+  header .mark{width:34px;height:34px;border-radius:8px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+  header h1{font-size:15px;margin:0;font-weight:700}
+  header small{display:block;font-weight:400;opacity:.75;font-size:11px}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .card h3{margin:0 0 12px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+  th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:800}
+  td.n,th.n{text-align:center}
+  tr.clk{cursor:pointer}
+  tr.clk:hover{background:#f6f9fb}
+  .pos{display:inline-flex;width:22px;height:22px;border-radius:6px;background:var(--navy);color:#fff;font-weight:800;font-size:12px;align-items:center;justify-content:center}
+  .pos.p1{background:#caa12a}.pos.p2{background:#9aa6b2}.pos.p3{background:#b0784a}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .b-ok{background:#e6f3ec;color:var(--green)} .b-md{background:#fbf2dc;color:var(--orange)} .b-bad{background:#fbe9e9;color:var(--red)}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .kpi{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+  .kpi .v{font-size:23px;font-weight:800;line-height:1}
+  .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:4px}
+  .cv{position:relative;height:230px}
+  .back{background:none;border:0;color:var(--teal);font-weight:800;font-size:14px;cursor:pointer;padding:0;margin-bottom:6px}
+  .gate{max-width:380px;margin:60px auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+  .gate input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;margin:12px 0}
+  .btn{width:100%;background:var(--teal);color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer}
+  .loading{text-align:center;padding:50px;color:var(--muted)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .err{color:var(--red);font-size:13px;margin-top:8px;min-height:16px}
+  .muted{color:var(--muted);font-size:12px}
+  @media(min-width:760px){ .kpis{grid-template-columns:repeat(4,1fr)} }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">BI</div>
+  <div><h1>Produtividade por colaborador — SGO-ETP<small>Bombeiros · Terminal Parauapebas · Vale</small></h1></div>
+</header>
+<div class="wrap" id="app"><div class="loading"><div class="spin"></div>Carregando…</div></div>
+
+<script>
+const SUPABASE_URL="https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const PIN_GESTOR="gestor2026";
+const NAVY='#0A2240',TEAL='#007B6E',GREEN='#1F7A44',RED='#C0392B',ORANGE='#C98A00';
+let sb=null; try{ if(window.supabase) sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+const app=document.getElementById('app');
+let gestorOk=false; try{ gestorOk=sessionStorage.getItem('sgo_gestor')==='1'; }catch(e){}
+const _tipo={extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de Bomba'};
+let DADOS=null;
+
+function start(){ if(gestorOk) carregar(); else gate(); }
+function gate(){
+  app.innerHTML=`<div class="gate"><div style="font-size:40px">🔒</div>
+    <h2 style="margin:6px 0 4px;font-size:18px">Acesso gerencial</h2>
+    <p class="muted">Informe o código de gestor.</p>
+    <input id="gpin" type="password" inputmode="numeric" placeholder="Código" onkeydown="if(event.key==='Enter')entrar()">
+    <button class="btn" onclick="entrar()">Entrar</button>
+    <div class="err" id="gerr"></div></div>`;
+}
+function entrar(){
+  const v=(document.getElementById('gpin').value||'').trim();
+  if(v===PIN_GESTOR){ gestorOk=true; try{sessionStorage.setItem('sgo_gestor','1');}catch(e){} carregar(); }
+  else document.getElementById('gerr').textContent='Código incorreto.';
+}
+function fmtD(iso){ try{ return new Date(iso).toLocaleDateString('pt-BR'); }catch(e){ return iso||'—'; } }
+function critBadge(p){ if(p>=97) return '<span class="badge b-ok">'+p+'%</span>'; if(p>=90) return '<span class="badge b-md">'+p+'%</span>'; return '<span class="badge b-bad">'+p+'%</span>'; }
+
+async function carregar(){
+  app.innerHTML='<div class="loading"><div class="spin"></div>Calculando produtividade…</div>';
+  if(!sb){ app.innerHTML='<div class="loading">Sem conexão com o banco.</div>'; return; }
+  try{
+    const [insR,efR]=await Promise.all([
+      sb.from('inspecoes').select('created_at,tipo,area,turno,conformidade_pct,condicao,responsavel_id').order('created_at',{ascending:false}),
+      sb.from('efetivo').select('id,nome,turno,funcao')
+    ]);
+    DADOS={ ins:insR.data||[], ef:efR.data||[] };
+    renderRanking();
+  }catch(e){ app.innerHTML='<div class="loading">Erro ao carregar: '+(e.message||e)+'</div>'; }
+}
+
+
+function porPessoa(){
+  const ef={}; DADOS.ef.forEach(e=>ef[e.id]={nome:e.nome,turno:e.turno,funcao:e.funcao});
+  const m={};
+  DADOS.ins.forEach(r=>{
+    const id=r.responsavel_id; if(!id) return;
+    const o=m[id]||(m[id]={id,nome:(ef[id]&&ef[id].nome)||'—',turno:(ef[id]&&ef[id].turno)||'—',total:0,soma:0,nc:0,dias:{},ultima:null,primeira:null});
+    o.total++; o.soma+=(r.conformidade_pct||0); if(r.condicao!=='conforme') o.nc++;
+    const d=(r.created_at||'').slice(0,10); if(d) o.dias[d]=(o.dias[d]||0)+1;
+    if(!o.ultima||r.created_at>o.ultima) o.ultima=r.created_at;
+    if(!o.primeira||r.created_at<o.primeira) o.primeira=r.created_at;
+  });
+  return Object.values(m).map(o=>{ o.media=o.total?+(o.soma/o.total).toFixed(1):0; o.diasAtivos=Object.keys(o.dias).length; o.porDia=o.diasAtivos?+(o.total/o.diasAtivos).toFixed(1):0; return o; })
+    .sort((a,b)=>b.total-a.total);
+}
+
+function renderRanking(){
+  const pp=porPessoa();
+  const totalInsp=pp.reduce((s,o)=>s+o.total,0);
+  const ativos=pp.length;
+  const mediaGeral=totalInsp?+(pp.reduce((s,o)=>s+o.soma,0)/totalInsp).toFixed(1):0;
+  const topNome=pp.length?pp[0].nome:'—';
+  let rows=pp.map((o,i)=>{
+    const pos=i+1; const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'';
+    return `<tr class="clk" onclick="renderPessoa('${o.id}')">
+      <td><span class="pos ${pc}">${pos}</span></td>
+      <td><b>${o.nome}</b><div class="muted">Turno ${o.turno}</div></td>
+      <td class="n"><b>${o.total}</b></td>
+      <td class="n">${critBadge(o.media)}</td>
+      <td class="n">${o.nc}</td>
+      <td class="n">${o.porDia}</td>
+      <td class="n">${o.diasAtivos}</td>
+    </tr>`;
+  }).join('');
+  app.innerHTML=`
+    <div class="kpis">
+      <div class="kpi"><div class="v" style="color:${NAVY}">${totalInsp}</div><div class="l">Inspeções totais</div></div>
+      <div class="kpi"><div class="v" style="color:${TEAL}">${ativos}</div><div class="l">Colaboradores ativos</div></div>
+      <div class="kpi"><div class="v" style="color:${GREEN}">${mediaGeral}%</div><div class="l">Conformidade média</div></div>
+      <div class="kpi"><div class="v" style="color:${ORANGE}">${pp.length?pp[0].total:0}</div><div class="l">Top: ${topNome}</div></div>
+    </div>
+    <div class="card">
+      <h3>Ranking de produtividade <span class="muted">(toque num nome para a ficha individual)</span></h3>
+      <div style="overflow-x:auto"><table>
+        <tr><th>#</th><th>Colaborador</th><th class="n">Inspeções</th><th class="n">Conf. média</th><th class="n">NCs</th><th class="n">Insp/dia</th><th class="n">Dias ativos</th></tr>
+        ${rows}
+      </table></div>
+      <p class="muted" style="margin-top:10px">Insp/dia = inspeções ÷ dias em que o colaborador registrou ao menos uma. Conformidade média = qualidade das inspeções dele.</p>
+    </div>`;
+}
+
+function renderPessoa(id){
+  const pp=porPessoa(); const o=pp.find(x=>x.id===id); if(!o){ renderRanking(); return; }
+  const insP=DADOS.ins.filter(r=>r.responsavel_id===id);
+  // por tipo
+  const porTipo={}; insP.forEach(r=>{ const t=_tipo[r.tipo]||r.tipo||'—'; porTipo[t]=(porTipo[t]||0)+1; });
+  // por dia (ordenado)
+  const dias=Object.keys(o.dias).sort();
+  app.innerHTML=`
+    <button class="back" onclick="renderRanking()">← voltar ao ranking</button>
+    <div class="card">
+      <h3>${o.nome} <span class="muted">· Turno ${o.turno}</span></h3>
+      <div class="kpis">
+        <div class="kpi"><div class="v" style="color:${NAVY}">${o.total}</div><div class="l">Inspeções</div></div>
+        <div class="kpi"><div class="v" style="color:${TEAL}">${o.media}%</div><div class="l">Conf. média</div></div>
+        <div class="kpi"><div class="v" style="color:${RED}">${o.nc}</div><div class="l">NCs registradas</div></div>
+        <div class="kpi"><div class="v" style="color:${ORANGE}">${o.porDia}</div><div class="l">Insp/dia</div></div>
+      </div>
+      <p class="muted">Período: ${fmtD(o.primeira)} a ${fmtD(o.ultima)} · ${o.diasAtivos} dias ativos</p>
+    </div>
+    <div class="card"><h3>Inspeções por dia</h3><div class="cv"><canvas id="cd"></canvas></div></div>
+    <div class="card"><h3>Por tipo de ativo</h3><div class="cv"><canvas id="ct"></canvas></div></div>
+    <div class="card">
+      <h3>Últimas inspeções</h3>
+      <div style="overflow-x:auto"><table>
+        <tr><th>Data/Hora</th><th>Tipo</th><th>Área</th><th class="n">Conf.</th><th>Condição</th></tr>
+        ${insP.slice(0,40).map(r=>`<tr>
+          <td>${new Date(r.created_at).toLocaleString('pt-BR')}</td>
+          <td>${_tipo[r.tipo]||r.tipo||'—'}</td>
+          <td>${r.area||'—'}</td>
+          <td class="n">${critBadge(r.conformidade_pct||0)}</td>
+          <td>${r.condicao==='conforme'?'<span class="badge b-ok">Conforme</span>':'<span class="badge b-bad">Não conf.</span>'}</td>
+        </tr>`).join('')}
+      </table></div>
+    </div>`;
+  const baseOpt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+  new Chart(document.getElementById('cd'),{type:'bar',data:{labels:dias.map(d=>d.slice(8,10)+'/'+d.slice(5,7)),datasets:[{data:dias.map(d=>o.dias[d]),backgroundColor:TEAL,borderRadius:5}]},options:Object.assign({},baseOpt,{scales:{y:{beginAtZero:true,ticks:{precision:0}}}})});
+  new Chart(document.getElementById('ct'),{type:'doughnut',data:{labels:Object.keys(porTipo),datasets:[{data:Object.values(porTipo),backgroundColor:[NAVY,TEAL,ORANGE,RED,'#94a3b8']}]},options:Object.assign({},baseOpt,{plugins:{legend:{display:true,position:'bottom'}}})});
+}
+
+start();
+</script>
+</body>
+</html>

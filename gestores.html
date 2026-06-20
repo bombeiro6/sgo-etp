@@ -255,6 +255,17 @@
       </div>
     </div>
 
+    <div class="card" style="border-top:4px solid #185FA5">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <i data-lucide="bar-chart-3" style="color:#185FA5;width:22px;height:22px"></i>
+        <h2 style="margin:0;font-size:16px;font-weight:800;color:#0A2240">Produtividade por colaborador</h2>
+      </div>
+      <p style="color:#5b6b7b;font-size:12.5px;margin:0 0 12px">Ranking e ficha individual: inspeções, conformidade média, NCs, inspeções por dia e histórico. Acesso restrito ao gestor.</p>
+      <button onclick="abrirProdutividade()" style="width:100%;background:#185FA5;color:#fff;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer">
+        <i data-lucide="users" style="width:18px;height:18px"></i> Abrir produtividade
+      </button>
+    </div>
+
     <div class="card" style="border-top:4px solid #1d9e75">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <i data-lucide="hard-drive-download" style="color:#1d9e75;width:22px;height:22px"></i>
@@ -997,6 +1008,8 @@ async function baixarBackupCompleto(){
     XLSX.writeFile(wb, 'SGO-ETP_Backup_'+new Date().toISOString().slice(0,10)+'.xlsx');
   }catch(e){ alert('Erro ao gerar o backup: '+(e.message||e)); }
 }
+
+function abrirProdutividade(){ window.location.href='produtividade.html'; }
 
 function entrarGestor(){
   const v=(document.getElementById('gpin').value||'').trim();
