@@ -195,7 +195,7 @@ const ITENS = [
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
-try { unlocked = localStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
+try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
 const PIN_EQUIPE = "";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
@@ -394,7 +394,7 @@ function inspecaoHTML(){
 
 async function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(await sgoAcesso('equipe', v)){ unlocked=true; try{localStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(await sgoAcesso('equipe', v)){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 

@@ -94,6 +94,7 @@
     body{font-size:16px}
   }
 </style>
+<script src="sgo-config.js"></script>
 <script src="sgo-auth.js"></script>
 </head>
 <body>
@@ -117,8 +118,8 @@
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 <script>
 /* ===== CONFIG SGO-ETP ===== */
-const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const SUPABASE_URL = (window.SGO&&SGO.URL) || "https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY = (window.SGO&&SGO.KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const BUCKET = "inspecao-fotos";
 
 /* Cliente Supabase próprio via fetch (sem CDN externo — funciona em rede corporativa) */
@@ -202,7 +203,7 @@ const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;
 let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
-try { unlocked = localStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
+try { unlocked = sessionStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
 const PIN_EQUIPE="";
 const PIN_ADMIN="";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
@@ -453,7 +454,7 @@ function inspecaoHTML(){
 
 async function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(await sgoAcesso('equipe', v)){ unlocked=true; try{localStorage.setItem('sgo_unlock_ext','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(await sgoAcesso('equipe', v)){ unlocked=true; try{sessionStorage.setItem('sgo_unlock_ext','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
