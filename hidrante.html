@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SGO-ETP · Inspeção de Hidrantes</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A2240">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --navy:#0A2240; --navy2:#143257; --teal:#007B6E; --teal-d:#015d53;
@@ -87,6 +90,8 @@
   .lock-ic{width:62px;height:62px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 12px}
   @media print{header,.tabs,.no-print{display:none}.qr-item{page-break-inside:avoid}}
 </style>
+<script src="sgo-config.js"></script>
+<script src="sgo-auth.js"></script>
 </head>
 <body>
 <header>
@@ -108,8 +113,8 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 /* ===== CONFIG SGO-ETP ===== */
-const SUPABASE_URL = "https://wcyftjpsbifyvuqzxmbs.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const SUPABASE_URL = (window.SGO&&SGO.URL) || "https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY = (window.SGO&&SGO.KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const BUCKET = "inspecao-fotos";
 
 /* Cliente Supabase próprio via fetch (sem CDN externo — funciona em rede corporativa) */
@@ -195,8 +200,8 @@ const ITENS = [
 const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;                  // controla o acesso à inspeção
-try { unlocked = sessionStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
-const PIN_EQUIPE = "1234";             // << TROQUE pelo código secreto da sua equipe de bombeiros
+try { unlocked = localStorage.getItem('sgo_unlocked')==='1'; } catch(e){}
+const PIN_EQUIPE="";             // << TROQUE pelo código secreto da sua equipe de bombeiros
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
@@ -412,9 +417,9 @@ function inspecaoHTML(){
     <button id="btnSalvar" class="save" onclick="salvar()">Salvar inspeção</button>`;
 }
 
-function desbloquear(){
+async function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(await sgoAcesso('equipe', v)){ unlocked=true; try{localStorage.setItem('sgo_unlocked','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -510,34 +515,46 @@ async function salvar(){
     // 1) upload da foto (se houver)
     let evidencias=[];
     if(state.foto){
-      const nome=`${state.extintor.codigo}/${Date.now()}.jpg`;
-      const { error:upErr } = await sb.storage.from(BUCKET).upload(nome, state.foto, {contentType:'image/jpeg'});
-      if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
+      try{
+        const nome=`${state.extintor.codigo}/${Date.now()}.jpg`;
+        const { error:upErr } = await sb.storage.from(BUCKET).upload(nome, state.foto, {contentType:'image/jpeg'});
+        if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
+      }catch(e){ /* offline: salva sem foto */ }
     }
 
-    // 2) insere na tabela inspecoes existente
-    const { error:insErr } = await sb.from('inspecoes').insert({
+    // 2) insere na tabela inspecoes (com fila offline)
+    const _payload = {
       tipo:'hidrante', area:state.extintor.area, hidrante_id:state.extintor.id,
       responsavel_id:inspetor, checklist:checklistFull, conformidade_pct:pct, condicao,
       observacoes:document.getElementById('obs').value||null, evidencias
-    });
-    if(insErr) throw insErr;
+    };
+    let _offline=false;
+    try{
+      const { error:insErr } = await sb.from('inspecoes').insert(_payload);
+      if(insErr) throw insErr;
+    }catch(e){
+      const msg=((e&&(e.message||e))+'').toLowerCase();
+      const _semRede = !navigator.onLine || /failed to fetch|networkerror|network error|fetch|timeout|load failed/.test(msg);
+      if(_semRede && window.SGOOffline){ SGOOffline.enqueue(_payload); _offline=true; }
+      else throw e;
+    }
 
-    // 3) atualiza última inspeção do hidrante
-    await sb.from('hidrantes').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id);
+    // 3) atualiza última inspeção do hidrante (só online)
+    if(!_offline){ try{ await sb.from('hidrantes').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id); }catch(e){} }
 
-    telaSucesso(pct, condicao);
+    telaSucesso(pct, condicao, _offline);
   }catch(err){
     btn.disabled=false; btn.classList.remove('busy'); btn.textContent='Salvar inspeção';
     alert('Erro ao salvar: '+(err.message||err));
   }
 }
 
-function telaSucesso(pct, condicao){
+function telaSucesso(pct, condicao, offline){
   const ok = condicao==='conforme';
   app.innerHTML = `<div class="card"><div class="success">
     <div class="ico" style="${ok?'':'background:var(--ncbg);color:var(--nc)'}">${ok?'✓':'!'}</div>
-    <h2>Inspeção registrada</h2>
+    <h2>${offline?'Inspeção salva offline':'Inspeção registrada'}</h2>
+    ${offline?'<p style="color:var(--warn);font-weight:700;margin:0 0 4px">📴 Sem conexão — guardada no aparelho e enviada quando a rede voltar.</p>':''}
     <p style="color:var(--muted);margin:0 0 4px">${state.extintor.codigo} · conformidade ${pct}%</p>
     <p style="font-weight:700;color:${ok?'var(--ok)':'var(--nc)'}">${ok?'Conforme':'Não conforme — abrir tratativa'}</p>
     <button class="save" style="margin-top:16px" onclick="${getParam('hid')?'location.reload()':'listaExtintores()'}">${getParam('hid')?'Nova inspeção':'‹ Voltar à lista'}</button>
@@ -570,6 +587,11 @@ async function telaQR(){
 function erro(msg){ return `<div class="card"><div class="alert nc">⚠ ${msg}</div></div>`; }
 
 init();
+</script>
+<script src="sgo-offline.js"></script>
+<script>
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
+  try{ if(window.SGOOffline && typeof sb!=='undefined' && sb) SGOOffline.init(sb); }catch(e){}
 </script>
 </body>
 </html>
