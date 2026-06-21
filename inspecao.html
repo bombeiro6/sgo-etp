@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SGO-ETP · Inspeção de Extintores</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A2240">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --navy:#0A2240; --navy2:#143257; --teal:#007B6E; --teal-d:#015d53;
@@ -91,6 +94,7 @@
     body{font-size:16px}
   }
 </style>
+<script src="sgo-auth.js"></script>
 </head>
 <body>
 <header>
@@ -198,9 +202,9 @@ const app = document.getElementById('app');
 let state = { extintor:null, respostas:{}, foto:null, efetivo:[] };
 let unlocked = false;
 let TREINO = false;                    // inspeção demonstrativa (não grava)                  // controla o acesso à inspeção
-try { unlocked = sessionStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
-const PIN_EQUIPE = "1234";
-const PIN_ADMIN  = "9999";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
+try { unlocked = localStorage.getItem('sgo_unlock_ext')==='1'; } catch(e){}
+const PIN_EQUIPE="";
+const PIN_ADMIN="";             // << SENHA SÓ DO ADMINISTRADOR — controla a aba "Gerar QR Codes". TROQUE por uma senha forte e secreta.
 
 /* ---------- Helpers ---------- */
 function fmtData(d){ if(!d) return '—'; const [a,m,dia]=d.split('-'); return `${dia}/${m}/${a}`; }
@@ -447,9 +451,9 @@ function inspecaoHTML(){
     <button id="btnSalvar" class="save" onclick="salvar()">Salvar inspeção</button>`;
 }
 
-function desbloquear(){
+async function desbloquear(){
   const v=(document.getElementById('pin').value||'').trim();
-  if(v===PIN_EQUIPE){ unlocked=true; try{sessionStorage.setItem('sgo_unlock_ext','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
+  if(await sgoAcesso('equipe', v)){ unlocked=true; try{localStorage.setItem('sgo_unlock_ext','1');}catch(e){} document.getElementById('inspArea').innerHTML=inspecaoHTML(); }
   else { alert('Código incorreto. Procure o supervisor da equipe.'); }
 }
 
@@ -578,9 +582,11 @@ async function salvar(){
     // 1) upload da foto (se houver)
     let evidencias=[];
     if(state.foto){
-      const nome=`${state.extintor.codigo}/${Date.now()}.jpg`;
-      const { error:upErr } = await sb.storage.from(BUCKET).upload(nome, state.foto, {contentType:'image/jpeg'});
-      if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
+      try{
+        const nome=`${state.extintor.codigo}/${Date.now()}.jpg`;
+        const { error:upErr } = await sb.storage.from(BUCKET).upload(nome, state.foto, {contentType:'image/jpeg'});
+        if(!upErr){ const { data:pub } = sb.storage.from(BUCKET).getPublicUrl(nome); evidencias=[pub.publicUrl]; }
+      }catch(e){ /* offline: salva sem foto */ }
     }
 
     // Caminho B — captura de presença por GPS
@@ -603,19 +609,32 @@ async function salvar(){
     const _insp = state.efetivo.find(f=>String(f.id)===String(inspetor));
     const _turno = (_insp && ['A','B','C','D'].includes((_insp.turno||'').trim())) ? (_insp.turno).trim() : null;
 
-    // 2) insere na tabela inspecoes existente
-    const { error:insErr } = await sb.from('inspecoes').insert({
+    // 2) insere na tabela inspecoes (com fila offline)
+    const _payload = {
       tipo:'extintor', area:state.extintor.area, extintor_id:state.extintor.id,
       responsavel_id:inspetor, turno:_turno, checklist, conformidade_pct:pct, condicao,
       observacoes:document.getElementById('obs').value||null, evidencias, ...gps
-    });
-    if(insErr) throw insErr;
+    };
+    let _offline=false;
+    try{
+      const { error:insErr } = await sb.from('inspecoes').insert(_payload);
+      if(insErr) throw insErr;
+    }catch(e){
+      const msg=((e&&(e.message||e))+'').toLowerCase();
+      const _semRede = !navigator.onLine || /failed to fetch|networkerror|network error|fetch|timeout|load failed/.test(msg);
+      if(_semRede && window.SGOOffline){
+        SGOOffline.enqueue(_payload);   // guarda no aparelho, sincroniza depois
+        _offline=true;
+      } else {
+        throw e;                        // erro real (ex.: permissão/coluna) — mostra ao usuário
+      }
+    }
 
-    // 3) atualiza última inspeção do extintor
-    await sb.from('extintores').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id);
+    // 3) atualiza última inspeção (só online)
+    if(!_offline){ try{ await sb.from('extintores').update({ultima_inspecao:new Date().toISOString()}).eq('id',state.extintor.id); }catch(e){} }
 
     // 3b) atualização de dados do extintor (recarga/troca), se solicitado
-    if(_atualizaDados){
+    if(!_offline && _atualizaDados){
       const upd={};
       const ano=(document.getElementById('updAno')?.value||'').trim(); if(ano) upd.ano_fabricacao=parseInt(ano,10);
       const anel=(document.getElementById('updAnel')?.value||'').trim(); if(anel) upd.cor_anel=anel;
@@ -625,21 +644,22 @@ async function salvar(){
     }
 
     // 4) se foi retirado, registra a troca (série/selo do novo extintor)
-    if(retirado){ try{ await registrarTrocaInterna(); }catch(e){} }
+    if(!_offline && retirado){ try{ await registrarTrocaInterna(); }catch(e){} }
 
-    telaSucesso(pct, condicao);
+    telaSucesso(pct, condicao, _offline);
   }catch(err){
     btn.disabled=false; btn.classList.remove('busy'); btn.textContent='Salvar inspeção';
     alert('Erro ao salvar: '+(err.message||err));
   }
 }
 
-function telaSucesso(pct, condicao){
+function telaSucesso(pct, condicao, offline){
   const ok = condicao==='conforme';
   app.innerHTML = `<div class="card"><div class="success">
     <div class="ico" style="${ok?'':'background:var(--ncbg);color:var(--nc)'}">${ok?'✓':'!'}</div>
-    <h2>${TREINO?'Inspeção demonstrativa concluída':'Inspeção registrada'}</h2>
-    ${(!TREINO&&_foraLocal)?'<p style="color:var(--nc);font-weight:700;margin:0 0 4px">⚠ Inspeção salva FORA do local do ativo — sujeita a revisão</p>':''}
+    <h2>${TREINO?'Inspeção demonstrativa concluída':(offline?'Inspeção salva offline':'Inspeção registrada')}</h2>
+    ${offline?'<p style="color:var(--warn);font-weight:700;margin:0 0 4px">📴 Sem conexão — guardada no aparelho e enviada automaticamente quando a rede voltar.</p>':''}
+    ${(!TREINO&&!offline&&_foraLocal)?'<p style="color:var(--nc);font-weight:700;margin:0 0 4px">⚠ Inspeção salva FORA do local do ativo — sujeita a revisão</p>':''}
     ${TREINO?'<p style="color:var(--warn);font-weight:700;margin:0 0 4px">🎓 Treinamento — nada foi gravado no sistema</p>':''}
     <p style="color:var(--muted);margin:0 0 4px">${state.extintor.codigo} · conformidade ${pct}%</p>
     <p style="font-weight:700;color:${ok?'var(--ok)':'var(--nc)'}">${ok?'Conforme':'Não conforme — abrir tratativa'}</p>
@@ -657,9 +677,9 @@ function telaAdminGate(){
     +'<input id="apin" type="password" inputmode="numeric" placeholder="Senha do administrador" style="text-align:center;letter-spacing:4px;font-size:18px" onkeydown="if(event.key===String.fromCharCode(13))entrarAdmin()">'
     +'<button class="save" style="margin-top:12px" onclick="entrarAdmin()">Entrar</button></div>';
 }
-function entrarAdmin(){
+async function entrarAdmin(){
   const v=(document.getElementById('apin').value||'').trim();
-  if(v===PIN_ADMIN){ try{sessionStorage.setItem('sgo_admin','1');}catch(e){} telaQR(); }
+  if(await sgoAcesso('admin', v)){ try{sessionStorage.setItem('sgo_admin','1');}catch(e){} telaQR(); }
   else alert('Senha incorreta.');
 }
 async function telaQR(){
@@ -689,6 +709,11 @@ async function telaQR(){
 function erro(msg){ return `<div class="card"><div class="alert nc">⚠ ${msg}</div></div>`; }
 
 init();
+</script>
+<script src="sgo-offline.js"></script>
+<script>
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
+  try{ if(window.SGOOffline && typeof sb!=='undefined' && sb) SGOOffline.init(sb); }catch(e){}
 </script>
 </body>
 </html>
