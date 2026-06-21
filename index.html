@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#0A2240" />
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="sgo-ui.css">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <title>SGO-ETP · Brigada de Emergência — Terminal Parauapebas</title>
@@ -118,8 +121,10 @@
     .row.prio{grid-column:1 / -1}
   }
 </style>
+<script src="sgo-config.js"></script>
+<script src="sgo-auth.js"></script>
 </head>
-<body>
+<body class="sgo-theme">
 
 <!-- TELA DE ACESSO -->
 <div id="login" style="position:fixed;inset:0;background:#0A2240;display:flex;align-items:center;justify-content:center;padding:24px;z-index:50">
@@ -239,8 +244,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL="https://wcyftjpsbifyvuqzxmbs.supabase.co";
-const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+const SUPABASE_URL = (window.SGO&&SGO.URL) || "https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY = (window.SGO&&SGO.KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const NIVEIS={verde:{t:'Verde',c:'#5DCAA5',b:'#1D9E75'},amarelo:{t:'Amarelo',c:'#FAC775',b:'#BA7517'},laranja:{t:'Laranja',c:'#F0997B',b:'#D85A30'},vermelho:{t:'Vermelho',c:'#F09595',b:'#C0392B'}};
 function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
 (async function(){
@@ -343,7 +348,7 @@ function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; 
 
 </div><!-- /#app -->
 <script>
-const PIN_SGO = "1234";
+const PIN_SGO="";
 (function(){
   let ok=false; try{ ok=sessionStorage.getItem('sgo_login')==='1'; }catch(e){}
   if(ok) liberarSGO();
@@ -353,9 +358,9 @@ function liberarSGO(){
   var l=document.getElementById('login'); if(l) l.style.display='none';
   var a=document.getElementById('app'); if(a) a.style.display='block';
 }
-function entrarSGO(){
+async function entrarSGO(){
   var v=(document.getElementById('lpin').value||'').trim();
-  if(v===PIN_SGO){ try{sessionStorage.setItem('sgo_login','1');}catch(e){} liberarSGO(); }
+  if(await sgoAcesso('equipe', v)){ try{sessionStorage.setItem('sgo_login','1');}catch(e){} liberarSGO(); }
   else { var e=document.getElementById('lerr'); if(e) e.textContent='Código incorreto.'; }
 }
 </script>
@@ -471,6 +476,9 @@ async function muralPublicar(){
   }catch(e){ btn.disabled=false; msg.style.color='#C0392B'; msg.textContent='Erro: '+(e.message||e); }
 }
 muralCarregar();
+</script>
+<script>
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
 </script>
 </body>
 </html>

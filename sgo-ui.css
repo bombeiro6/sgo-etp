@@ -1,0 +1,61 @@
+/* ============================================================
+   SGO-UI · camada de refino visual (SOMENTE CSS, sem libs)
+   Ativa apenas com <body class="sgo-theme"> → reversível.
+   Não altera estrutura, dados, login nem permissões.
+   ============================================================ */
+.sgo-theme{
+  --sgo-card:#ffffff;
+  --sgo-line:#e3e9f0;
+  --sgo-ink:#0A2240;
+  --sgo-muted:#62748a;
+  --sgo-ok:#1F7A44;   --sgo-okbg:#e7f4ec;
+  --sgo-warn:#B7791F; --sgo-warnbg:#fbf3e2;
+  --sgo-bad:#C0392B;  --sgo-badbg:#fbeae8;
+  --sgo-shadow:0 1px 2px rgba(16,34,64,.06), 0 2px 8px rgba(16,34,64,.07);
+  --sgo-shadow-h:0 6px 18px rgba(16,34,64,.13);
+}
+
+/* leve profundidade no fundo (sem custo) */
+.sgo-theme{ background:linear-gradient(180deg,#f4f7fb 0, #eef2f6 260px) !important; }
+
+/* ---- cartões mais elegantes ---- */
+.sgo-theme .tile,
+.sgo-theme .row,
+.sgo-theme .stat,
+.sgo-theme .mural{
+  box-shadow:var(--sgo-shadow);
+  border-color:var(--sgo-line);
+  transition:box-shadow .18s ease, transform .12s ease, border-color .18s ease;
+}
+@media (hover:hover){
+  .sgo-theme .tile:hover,
+  .sgo-theme .row:hover{ box-shadow:var(--sgo-shadow-h); transform:translateY(-1px); border-color:#d3deea; }
+}
+
+/* hierarquia: título de seção mais definido */
+.sgo-theme .sect{ letter-spacing:.3px; opacity:.95; }
+
+/* ---- utilitários reutilizáveis (uso novo, opcional) ---- */
+.sgo-chip{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:12px;padding:3px 10px;border-radius:20px;line-height:1.45}
+.sgo-chip.ok{background:var(--sgo-okbg);color:var(--sgo-ok)}
+.sgo-chip.warn{background:var(--sgo-warnbg);color:var(--sgo-warn)}
+.sgo-chip.bad{background:var(--sgo-badbg);color:var(--sgo-bad)}
+
+.sgo-bar{height:8px;border-radius:8px;background:#e7ecf2;overflow:hidden}
+.sgo-bar>i{display:block;height:100%;border-radius:8px;background:var(--sgo-ok);transition:width .5s ease}
+.sgo-bar.warn>i{background:var(--sgo-warn)}
+.sgo-bar.bad>i{background:var(--sgo-bad)}
+
+.sgo-alert{display:flex;gap:10px;align-items:flex-start;background:var(--sgo-badbg);border:1px solid #f1c9c3;border-left:4px solid var(--sgo-bad);border-radius:12px;padding:12px 14px;color:#7a2018;font-size:13px}
+.sgo-alert.warn{background:var(--sgo-warnbg);border-color:#ecd7a8;border-left-color:var(--sgo-warn);color:#7a5a12}
+.sgo-alert .ic{flex:0 0 auto;margin-top:1px}
+
+.sgo-kpi{background:var(--sgo-card);border:1px solid var(--sgo-line);border-radius:14px;padding:14px;box-shadow:var(--sgo-shadow);text-align:center}
+.sgo-kpi .v{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.5px}
+.sgo-kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--sgo-muted);margin-top:5px;font-weight:700}
+
+/* ---- microanimação de entrada (suave; respeita acessibilidade) ---- */
+@media (prefers-reduced-motion:no-preference){
+  .sgo-theme .tile,.sgo-theme .row{animation:sgoIn .26s ease both}
+  @keyframes sgoIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+}
