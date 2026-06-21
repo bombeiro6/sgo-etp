@@ -59,3 +59,62 @@
   .sgo-theme .tile,.sgo-theme .row{animation:sgoIn .26s ease both}
   @keyframes sgoIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 }
+
+/* ============================================================
+   SGO-UI · camada "MARCANTE" (ainda só CSS, reversível)
+   Reforça contraste, sombra, ícones e cor por tipo de ativo.
+   ============================================================ */
+
+/* sombra e respiro um grau acima nos cards */
+.sgo-theme .tile,
+.sgo-theme .row{
+  box-shadow:0 2px 4px rgba(16,34,64,.05), 0 8px 20px rgba(16,34,64,.10);
+  border-radius:18px;
+}
+.sgo-theme .tile{ padding:16px; }
+
+/* títulos de seção com mais presença + traço colorido à esquerda */
+.sgo-theme .sect{
+  font-weight:800; color:#34465c; letter-spacing:.4px;
+  display:flex; align-items:center; gap:8px;
+}
+.sgo-theme .sect::before{
+  content:""; width:4px; height:14px; border-radius:3px;
+  background:#C0392B; display:inline-block;
+}
+
+/* ícones dos cards mais destacados */
+.sgo-theme .tin{ font-size:15px; font-weight:800; letter-spacing:-.2px; }
+.sgo-theme .tile .ico,
+.sgo-theme .tile [class*="ico"]{
+  width:42px;height:42px;border-radius:12px;
+  box-shadow:inset 0 0 0 1px rgba(16,34,64,.05);
+}
+
+/* ---- COR POR TIPO DE ATIVO (faixa superior + ícone tonal) ---- */
+/* aplica-se a .tile que tenha um data-tipo OU classes utilitárias .t-ext / .t-hid / .t-cb / .t-vlv */
+.sgo-theme .tile.t-ext,.sgo-theme .tile[data-tipo="extintor"]{ border-top:3px solid #C0392B; }
+.sgo-theme .tile.t-ext .ico,.sgo-theme .tile[data-tipo="extintor"] .ico{ background:#fbe9e8; }
+.sgo-theme .tile.t-hid,.sgo-theme .tile[data-tipo="hidrante"]{ border-top:3px solid #185FA5; }
+.sgo-theme .tile.t-hid .ico,.sgo-theme .tile[data-tipo="hidrante"] .ico{ background:#e7f0fa; }
+.sgo-theme .tile.t-cb,.sgo-theme .tile[data-tipo="casa_bomba"]{ border-top:3px solid #1F7A44; }
+.sgo-theme .tile.t-cb .ico,.sgo-theme .tile[data-tipo="casa_bomba"] .ico{ background:#e7f4ec; }
+.sgo-theme .tile.t-vlv,.sgo-theme .tile[data-tipo="valvula"]{ border-top:3px solid #B7791F; }
+.sgo-theme .tile.t-vlv .ico,.sgo-theme .tile[data-tipo="valvula"] .ico{ background:#fbf3e2; }
+
+/* linhas de gestão: ícone tonal + chevron mais visível */
+.sgo-theme .row .rib,
+.sgo-theme .row [class*="rib"]{ width:40px;height:40px;border-radius:11px; }
+.sgo-theme .row .chev{ color:#9fb0c4; font-weight:800; }
+
+/* KPIs do topo com mais peso */
+.sgo-theme .stat,.sgo-theme .sgo-kpi{ border-radius:14px; }
+.sgo-theme .stat .v,.sgo-theme .sgo-kpi .v{ font-size:27px; letter-spacing:-.6px; }
+
+/* faixa de status colorida nos KPIs (use .is-ok / .is-warn / .is-bad) */
+.sgo-theme .stat.is-ok,.sgo-theme .sgo-kpi.is-ok{ box-shadow:inset 0 3px 0 #1F7A44, var(--sgo-shadow); }
+.sgo-theme .stat.is-warn,.sgo-theme .sgo-kpi.is-warn{ box-shadow:inset 0 3px 0 #B7791F, var(--sgo-shadow); }
+.sgo-theme .stat.is-bad,.sgo-theme .sgo-kpi.is-bad{ box-shadow:inset 0 3px 0 #C0392B, var(--sgo-shadow); }
+
+/* estado de toque mais nítido */
+.sgo-theme .tile:active,.sgo-theme .row:active{ transform:scale(.985); }
