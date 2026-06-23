@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGO-ETP · Prontidão Diária</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A2240">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="sgo-config.js"></script>
+<script src="sgo-auth.js"></script>
+<style>
+  :root{ --navy:#0A2240; --teal:#007B6E; --bg:#eef1f5; --card:#fff; --line:#e3e9f0; --ink:#0A2240; --muted:#62748a; --ok:#1F7A44; --warn:#B7791F; --bad:#C0392B; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+  header .mk{width:34px;height:34px;border-radius:9px;background:var(--bad);display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+  header h1{font-size:15px;margin:0}
+  header small{display:block;opacity:.75;font-weight:400;font-size:11px}
+  .wrap{max-width:760px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,34,64,.05),0 4px 14px rgba(16,34,64,.06)}
+  label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:15px;font-family:inherit;background:#fff}
+  textarea{min-height:64px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .btn{display:block;width:100%;background:var(--teal);color:#fff;border:0;border-radius:12px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;text-align:center;margin-top:6px}
+  .btn.red{background:var(--bad)} .btn.ghost{background:#eef2f6;color:var(--navy)} .btn.nav{background:#f1f5f9;color:var(--navy);border:1px solid var(--line)}
+  .gate{max-width:380px;margin:50px auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+  .gate input{text-align:center;letter-spacing:3px;font-size:18px;margin:12px 0}
+  .err{color:var(--bad);font-size:13px;min-height:16px;margin-top:6px}
+  .muted{color:var(--muted);font-size:12px}
+  .sect{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:6px 0 8px;border-left:3px solid var(--bad);padding-left:8px}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;background:#e7f4ec;color:var(--ok)}
+  .pill.lock{background:#fbeae8;color:var(--bad)}
+  .fotos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+  .fotos .f{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f3f5f8}
+  .fotos .f img{width:100%;height:100%;object-fit:cover}
+  .fotos .f button{position:absolute;top:3px;right:3px;background:rgba(192,57,43,.92);color:#fff;border:0;border-radius:50%;width:22px;height:22px;font-weight:800;cursor:pointer;line-height:1}
+  .fadd{display:flex;align-items:center;justify-content:center;border:1.5px dashed var(--teal);border-radius:10px;aspect-ratio:1;color:var(--teal);font-size:26px;cursor:pointer;background:#f3fbfa}
+  .loading{text-align:center;padding:50px;color:var(--muted)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .ok-msg{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 18px;border-radius:30px;font-size:13px;font-weight:700;opacity:0;transition:.25s;z-index:50}
+  .ok-msg.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="mk">🚨</div>
+  <div><h1>Prontidão Diária<small>Bombeiros · Terminal Parauapebas · Vale</small></h1></div>
+</header>
+<div class="wrap" id="app"><div class="loading"><div class="spin"></div>Carregando…</div></div>
+<div class="ok-msg" id="toast"></div>
+
+<script>
+const SUPABASE_URL=(window.SGO&&SGO.URL)||"https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY=(window.SGO&&SGO.KEY)||"";
+const BUCKET="inspecao-fotos";
+let sb=null; try{ if(window.supabase) sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+const app=document.getElementById('app');
+let unlocked=false; try{ unlocked=sessionStorage.getItem('sgo_unlock_prt')==='1'; }catch(e){}
+let P=null;   // prontidão atual
+
+function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),1800); }
+function pad(n){ return (n<10?'0':'')+n; }
+function hoje(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function fmtData(s){ if(!s)return'—'; const p=String(s).slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+
+function start(){ if(unlocked) abrir(); else gate(); }
+function gate(){
+  app.innerHTML=`<div class="gate"><div style="font-size:40px">🔒</div>
+    <h2 style="margin:6px 0 4px;font-size:18px">Prontidão Diária</h2>
+    <p class="muted">Informe o código da equipe.</p>
+    <input id="cp" type="password" inputmode="numeric" placeholder="Código" onkeydown="if(event.key==='Enter')entrar()">
+    <button class="btn" onclick="entrar()">Entrar</button>
+    <div class="err" id="ce"></div></div>`;
+}
+async function entrar(){
+  const v=val('cp');
+  if(await sgoAcesso('equipe', v)){ unlocked=true; try{sessionStorage.setItem('sgo_unlock_prt','1');}catch(e){} abrir(); }
+  else document.getElementById('ce').textContent='Código incorreto.';
+}
+
+/* ---------- abrir/continuar plantão ---------- */
+function abrir(){
+  app.innerHTML=`
+    <div class="card">
+      <div class="sect">Abrir / continuar plantão</div>
+      <div class="grid2">
+        <div><label>Data</label><input type="date" id="aData" value="${hoje()}"></div>
+        <div><label>Turno</label><select id="aTurno"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+      </div>
+      <button class="btn" onclick="abrirPlantao()">Abrir plantão do dia</button>
+      <p class="muted" style="margin-top:10px">Se já existir um plantão para essa data e turno, ele continua de onde parou.</p>
+    </div>
+    <button class="btn ghost" onclick="modoGestor()">📑 Relatórios por período (gestor)</button>`;
+}
+
+async function abrirPlantao(){
+  const data=val('aData'), turno=val('aTurno');
+  if(!data){ alert('Escolha a data.'); return; }
+  app.innerHTML='<div class="loading"><div class="spin"></div>Abrindo plantão…</div>';
+  if(!sb){ app.innerHTML='<div class="loading">Sem conexão.</div>'; return; }
+  try{
+    let { data:rows } = await sb.from('prontidoes').select('*').eq('data',data).eq('turno',turno).limit(1);
+    if(rows && rows.length){ P=rows[0]; }
+    else {
+      const ano=new Date(data).getFullYear();
+      const { count } = await sb.from('prontidoes').select('id',{count:'exact',head:true}).gte('data',ano+'-01-01').lte('data',ano+'-12-31');
+      const numero='PRT-'+ano+'-'+String((count||0)+1).padStart(4,'0');
+      const novo={ numero_doc:numero, data, turno, fotos:[], status:'aberta' };
+      const { data:ins, error } = await sb.from('prontidoes').insert(novo).select().single();
+      if(error) throw error; P=ins;
+    }
+    preencher();
+  }catch(e){ app.innerHTML='<div class="loading">Erro: '+(e.message||e)+'</div>'; }
+}
+
+/* ---------- formulário ---------- */
+function preencher(){
+  const enc = P.status==='encerrada';
+  const ro = enc ? 'disabled' : '';
+  const fotos = Array.isArray(P.fotos)?P.fotos:[];
+  app.innerHTML=`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><b>${P.numero_doc||'—'}</b><div class="muted">${fmtData(P.data)} · Turno ${P.turno||'—'}</div></div>
+        <span class="pill ${enc?'lock':''}">${enc?'Encerrada':'Em preenchimento'}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sect">Plantão</div>
+      <label>Local / base</label><input id="local" value="${P.local||''}" placeholder="Ex.: Canteiro central" ${ro}>
+      <div class="grid2">
+        <div><label>Frente de serviço</label><input id="frente_servico" value="${P.frente_servico||''}" placeholder="Ex.: 02" ${ro}></div>
+        <div><label>Torres / ponto</label><input id="torres_local" value="${P.torres_local||''}" placeholder="Ex.: Torres 17 e 18" ${ro}></div>
+      </div>
+      <label>Serviços do dia</label><textarea id="servicos" placeholder="Ex.: Equipe de montagem; retirada de cabos entre torres 17 e 18." ${ro}>${P.servicos||''}</textarea>
+    </div>
+
+    <div class="card">
+      <div class="sect">Equipe e viatura</div>
+      <div class="grid2">
+        <div><label>Técnico</label><input id="tecnico" value="${P.tecnico||''}" ${ro}></div>
+        <div><label>Condutor</label><input id="condutor" value="${P.condutor||''}" ${ro}></div>
+      </div>
+      <div class="grid3">
+        <div><label>Viatura</label><input id="viatura" value="${P.viatura||''}" placeholder="RE-02" ${ro}></div>
+        <div><label>KM inicial</label><input id="km_inicial" inputmode="numeric" value="${P.km_inicial||''}" ${ro}></div>
+        <div><label>KM final</label><input id="km_final" inputmode="numeric" value="${P.km_final||''}" ${ro}></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sect">Horários</div>
+      <div class="grid2">
+        <div><label>Saída TPA → Taipy</label><input type="time" id="h_saida_tpa" value="${P.h_saida_tpa||''}" ${ro}></div>
+        <div><label>Saída Taipy → refeitório/TPA</label><input type="time" id="h_saida_taipy" value="${P.h_saida_taipy||''}" ${ro}></div>
+        <div><label>Retorno p/ prontidão</label><input type="time" id="h_retorno" value="${P.h_retorno||''}" ${ro}></div>
+        <div><label>Final da prontidão</label><input type="time" id="h_final_prontidao" value="${P.h_final_prontidao||''}" ${ro}></div>
+        <div><label>Hora final base TPA</label><input type="time" id="h_final_base" value="${P.h_final_base||''}" ${ro}></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sect">Relatório de prontidão</div>
+      <label>Situação</label>
+      <select id="relatorio_status" ${ro} onchange="toggleOcorr()">
+        <option ${P.relatorio_status==='Sem alteração'?'selected':''}>Sem alteração</option>
+        <option ${P.relatorio_status==='Com ocorrência'?'selected':''}>Com ocorrência</option>
+      </select>
+      <div id="ocorrBox" style="display:${P.relatorio_status==='Com ocorrência'?'block':'none'}">
+        <label>Descrição da ocorrência</label>
+        <textarea id="relatorio_texto" ${ro}>${P.relatorio_texto||''}</textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sect">Fotos (até 4)</div>
+      <div class="fotos" id="fotosBox">
+        ${fotos.map((u,i)=>`<div class="f"><img src="${u}">${enc?'':`<button onclick="remFoto(${i})">×</button>`}</div>`).join('')}
+        ${(!enc && fotos.length<4)?`<label class="fadd">＋<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addFoto(this)"></label>`:''}
+      </div>
+    </div>
+
+    ${enc ? `
+      <button class="btn" onclick="gerarPDFdia(P)">⬇ Baixar PDF do plantão</button>
+      <button class="btn ghost" onclick="abrir()">Voltar</button>
+    ` : `
+      <button class="btn ghost" onclick="salvar(false)">💾 Salvar (continuar depois)</button>
+      <button class="btn red" onclick="encerrar()">✅ Encerrar plantão e gerar PDF</button>
+      <button class="btn nav" onclick="abrir()" style="margin-top:6px">Trocar de plantão</button>
+    `}
+    <p class="muted" style="text-align:center;margin-top:10px">Documento ${P.numero_doc||''} · criado em ${P.created_at?fmtData(P.created_at):'—'} — registro rastreável.</p>
+  `;
+}
+function toggleOcorr(){ document.getElementById('ocorrBox').style.display = val('relatorio_status')==='Com ocorrência'?'block':'none'; }
+
+function coleta(){
+  return {
+    local:val('local'), frente_servico:val('frente_servico'), torres_local:val('torres_local'),
+    servicos:val('servicos'), tecnico:val('tecnico'), condutor:val('condutor'), viatura:val('viatura'),
+    km_inicial:val('km_inicial'), km_final:val('km_final'),
+    h_saida_tpa:val('h_saida_tpa'), h_saida_taipy:val('h_saida_taipy'), h_retorno:val('h_retorno'),
+    h_final_prontidao:val('h_final_prontidao'), h_final_base:val('h_final_base'),
+    relatorio_status:val('relatorio_status'), relatorio_texto:val('relatorio_texto'),
+    updated_at:new Date().toISOString()
+  };
+}
+async function salvar(silent){
+  if(P.status==='encerrada') return;
+  const upd=coleta();
+  if(!P.preenchido_por) upd.preenchido_por='equipe';
+  try{
+    const { error }=await sb.from('prontidoes').update(upd).eq('id',P.id);
+    if(error) throw error;
+    Object.assign(P,upd);
+    if(!silent) toast('Salvo ✓');
+    return true;
+  }catch(e){ alert('Erro ao salvar: '+(e.message||e)); return false; }
+}
+
+/* ---------- fotos (comprime ≤200KB) ---------- */
+function comprime(file){
+  return new Promise((res,rej)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let w=img.width,h=img.height; const max=1280;
+      if(w>h && w>max){ h=h*max/w; w=max; } else if(h>max){ w=w*max/h; h=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      const tryq=(q)=>c.toBlob(b=>{ if(b.size>200*1024 && q>0.4) tryq(q-0.1); else { URL.revokeObjectURL(url); res(b); } },'image/jpeg',q);
+      tryq(0.8);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('imagem inválida')); };
+    img.src=url;
+  });
+}
+async function addFoto(inp){
+  const file=inp.files&&inp.files[0]; if(!file) return;
+  const fotos=Array.isArray(P.fotos)?P.fotos.slice():[];
+  if(fotos.length>=4){ alert('Máximo de 4 fotos.'); return; }
+  toast('Enviando foto…');
+  try{
+    if(!P.id){ await salvar(true); }
+    const blob=await comprime(file);
+    const path='prontidao/'+P.id+'/f'+Date.now()+'.jpg';
+    const { error }=await sb.storage.from(BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:false});
+    if(error) throw error;
+    const u=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    fotos.push(u);
+    await sb.from('prontidoes').update({fotos:fotos,updated_at:new Date().toISOString()}).eq('id',P.id);
+    P.fotos=fotos; preencher(); toast('Foto adicionada ✓');
+  }catch(e){ alert('Erro na foto: '+(e.message||e)); }
+}
+async function remFoto(i){
+  const fotos=Array.isArray(P.fotos)?P.fotos.slice():[]; fotos.splice(i,1);
+  try{ await sb.from('prontidoes').update({fotos:fotos,updated_at:new Date().toISOString()}).eq('id',P.id); P.fotos=fotos; preencher(); }catch(e){ alert('Erro: '+(e.message||e)); }
+}
+
+/* ---------- encerrar + PDF ---------- */
+async function encerrar(){
+  if(!val('local') && !val('servicos')){ alert('Preencha ao menos o local e os serviços antes de encerrar.'); return; }
+  if(val('relatorio_status')==='Com ocorrência' && !val('relatorio_texto')){ alert('Descreva a ocorrência.'); return; }
+  if(!confirm('Encerrar o plantão? Depois de encerrado, o registro fica travado para edição.')) return;
+  const upd=coleta(); upd.status='encerrada'; upd.encerrada_em=new Date().toISOString(); if(!P.preenchido_por) upd.preenchido_por='equipe';
+  try{
+    const { error }=await sb.from('prontidoes').update(upd).eq('id',P.id);
+    if(error) throw error; Object.assign(P,upd);
+    gerarPDFdia(P); preencher();
+  }catch(e){ alert('Erro ao encerrar: '+(e.message||e)); }
+}
+
+/* ---------- PDF de um plantão ---------- */
+async function carregaImg(url){
+  try{ const r=await fetch(url); const b=await r.blob(); return await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(null); fr.readAsDataURL(b); }); }catch(e){ return null; }
+}
+async function desenhaProntidao(doc, p, yStart){
+  const W=210, M=14, CW=W-2*M; let y=yStart;
+  doc.setFillColor(10,34,64); doc.rect(0,y,W,22,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text('Prontidão Diária',M,y+10);
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(174,190,212);
+  doc.text('Bombeiros — Terminal Parauapebas / Vale',M,y+16);
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text(p.numero_doc||'',W-M,y+10,{align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(174,190,212);
+  doc.text(fmtData(p.data)+' · Turno '+(p.turno||'—'),W-M,y+16,{align:'right'});
+  y+=30;
+  function linha(lbl,v){ if(v===undefined||v===null||v==='')v='—';
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(98,116,138);doc.text(lbl,M,y);
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(30,42,60);
+    const ls=doc.splitTextToSize(String(v),CW-46); doc.text(ls,M+46,y); y+=Math.max(6, ls.length*5); }
+  linha('Local',p.local); linha('Frente serviço',p.frente_servico); linha('Torres/Ponto',p.torres_local);
+  linha('Serviços',p.servicos);
+  doc.setDrawColor(223,229,236); doc.line(M,y,W-M,y); y+=6;
+  linha('Técnico',p.tecnico); linha('Condutor',p.condutor);
+  linha('Viatura',p.viatura); linha('KM',(p.km_inicial||'—')+'  →  '+(p.km_final||'—'));
+  doc.line(M,y,W-M,y); y+=6;
+  linha('Saída TPA→Taipy',p.h_saida_tpa); linha('Saída Taipy→ref.',p.h_saida_taipy);
+  linha('Retorno prontidão',p.h_retorno); linha('Final prontidão',p.h_final_prontidao);
+  linha('Hora final base',p.h_final_base);
+  doc.line(M,y,W-M,y); y+=6;
+  linha('Relatório',(p.relatorio_status||'—')+(p.relatorio_texto?(': '+p.relatorio_texto):''));
+  // fotos
+  const fotos=Array.isArray(p.fotos)?p.fotos:[];
+  if(fotos.length){
+    y+=2; doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(98,116,138);doc.text('Registro fotográfico',M,y); y+=4;
+    const fw=(CW-3*4)/4, fh=fw*0.75; let x=M;
+    for(let i=0;i<fotos.length && i<4;i++){
+      const d=await carregaImg(fotos[i]);
+      if(d){ try{ doc.addImage(d,'JPEG',x,y,fw,fh); }catch(e){} }
+      else { doc.setDrawColor(220,225,232); doc.rect(x,y,fw,fh); }
+      x+=fw+4;
+    }
+    y+=fh+4;
+  }
+  doc.setFontSize(8); doc.setTextColor(150,160,175);
+  doc.text('Criado em '+(p.created_at?fmtData(p.created_at):'—')+' · '+(p.status==='encerrada'?'Encerrada':'Aberta')+' · preenchido por '+(p.preenchido_por||'equipe'),M,y+2);
+  return y+8;
+}
+async function gerarPDFdia(p){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  await desenhaProntidao(doc,p,0);
+  doc.save('Prontidao_'+(p.numero_doc||fmtData(p.data).replace(/\//g,'-'))+'.pdf');
+}
+
+/* ---------- modo gestor: PDF por período ---------- */
+function modoGestor(){
+  app.innerHTML=`<div class="gate"><div style="font-size:38px">📑</div>
+    <h2 style="margin:6px 0 4px;font-size:18px">Relatórios por período</h2>
+    <p class="muted">Código de gestor.</p>
+    <input id="gp" type="password" inputmode="numeric" placeholder="Código" onkeydown="if(event.key==='Enter')entrarGestor()">
+    <button class="btn ghost" onclick="entrarGestor()">Entrar</button>
+    <div class="err" id="ge"></div>
+    <button class="btn nav" style="margin-top:10px" onclick="abrir()">Voltar</button></div>`;
+}
+async function entrarGestor(){
+  if(await sgoAcesso('gestor', val('gp'))){ painelGestor(); }
+  else document.getElementById('ge').textContent='Código incorreto.';
+}
+function painelGestor(){
+  const fim=hoje(); const d=new Date(); d.setDate(d.getDate()-7); const ini=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  app.innerHTML=`
+    <div class="card">
+      <div class="sect">Prontidões por período</div>
+      <div class="grid2">
+        <div><label>De</label><input type="date" id="gIni" value="${ini}"></div>
+        <div><label>Até</label><input type="date" id="gFim" value="${fim}"></div>
+      </div>
+      <button class="btn" onclick="gerarPeriodo()">⬇ Gerar PDF do período</button>
+      <p class="muted" style="margin-top:10px">Um plantão por página, em um único PDF (sem ZIP).</p>
+    </div>
+    <div id="gLista"></div>
+    <button class="btn nav" onclick="abrir()">Voltar</button>`;
+  listaPeriodo();
+}
+async function listaPeriodo(){
+  const box=document.getElementById('gLista'); if(!box) return;
+  try{
+    const { data }=await sb.from('prontidoes').select('numero_doc,data,turno,status')
+      .gte('data',val('gIni')).lte('data',val('gFim')).order('data',{ascending:true});
+    const arr=data||[];
+    box.innerHTML='<div class="card"><div class="muted">'+arr.length+' plantão(ões) no período</div>'+
+      arr.map(p=>`<div style="padding:7px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${p.numero_doc||'—'}</b> · ${fmtData(p.data)} · Turno ${p.turno||'—'} <span class="pill ${p.status==='encerrada'?'':'lock'}" style="float:right">${p.status==='encerrada'?'Encerrada':'Aberta'}</span></div>`).join('')+'</div>';
+  }catch(e){ box.innerHTML='<div class="card muted">Erro: '+(e.message||e)+'</div>'; }
+}
+async function gerarPeriodo(){
+  const i=val('gIni'), f=val('gFim'); if(!i||!f){ alert('Escolha o período.'); return; }
+  toast('Montando PDF…');
+  try{
+    const { data }=await sb.from('prontidoes').select('*').gte('data',i).lte('data',f).order('data',{ascending:true});
+    const arr=data||[]; if(!arr.length){ alert('Nenhum plantão no período.'); return; }
+    const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+    for(let k=0;k<arr.length;k++){ if(k>0) doc.addPage(); await desenhaProntidao(doc,arr[k],0); }
+    doc.save('Prontidoes_'+fmtData(i).replace(/\//g,'-')+'_a_'+fmtData(f).replace(/\//g,'-')+'.pdf');
+  }catch(e){ alert('Erro: '+(e.message||e)); }
+}
+
+start();
+</script>
+</body>
+</html>
