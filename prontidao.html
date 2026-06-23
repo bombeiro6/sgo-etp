@@ -57,7 +57,7 @@
 
 <script>
 const SUPABASE_URL=(window.SGO&&SGO.URL)||"https://wcyftjpsbifyvuqzxmbs.supabase.co";
-const SUPABASE_KEY=(window.SGO&&SGO.KEY)||"";
+const SUPABASE_KEY=(window.SGO&&SGO.KEY)||"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
 const BUCKET="inspecao-fotos";
 let sb=null; try{ if(window.supabase) sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
 const app=document.getElementById('app');
