@@ -118,3 +118,11 @@
 
 /* estado de toque mais nítido */
 .sgo-theme .tile:active,.sgo-theme .row:active{ transform:scale(.985); }
+
+/* ---- barra de cobertura nos cards de ativo (X/Y) ---- */
+.tcov{ margin-top:10px }
+.tcov .tcovl{ font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:#8aa0b8; font-weight:800 }
+.tcov .tcovn{ font-size:15px; font-weight:800; color:#0A2240; margin-top:1px; letter-spacing:-.3px }
+.tcov .tcovn small{ font-size:12px; color:#8aa0b8; font-weight:700 }
+.tcov .tcovbar{ height:7px; border-radius:7px; background:#eef1f5; overflow:hidden; margin-top:6px }
+.tcov .tcovbar>i{ display:block; height:100%; border-radius:7px; transition:width .5s ease }
