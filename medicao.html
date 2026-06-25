@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGO-ETP · BI de Medição</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A2240">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="sgo-config.js"></script>
+<script src="sgo-auth.js"></script>
+<style>
+  :root{ --navy:#0A2240; --teal:#007B6E; --bg:#eef1f5; --card:#fff; --line:#e3e9f0; --ink:#0A2240; --muted:#62748a; --ok:#1F7A44; --warn:#B7791F; --bad:#C0392B; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+  header .mk{width:34px;height:34px;border-radius:9px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+  header h1{font-size:15px;margin:0}
+  header small{display:block;opacity:.75;font-weight:400;font-size:11px}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,34,64,.05),0 4px 14px rgba(16,34,64,.06)}
+  .cyc{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .cyc button{background:#f1f5f9;border:1px solid var(--line);border-radius:10px;width:42px;height:42px;font-size:20px;font-weight:800;color:var(--navy)}
+  .cyc .per{text-align:center;flex:1}
+  .cyc .per b{font-size:17px;display:block}
+  .cyc .per span{font-size:11px;color:var(--muted)}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .kpi{border:1px solid var(--line);border-radius:12px;padding:13px;text-align:center}
+  .kpi .v{font-size:23px;font-weight:800;line-height:1;letter-spacing:-.5px}
+  .kpi .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-top:5px;font-weight:700}
+  h3{font-size:13px;margin:0 0 12px;color:var(--navy);display:flex;align-items:center;gap:7px}
+  h3::before{content:"";width:4px;height:14px;border-radius:3px;background:var(--bad)}
+  .chartbox{position:relative;height:240px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px;text-align:left;border-bottom:1px solid var(--line)}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:800}
+  td.n,th.n{text-align:right}
+  .chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .ok{background:#e7f4ec;color:var(--ok)} .wn{background:#fbf3e2;color:var(--warn)} .bd{background:#fbeae8;color:var(--bad)}
+  .btn{display:block;width:100%;background:var(--bad);color:#fff;border:0;border-radius:12px;padding:15px;font-size:15px;font-weight:800;text-align:center;margin-top:4px}
+  .gate{max-width:380px;margin:60px auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
+  .gate input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:18px;text-align:center;letter-spacing:3px;margin:12px 0}
+  .gate .btn{background:var(--teal)}
+  .loading{text-align:center;padding:50px;color:var(--muted)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--teal);border-radius:50%;animation:s .8s linear infinite;margin:0 auto 12px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .err{color:var(--bad);font-size:13px;min-height:16px}
+  .muted{color:var(--muted);font-size:12px}
+  @media(min-width:760px){ .kpis{grid-template-columns:repeat(6,1fr)} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px} .grid2 .card{margin-bottom:0} }
+</style>
+</head>
+<body>
+<header>
+  <div class="mk">📊</div>
+  <div><h1>BI de Medição — Proatividade<small>Bombeiros · Terminal Parauapebas · Vale</small></h1></div>
+</header>
+<div class="wrap" id="app"><div class="loading"><div class="spin"></div>Carregando…</div></div>
+
+<script>
+const SUPABASE_URL=(window.SGO&&SGO.URL)||"https://wcyftjpsbifyvuqzxmbs.supabase.co";
+const SUPABASE_KEY=(window.SGO&&SGO.KEY)||"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM";
+let sb=null; try{ if(window.supabase) sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){}
+const app=document.getElementById('app');
+const _tipo={extintor:'Extintor',hidrante:'Hidrante',valvula:'Válvula',casa_bomba:'Casa de Bombas'};
+const CORTIPO={extintor:'#C0392B',hidrante:'#185FA5',casa_bomba:'#1F7A44',valvula:'#B7791F'};
+let gOk=false; try{ gOk=sessionStorage.getItem('sgo_gestor')==='1'; }catch(e){}
+let offset=-1, DADOS=null, CH={};
+if(window.Chart){ Chart.defaults.font.family='-apple-system,Segoe UI,Roboto,sans-serif'; Chart.defaults.color='#5b6b7b'; }
+
+function pad(n){ return (n<10?'0':'')+n; }
+function fmt(d){ return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear(); }
+function fc(d){ return pad(d.getDate())+'/'+pad(d.getMonth()+1); }
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function ciclo(off){
+  const now=new Date(); let sy=now.getFullYear(), sm=now.getMonth();
+  if(now.getDate()<21){ sm-=1; if(sm<0){sm=11;sy--;} }
+  sm+=off; while(sm<0){sm+=12;sy--;} while(sm>11){sm-=12;sy++;}
+  return { start:new Date(sy,sm,21,0,0,0), end:new Date(sy,sm+1,20,23,59,59) };
+}
+
+function start(){ if(gOk) carregar(); else gate(); }
+function gate(){
+  app.innerHTML=`<div class="gate"><div style="font-size:40px">🔒</div>
+    <h2 style="margin:6px 0 4px;font-size:18px">Acesso gerencial</h2>
+    <p class="muted">Informe o código de gestor.</p>
+    <input id="gp" type="password" inputmode="numeric" placeholder="Código" onkeydown="if(event.key==='Enter')entrar()">
+    <button class="btn" onclick="entrar()">Entrar</button><div class="err" id="ge"></div></div>`;
+}
+async function entrar(){
+  if(await sgoAcesso('gestor', val('gp'))){ gOk=true; try{sessionStorage.setItem('sgo_gestor','1');}catch(e){} carregar(); }
+  else document.getElementById('ge').textContent='Código incorreto.';
+}
+
+async function carregar(){
+  app.innerHTML='<div class="loading"><div class="spin"></div>Apurando o ciclo…</div>';
+  if(!sb){ app.innerHTML='<div class="loading">Sem conexão.</div>'; return; }
+  const {start:ini,end:fim}=ciclo(offset);
+  try{
+    const [insR,efR,cEx,cHd,cVl,cCb]=await Promise.all([
+      sb.from('inspecoes').select('created_at,tipo,area,conformidade_pct,condicao,responsavel_id,extintor_id,hidrante_id,valvula_id,casa_bomba_id').gte('created_at',ini.toISOString()).lte('created_at',fim.toISOString()).order('created_at',{ascending:true}),
+      sb.from('efetivo').select('id,nome,turno'),
+      sb.from('extintores').select('id',{count:'exact',head:true}),
+      sb.from('hidrantes').select('id',{count:'exact',head:true}),
+      sb.from('valvulas').select('id',{count:'exact',head:true}),
+      sb.from('casas_bombas').select('id',{count:'exact',head:true})
+    ]);
+    const efN={},efT={}; (efR.data||[]).forEach(e=>{efN[e.id]=e.nome;efT[e.id]=e.turno||'—';});
+    DADOS={ ini,fim, ins:insR.data||[], efN, efT, totais:{extintor:cEx.count||0,hidrante:cHd.count||0,valvula:cVl.count||0,casa_bomba:cCb.count||0} };
+    render();
+  }catch(e){ app.innerHTML='<div class="loading">Erro: '+(e.message||e)+'</div>'; }
+}
+
+function agrupa(arr,keyFn){
+  const m={}; arr.forEach(r=>{ const k=keyFn(r)||'—'; (m[k]||(m[k]={n:0,soma:0,nc:0})); m[k].n++; m[k].soma+=(r.conformidade_pct||0); if(r.condicao!=='conforme')m[k].nc++; });
+  return Object.keys(m).map(k=>({k,n:m[k].n,media:m[k].n?+(m[k].soma/m[k].n).toFixed(1):0,nc:m[k].nc})).sort((a,b)=>b.n-a.n);
+}
+function ativoId(r){ return r.extintor_id||r.hidrante_id||r.valvula_id||r.casa_bomba_id; }
+function chip(p){ const c=p>=97?'ok':p>=90?'wn':'bd'; return '<span class="chip '+c+'">'+p+'%</span>'; }
+
+function render(){
+  const {ini,fim,ins,efN,efT,totais}=DADOS;
+  const total=ins.length;
+  const conf=ins.filter(r=>r.condicao==='conforme').length;
+  const media= total? +(ins.reduce((a,r)=>a+(r.conformidade_pct||0),0)/total).toFixed(1):0;
+  const ncs=total-conf;
+  const diasSet=new Set(ins.map(r=>(r.created_at||'').slice(0,10)));
+  const dias=diasSet.size;
+  const bombeiros=new Set(ins.map(r=>r.responsavel_id).filter(Boolean)).size;
+  const ritmo= dias? (total/dias).toFixed(1):'0';
+  // cobertura: ativos distintos inspecionados no ciclo, por tipo
+  const cobMap={}; ['extintor','hidrante','valvula','casa_bomba'].forEach(t=>cobMap[t]=new Set());
+  ins.forEach(r=>{ const id=ativoId(r); if(id&&cobMap[r.tipo])cobMap[r.tipo].add(id); });
+  const cobertos=Object.values(cobMap).reduce((a,s)=>a+s.size,0);
+
+  const porColab=agrupa(ins,r=>efN[r.responsavel_id]).slice(0,12);
+  const porTurno=agrupa(ins,r=>'Turno '+(efT[r.responsavel_id]||'—'));
+  const porTipo=agrupa(ins,r=>_tipo[r.tipo]||r.tipo);
+  const porArea=agrupa(ins,r=>r.area);
+  // por dia
+  const diasArr=[...diasSet].sort();
+  const porDia=diasArr.map(d=>({d, n:ins.filter(r=>(r.created_at||'').slice(0,10)===d).length}));
+
+  DADOS.calc={total,media,ncs,dias,bombeiros,ritmo,cobertos,porColab,porTurno,porTipo,porArea,porDia,cobMap};
+
+  app.innerHTML=`
+    <div class="card cyc">
+      <button onclick="muda(-1)">‹</button>
+      <div class="per"><b>${fc(ini)} a ${fc(fim)}</b><span>ciclo de medição (21 → 20) · ${fim.getFullYear()}</span></div>
+      <button onclick="muda(1)">›</button>
+    </div>
+
+    <div class="card">
+      <div class="kpis">
+        <div class="kpi"><div class="v" style="color:var(--navy)">${total}</div><div class="l">Inspeções</div></div>
+        <div class="kpi"><div class="v" style="color:var(--teal)">${ritmo}</div><div class="l">Inspeções/dia</div></div>
+        <div class="kpi"><div class="v" style="color:var(--navy)">${bombeiros}</div><div class="l">Bombeiros atuantes</div></div>
+        <div class="kpi"><div class="v" style="color:var(--warn)">${dias}</div><div class="l">Dias com registro</div></div>
+        <div class="kpi"><div class="v" style="color:#185FA5">${cobertos}</div><div class="l">Ativos cobertos</div></div>
+        <div class="kpi"><div class="v" style="color:${media>=97?'var(--ok)':media>=90?'var(--warn)':'var(--bad)'}">${media}%</div><div class="l">Conformidade</div></div>
+      </div>
+      ${total===0?'<p class="muted" style="text-align:center;margin:10px 0 0">Nenhuma inspeção neste ciclo.</p>':''}
+    </div>
+
+    <div class="card"><h3>Proatividade da equipe — inspeções por bombeiro</h3><div class="chartbox"><canvas id="cProat"></canvas></div></div>
+
+    <div class="grid2">
+      <div class="card"><h3>Ritmo no ciclo (inspeções por dia)</h3><div class="chartbox"><canvas id="cDia"></canvas></div></div>
+      <div class="card"><h3>Distribuição por tipo de ativo</h3><div class="chartbox"><canvas id="cTipo"></canvas></div></div>
+    </div>
+
+    <div class="card"><h3>Cobertura de ativos no ciclo (inspecionados x total)</h3><div class="chartbox"><canvas id="cCob"></canvas></div></div>
+
+    <div class="card">
+      <h3>Proatividade detalhada por bombeiro</h3>
+      <table><tr><th>Bombeiro</th><th>Turno</th><th class="n">Inspeções</th><th class="n">Conf.</th><th class="n">NC</th></tr>
+      ${porColab.map(t=>{const r=ins.find(x=>efN[x.responsavel_id]===t.k);const tn=r?efT[r.responsavel_id]:'—';return `<tr><td>${t.k}</td><td>${tn}</td><td class="n"><b>${t.n}</b></td><td class="n">${chip(t.media)}</td><td class="n">${t.nc}</td></tr>`;}).join('')||'<tr><td colspan="5" class="muted">—</td></tr>'}
+      </table>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3>Por tipo</h3><table><tr><th>Tipo</th><th class="n">Insp.</th><th class="n">Conf.</th></tr>${porTipo.map(t=>`<tr><td>${t.k}</td><td class="n">${t.n}</td><td class="n">${chip(t.media)}</td></tr>`).join('')||'<tr><td colspan=3 class=muted>—</td></tr>'}</table></div>
+      <div class="card"><h3>Por área</h3><table><tr><th>Área</th><th class="n">Insp.</th><th class="n">Conf.</th></tr>${porArea.map(t=>`<tr><td>${t.k}</td><td class="n">${t.n}</td><td class="n">${chip(t.media)}</td></tr>`).join('')||'<tr><td colspan=3 class=muted>—</td></tr>'}</table></div>
+    </div>
+
+    <button class="btn" onclick="gerarPDF()">⬇ Baixar PDF da medição (com gráficos)</button>
+    <p class="muted" style="text-align:center;margin-top:10px">Evidencia a atuação da equipe junto aos ativos no ciclo — números e gráficos.</p>
+  `;
+  desenhaGraficos();
+}
+function muda(d){ offset+=d; if(offset>0)offset=0; Object.values(CH).forEach(c=>{try{c.destroy();}catch(e){}}); CH={}; carregar(); }
+
+function desenhaGraficos(){
+  if(!window.Chart) return;
+  const c=DADOS.calc; const noAnim={animation:false,responsive:true,maintainAspectRatio:false};
+  Object.values(CH).forEach(x=>{try{x.destroy();}catch(e){}}); CH={};
+  if(document.getElementById('cProat')) CH.proat=new Chart(cProat,{type:'bar',
+    data:{labels:c.porColab.map(x=>x.k),datasets:[{label:'Inspeções',data:c.porColab.map(x=>x.n),backgroundColor:'#007B6E',borderRadius:5}]},
+    options:{...noAnim,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+  if(document.getElementById('cDia')) CH.dia=new Chart(cDia,{type:'line',
+    data:{labels:c.porDia.map(x=>x.d.slice(8)+'/'+x.d.slice(5,7)),datasets:[{label:'Inspeções',data:c.porDia.map(x=>x.n),borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,.12)',fill:true,tension:.3,pointRadius:3}]},
+    options:{...noAnim,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  if(document.getElementById('cTipo')) CH.tipo=new Chart(cTipo,{type:'doughnut',
+    data:{labels:c.porTipo.map(x=>x.k),datasets:[{data:c.porTipo.map(x=>x.n),backgroundColor:c.porTipo.map(x=>{const k=Object.keys(_tipo).find(t=>_tipo[t]===x.k);return CORTIPO[k]||'#888';})}]},
+    options:{...noAnim,plugins:{legend:{position:'right'}}}});
+  if(document.getElementById('cCob')){
+    const tk=['extintor','hidrante','valvula','casa_bomba'];
+    CH.cob=new Chart(cCob,{type:'bar',
+      data:{labels:tk.map(t=>_tipo[t]),datasets:[
+        {label:'Inspecionados no ciclo',data:tk.map(t=>c.cobMap[t].size),backgroundColor:'#007B6E',borderRadius:4},
+        {label:'Total de ativos',data:tk.map(t=>DADOS.totais[t]),backgroundColor:'#cdd7e2',borderRadius:4}
+      ]},options:{...noAnim,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }
+}
+
+/* ---------------- PDF com gráficos ---------------- */
+function img(ch){ try{ return ch?ch.toBase64Image('image/png',1):null; }catch(e){ return null; } }
+function gerarPDF(){
+  const {jsPDF}=window.jspdf; const {ini,fim}=DADOS; const c=DADOS.calc;
+  const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210,M=14,CW=W-2*M; let y=0;
+  doc.setFillColor(10,34,64); doc.rect(0,0,W,24,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('BI de Medição — Proatividade',M,12);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(174,190,212); doc.text('Bombeiros · SPCI — Terminal Parauapebas / Vale',M,18);
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(fc(ini)+' a '+fc(fim),W-M,12,{align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(174,190,212); doc.text('Emitido em '+fmt(new Date()),W-M,18,{align:'right'});
+  y=31;
+  doc.setTextColor(40,55,75); doc.setFontSize(10); doc.text('Período de medição: '+fmt(ini)+'  a  '+fmt(fim),M,y); y+=7;
+  doc.setDrawColor(223,229,236); doc.line(M,y,W-M,y); y+=7;
+  // KPIs
+  const kp=[['Inspeções',c.total],['Insp./dia',c.ritmo],['Bombeiros',c.bombeiros],['Dias',c.dias],['Ativos cobertos',c.cobertos],['Conformidade',c.media+'%']];
+  const kw=CW/6; kp.forEach((k,i)=>{ const x=M+i*kw; doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(10,34,64);doc.text(String(k[1]),x,y);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(98,116,138);doc.text(k[0],x,y+4); });
+  y+=12; doc.setDrawColor(223,229,236); doc.line(M,y,W-M,y); y+=6;
+  function titulo(t){ doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(10,34,64);doc.text(t,M,y); y+=4; }
+  function grafico(ch,h){ const d=img(ch); if(d){ try{ doc.addImage(d,'PNG',M,y,CW,h); y+=h+6; }catch(e){ y+=2; } } }
+  titulo('Proatividade da equipe — inspeções por bombeiro'); grafico(CH.proat,70);
+  if(y>200){ doc.addPage(); y=18; }
+  titulo('Ritmo no ciclo (inspeções por dia)'); grafico(CH.dia,55);
+  if(y>170){ doc.addPage(); y=18; }
+  titulo('Distribuição por tipo'); grafico(CH.tipo,60);
+  titulo('Cobertura de ativos (inspecionados x total)'); grafico(CH.cob,60);
+  // tabela proatividade
+  doc.addPage(); y=18;
+  titulo('Proatividade detalhada por bombeiro'); y+=2;
+  doc.setFontSize(9); doc.setFillColor(238,242,246); doc.rect(M,y-4,CW,7,'F'); doc.setTextColor(98,116,138);
+  doc.text('Bombeiro',M+1,y); doc.text('Insp.',M+120,y); doc.text('Conf.',M+145,y); doc.text('NC',W-M,y,{align:'right'}); y+=5;
+  doc.setFont('helvetica','normal'); doc.setTextColor(40,55,75);
+  c.porColab.forEach(t=>{ if(y>282){doc.addPage();y=18;} doc.text(String(t.k).slice(0,46),M+1,y); doc.text(String(t.n),M+120,y); doc.text(t.media+'%',M+145,y); doc.text(String(t.nc),W-M,y,{align:'right'}); y+=6; doc.setDrawColor(238,242,246); doc.line(M,y-4.5,W-M,y-4.5); });
+  const pgs=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pgs;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,160,175); doc.text('SGO-ETP · BI de Medição',M,290); doc.text(i+'/'+pgs,W-M,290,{align:'right'}); }
+  doc.save('BI_Medicao_'+fc(ini).replace('/','-')+'_a_'+fc(fim).replace('/','-')+'.pdf');
+}
+
+start();
+</script>
+</body>
+</html>
