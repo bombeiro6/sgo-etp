@@ -60,6 +60,12 @@
   .qr-item .qrc{display:flex;justify-content:center}
   .qr-item .c{font-weight:800;margin-top:8px}
   .qr-item .m{font-size:12px;color:var(--muted)}
+  .qr-item .st{font-size:11px;font-weight:800;border-radius:20px;padding:3px 11px;display:inline-block;margin-bottom:9px}
+  .qr-item .st.ok{background:#e7f4ec;color:#1F7A44}
+  .qr-item .st.no{background:#fbeae8;color:#C0392B}
+  .qr-item.falta{border-color:#f1c9c3;box-shadow:0 0 0 2px rgba(192,57,43,.08)}
+  .qr-resumo{font-size:13px;font-weight:700;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:12px}
+  .qr-resumo b.no{color:#C0392B} .qr-resumo b.ok{color:#1F7A44}
   .success{text-align:center;padding:30px 16px}
   .success .ico{width:74px;height:74px;border-radius:50%;background:var(--okbg);color:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:40px}
   .success h2{margin:0 0 6px}
@@ -687,14 +693,24 @@ async function entrarAdmin(){
   if(await sgoAcesso('admin', v)){ try{sessionStorage.setItem('sgo_admin','1');}catch(e){} telaQR(); }
   else alert('Senha incorreta.');
 }
+function cicloAtual(){
+  const now=new Date(); let sy=now.getFullYear(), sm=now.getMonth();
+  if(now.getDate()<21){ sm-=1; if(sm<0){sm=11;sy--;} }
+  return { ini:new Date(sy,sm,21,0,0,0), fim:new Date(sy,sm+1,20,23,59,59) };
+}
 async function telaQR(){
   if(!adminOK()){ telaAdminGate(); return; }
   app.innerHTML='<div class="loading"><div class="spin"></div>Gerando QR Codes…</div>';
-  let data;
+  let data, inspSet=new Set();
   if(!sb){ DEMO=true; data=MOCK_EXT; }
   else{
-    try{ const r = await sb.from('extintores').select('codigo,tipo,local,token').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
+    try{ const r = await sb.from('extintores').select('id,codigo,tipo,local,token').eq('status','ativo').order('codigo'); if(r.error) throw r.error; data=r.data||[]; }
     catch(e){ DEMO=true; data=MOCK_EXT; }
+    try{
+      const c=cicloAtual();
+      const r2=await sb.from('inspecoes').select('extintor_id,created_at').eq('tipo','extintor');
+      (r2.data||[]).forEach(x=>{ if(x.extintor_id){ const t=new Date(x.created_at); if(t>=c.ini && t<=c.fim) inspSet.add(x.extintor_id); } });
+    }catch(e){}
   }
   data = ordenarPorNumero(data);
   const base = location.href.split('?')[0];
@@ -702,9 +718,13 @@ async function telaQR(){
     app.innerHTML = bannerDemo()+'<div class="card"><div class="alert warn">Os QR Codes precisam de internet para serem gerados. Abra a página publicada no GitHub para gerar e imprimir.</div></div>';
     return;
   }
-  app.innerHTML = bannerDemo()+'<h2 class="sec no-print">Imprima e cole em cada extintor</h2>' +
-    data.map(e=>`<div class="qr-item"><div id="q-${e.codigo}" class="qrc"></div>
-      <div class="c">${e.codigo}</div><div class="m">${e.tipo} · ${e.local||''}</div></div>`).join('') +
+  const faltam=data.filter(e=>!inspSet.has(e.id)).length;
+  const resumo=`<div class="qr-resumo no-print">Ciclo atual: <b class="ok">${data.length-faltam}</b> inspecionado(s) · <b class="no">${faltam}</b> falta(m) inspecionar</div>`;
+  app.innerHTML = bannerDemo()+'<h2 class="sec no-print">Imprima e cole em cada extintor</h2>' + resumo +
+    data.map(e=>{ const ok=inspSet.has(e.id);
+      const st = ok ? '<div class="st ok">● Inspecionado no ciclo</div>' : '<div class="st no">● Falta inspecionar</div>';
+      return `<div class="qr-item ${ok?'':'falta'}">${st}<div id="q-${e.codigo}" class="qrc"></div>
+      <div class="c">${e.codigo}</div><div class="m">${e.tipo} · ${e.local||''}</div></div>`; }).join('') +
     '<button class="ghost no-print" onclick="window.print()">🖨 Imprimir todos</button>';
   data.forEach(e=>{
     new QRCode(document.getElementById('q-'+e.codigo), {text:`${base}?t=${e.token||e.codigo}`, width:200, height:200, correctLevel:QRCode.CorrectLevel.M});
