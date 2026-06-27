@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A2240">
+<title>Produtividade — Testes de Bastão | SGO-ETP</title>
+<link rel="manifest" href="./manifest.json">
+<style>
+  :root{
+    --navy:#0A2240; --navy2:#143157; --teal:#007B6E; --teal-d:#005f55;
+    --bg:#f4f6f9; --card:#ffffff; --line:#e4e8ef; --ink:#1b2430; --muted:#69748a;
+    --green:#1f9d57; --blue:#2f6fed; --amber:#e8920c; --red:#d83a34;
+    --r:14px; --sh:0 1px 3px rgba(10,34,64,.08),0 6px 18px rgba(10,34,64,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;padding-bottom:84px}
+  a{color:inherit}
+  .wrap{max-width:760px;margin:0 auto;padding:0 14px}
+
+  /* Topo */
+  header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;
+    padding:16px 14px calc(14px + env(safe-area-inset-top));position:sticky;top:0;z-index:30}
+  header .wrap{display:flex;align-items:center;gap:12px}
+  .badge{width:42px;height:42px;border-radius:11px;background:rgba(255,255,255,.12);
+    display:grid;place-items:center;font-size:22px;flex:0 0 auto}
+  header h1{font-size:17px;margin:0;line-height:1.15;font-weight:700}
+  header small{color:#9fb4d6;font-size:11.5px;letter-spacing:.3px;text-transform:uppercase}
+  .perfil-chip{margin-left:auto;font-size:11px;background:rgba(255,255,255,.14);
+    padding:5px 10px;border-radius:20px;white-space:nowrap}
+
+  /* Tabs */
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabs button{flex:1;border:0;background:none;padding:9px 4px 8px;font-size:10.5px;color:var(--muted);
+    display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+  nav.tabs button .ic{font-size:20px;line-height:1}
+  nav.tabs button.on{color:var(--teal);font-weight:700}
+
+  section.view{display:none;padding:16px 0 12px}
+  section.view.on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+
+  h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:4px 2px 10px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);
+    padding:16px;margin-bottom:14px}
+
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:0 0 6px}
+  input,select,textarea{width:100%;font:inherit;font-size:15px;padding:12px;border:1.5px solid var(--line);
+    border-radius:11px;background:#fbfcfe;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);background:#fff}
+  textarea{min-height:64px;resize:vertical}
+  .field{margin-bottom:13px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{flex:1;min-width:90px;text-align:center;padding:13px 8px;border:1.5px solid var(--line);
+    border-radius:12px;background:#fbfcfe;font-weight:600;font-size:14px;cursor:pointer;user-select:none}
+  .chip.on{border-color:var(--teal);background:#e7f5f3;color:var(--teal-d)}
+  .chip.cp.on{border-color:var(--amber);background:#fdf3e1;color:#9a5d04}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;cursor:pointer;
+    padding:15px;border-radius:13px;font-size:15.5px;font-weight:700;color:#fff;background:var(--teal)}
+  .btn:active{transform:scale(.99)}
+  .btn[disabled]{opacity:.55}
+  .btn.ghost{background:#eef1f6;color:var(--navy)}
+  .btn.navy{background:var(--navy)}
+
+  .photo-pick{display:flex;align-items:center;gap:12px;border:1.5px dashed var(--line);border-radius:11px;
+    padding:11px;background:#fbfcfe}
+  .photo-pick .ph{width:52px;height:52px;border-radius:9px;background:#eef1f6;display:grid;place-items:center;
+    font-size:22px;overflow:hidden;flex:0 0 auto}
+  .photo-pick .ph img{width:100%;height:100%;object-fit:cover}
+  .photo-pick small{color:var(--muted);font-size:11.5px}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:var(--sh);
+    padding:13px 14px;position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal)}
+  .kpi.g::before{background:var(--green)} .kpi.b::before{background:var(--blue)}
+  .kpi.a::before{background:var(--amber)} .kpi.r::before{background:var(--red)} .kpi.n::before{background:var(--navy)}
+  .kpi .v{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.5px}
+  .kpi .l{font-size:11px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.4px}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .kpi.wide{grid-column:1 / -1}
+
+  .bar{height:9px;border-radius:6px;background:#eef1f6;overflow:hidden;margin-top:8px}
+  .bar>i{display:block;height:100%;background:var(--teal);border-radius:6px}
+
+  /* passe de turno */
+  .passe{background:linear-gradient(135deg,#0c2a52,#0f3a6b);color:#fff;border-radius:var(--r);padding:15px;margin-bottom:14px}
+  .passe h3{margin:0 0 4px;font-size:14px}
+  .passe .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:11px}
+  .passe .grid div{background:rgba(255,255,255,.10);border-radius:10px;padding:9px;text-align:center}
+  .passe .grid b{display:block;font-size:20px}
+  .passe .grid span{font-size:10px;color:#acc4e6;text-transform:uppercase;letter-spacing:.3px}
+
+  /* lista / tabela */
+  .item{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);flex:0 0 auto}
+  .dot.atr{background:var(--amber)} .dot.fora{background:var(--red)} .dot.cp{background:var(--blue)}
+  .item .meta{flex:1;min-width:0}
+  .item .meta b{font-size:14px;display:block}
+  .item .meta small{color:var(--muted);font-size:11.5px}
+  .item .hr{font-weight:700;font-size:14px;color:var(--navy);white-space:nowrap}
+  .tag{font-size:10px;padding:2px 7px;border-radius:20px;background:#eef1f6;color:var(--muted);font-weight:600}
+  .tag.ev{background:#e7f5f3;color:var(--teal-d)}
+
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:26px 10px}
+
+  .alert{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:11px;font-size:12.5px;margin-bottom:9px;border:1px solid}
+  .alert.warn{background:#fdf3e1;border-color:#f3d79a;color:#7a4e05}
+  .alert.crit{background:#fdeceb;border-color:#f3b6b2;color:#8f221d}
+  .alert.ok{background:#e7f5ee;border-color:#aedec4;color:#1c6e41}
+
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--navy);color:#fff;
+    padding:12px 18px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:60;box-shadow:var(--sh);
+    opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:90%}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+  .toast.err{background:var(--red)}
+
+  .off{display:none;background:var(--amber);color:#3a2700;text-align:center;font-size:12px;font-weight:600;padding:6px}
+  .off.on{display:block}
+
+  /* PIN overlay */
+  .gate{position:fixed;inset:0;background:linear-gradient(160deg,#0A2240,#143157);z-index:80;
+    display:flex;align-items:center;justify-content:center;padding:22px}
+  .gate .box{background:#fff;border-radius:18px;padding:26px 22px;width:100%;max-width:340px;text-align:center}
+  .gate .ic{font-size:38px}
+  .gate h2{margin:8px 0 2px;font-size:19px;color:var(--navy)}
+  .gate p{margin:0 0 18px;color:var(--muted);font-size:12.5px}
+  .gate .err{color:var(--red);font-size:12.5px;min-height:16px;margin-top:8px}
+  .spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+    display:inline-block;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .mut{color:var(--muted);font-size:11.5px;text-align:center;margin-top:10px}
+  canvas{max-width:100%}
+</style>
+</head>
+<body>
+
+<div class="off" id="offBar">⚠ Sem conexão — registros serão sincronizados ao reconectar</div>
+
+<header>
+  <div class="wrap">
+    <div class="badge">🥁</div>
+    <div>
+      <h1>Testes de Bastão</h1>
+      <small>Produtividade Operacional · ETP</small>
+    </div>
+    <span class="perfil-chip" id="perfilChip" style="display:none"></span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===================== REGISTRAR ===================== -->
+  <section class="view on" id="v-registrar">
+    <h2 class="sec">Novo registro de teste</h2>
+    <div class="card">
+      <div class="field">
+        <label>Bastão</label>
+        <div class="chips" id="chBastao">
+          <div class="chip on" data-v="BASTAO 1">Bastão 1</div>
+          <div class="chip" data-v="BASTAO 2">Bastão 2</div>
+          <div class="chip cp" data-v="CONTRAPROVA">Contraprova</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Bombeiro responsável</label>
+        <select id="selBombeiro"><option value="">Carregando efetivo…</option></select>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Horário do teste</label>
+          <input type="time" id="inHora">
+        </div>
+        <div class="field">
+          <label>Turno</label>
+          <select id="selTurno">
+            <option value="A">A</option><option value="B">B</option>
+            <option value="C">C</option><option value="D">D</option>
+            <option value="ADM">ADM</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Horário previsto (referência)</label>
+        <select id="selSlot"></select>
+        <div id="statusHr" style="margin-top:7px;font-size:12px;font-weight:600"></div>
+      </div>
+
+      <div class="field">
+        <label>Evidência (foto) <span style="font-weight:400;color:var(--muted)">— opcional</span></label>
+        <div class="photo-pick">
+          <div class="ph" id="phPrev">📷</div>
+          <div style="flex:1">
+            <button class="btn ghost" style="padding:9px;font-size:13px" id="btnFoto" type="button">Anexar / tirar foto</button>
+            <small id="fotoNome">Nenhuma foto selecionada</small>
+          </div>
+          <input type="file" id="inFoto" accept="image/*" capture="environment" hidden>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Observações <span style="font-weight:400;color:var(--muted)">— opcional</span></label>
+        <textarea id="inObs" placeholder="Ex.: bastão sem leitura, bateria baixa, etc."></textarea>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-bottom:14px">
+        <input type="checkbox" id="ckGps" style="width:auto" checked> Capturar localização (GPS)
+      </label>
+
+      <button class="btn" id="btnSalvar">✓ Registrar teste</button>
+    </div>
+    <p class="mut">Os registros alimentam o painel, o histórico e os relatórios automaticamente.</p>
+  </section>
+
+  <!-- ===================== PAINEL ===================== -->
+  <section class="view" id="v-painel">
+    <h2 class="sec">Painel do dia · <span id="painelData"></span></h2>
+
+    <div id="alertas"></div>
+
+    <div class="passe" id="passeBox" style="display:none">
+      <h3>🌙 Passe de turno — resumo noturno</h3>
+      <small style="color:#acc4e6">Testes do turno noturno até 08:30</small>
+      <div class="grid">
+        <div><b id="paRealiz">0</b><span>Realizados</span></div>
+        <div><b id="paPrev">0</b><span>Previstos</span></div>
+        <div><b id="paPct">0%</b><span>Cumprido</span></div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#cdddf2" id="paDet"></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <label style="margin-bottom:10px">Execução por horário</label>
+      <canvas id="chartHorario" height="170"></canvas>
+    </div>
+
+    <div class="card">
+      <label style="margin-bottom:6px">Linha do tempo de hoje</label>
+      <div id="timeline"><div class="empty">Sem testes registrados hoje.</div></div>
+    </div>
+
+    <button class="btn ghost navy" style="color:#fff" id="btnReload">↻ Atualizar painel</button>
+  </section>
+
+  <!-- ===================== HISTÓRICO ===================== -->
+  <section class="view" id="v-historico">
+    <h2 class="sec">Histórico</h2>
+    <div class="filters">
+      <input type="date" id="fData">
+      <select id="fBombeiro"><option value="">Todos os bombeiros</option></select>
+      <select id="fTurno"><option value="">Todos turnos</option><option>A</option><option>B</option><option>C</option><option>D</option><option value="ADM">ADM</option></select>
+      <select id="fTipo"><option value="">Bastão + Contraprova</option><option value="bastao">Só bastões</option><option value="cp">Só contraprovas</option></select>
+      <select id="fConf"><option value="">Qualquer conformidade</option><option value="ok">No horário</option><option value="atrasado">Atrasados</option><option value="fora_horario">Fora de horário</option><option value="sem_ev">Sem evidência</option></select>
+      <button class="btn ghost" id="btnFiltrar" style="padding:11px;font-size:14px">Filtrar</button>
+    </div>
+    <div class="card" style="padding:8px 14px">
+      <div id="histLista"><div class="empty">Selecione os filtros e toque em Filtrar.</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== RELATÓRIOS ===================== -->
+  <section class="view" id="v-relatorios">
+    <h2 class="sec">Relatórios</h2>
+    <div class="card">
+      <label>Período</label>
+      <div class="chips" id="chPeriodo" style="margin-bottom:13px">
+        <div class="chip on" data-p="dia">Diário</div>
+        <div class="chip" data-p="semana">Semanal</div>
+        <div class="chip" data-p="mes">Mensal</div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>De</label><input type="date" id="rDe"></div>
+        <div class="field"><label>Até</label><input type="date" id="rAte"></div>
+      </div>
+      <button class="btn navy" id="btnPDF" style="margin-bottom:10px">📄 Gerar PDF</button>
+      <button class="btn" id="btnXLS" style="background:var(--green)">📊 Exportar Excel</button>
+    </div>
+    <p class="mut">Inclui produção, conformidade, ranking de bombeiros e evidências anexadas.</p>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button class="on" data-t="registrar"><span class="ic">➕</span>Registrar</button>
+  <button data-t="painel"><span class="ic">📊</span>Painel</button>
+  <button data-t="historico"><span class="ic">🗂</span>Histórico</button>
+  <button data-t="relatorios"><span class="ic">📄</span>Relatórios</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===================== PIN GATE ===================== -->
+<div class="gate" id="gate">
+  <div class="box">
+    <div class="ic">🚒</div>
+    <h2>SGO-ETP</h2>
+    <p>Acesso ao módulo de produtividade</p>
+    <div class="field" style="text-align:left">
+      <label>Perfil</label>
+      <select id="gPerfil">
+        <option value="equipe">Equipe (registro)</option>
+        <option value="gestor">Gestor</option>
+        <option value="admin">Administrador</option>
+        <option value="excel">Relatórios</option>
+      </select>
+    </div>
+    <div class="field" style="text-align:left;margin-bottom:6px">
+      <label>Código de acesso</label>
+      <input type="password" id="gPin" inputmode="numeric" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="err" id="gErr"></div>
+    <button class="btn navy" id="gBtn" style="margin-top:6px">Entrar</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG  — SGO-ETP / Módulo Produtividade (Testes de Bastão)
+   Ajuste HORARIOS e BASTOES conforme a operação evoluir.
+===================================================================== */
+const SB_URL  = 'https://wcyftjpsbifyvuqzxmbs.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjeWZ0anBzYmlmeXZ1cXp4bWJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODUyNzksImV4cCI6MjA5NTY2MTI3OX0.Dcwuq7_Y85PIrbciAj-8-YRbfmMg9QxBkR9esljqMbM';
+const BUCKET  = 'evidencias';
+const TZ      = 'America/Belem';                 // Pará (UTC-3)
+const BASTOES = ['BASTAO 1','BASTAO 2'];          // bastões físicos (contraprova é contada à parte)
+const TOLERANCIA_MIN = 20;                        // janela ± para considerar "no horário"
+const HORARIOS = [                                // horários operacionais padrão
+  { hora:'05:30', periodo:'Madrugada' },
+  { hora:'08:30', periodo:'Manhã'     },
+  { hora:'14:30', periodo:'Tarde'     },
+  { hora:'15:00', periodo:'Tarde'     },
+  { hora:'18:40', periodo:'Noite'     },
+  { hora:'19:20', periodo:'Noite'     },
+];
+const FILA_KEY = 'sgo_fila_bastao';
+
+/* ---------- carregador multi-CDN (rede da Vale bloqueia CDN único) ---------- */
+function loadScript(urls){
+  return new Promise((res,rej)=>{ let i=0;
+    (function next(){
+      if(i>=urls.length) return rej(new Error('CDN indisponível'));
+      const s=document.createElement('script'); s.src=urls[i++];
+      s.onload=()=>res(); s.onerror=next; document.head.appendChild(s);
+    })();
+  });
+}
+const CDN={
+  supabase:['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+            'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'],
+  chart:   ['https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
+            'https://unpkg.com/chart.js@4.4.3/dist/chart.umd.min.js'],
+  jspdf:   ['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+            'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js'],
+  autotable:['https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
+            'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
+  xlsx:    ['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+            'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'],
+};
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let sb=null, EFETIVO=[], FOTO=null, chartH=null;
+
+function hojeLocal(){ // YYYY-MM-DD na timezone da operação
+  return new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date());
+}
+function agoraHHMM(){
+  return new Intl.DateTimeFormat('pt-BR',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date());
+}
+function minutos(hhmm){ const[h,m]=hhmm.split(':').map(Number); return h*60+m; }
+function toast(msg,err){ const t=$('#toast'); t.textContent=msg; t.className='toast show'+(err?' err':'');
+  setTimeout(()=>t.className='toast',2600); }
+
+/* status do horário em relação ao slot previsto */
+function calcStatus(horaTeste, slotHora){
+  if(!slotHora) return 'fora_horario';
+  const d=minutos(horaTeste)-minutos(slotHora);
+  if(Math.abs(d)<=TOLERANCIA_MIN) return 'no_horario';
+  return d>0 ? 'atrasado' : 'adiantado';
+}
+function slotMaisProximo(hhmm){
+  const m=minutos(hhmm); let best=null,bd=1e9;
+  HORARIOS.forEach(s=>{const d=Math.abs(minutos(s.hora)-m); if(d<bd){bd=d;best=s;}});
+  return best;
+}
+function fmtStatus(s){return {no_horario:'No horário',adiantado:'Adiantado',atrasado:'Atrasado',fora_horario:'Fora de horário'}[s]||s;}
+
+/* =====================================================================
+   AUTENTICAÇÃO (PIN) — RPC verificar_acesso(p_perfil, p_codigo)
+===================================================================== */
+async function bootSupabase(){
+  if(sb) return sb;
+  await loadScript(CDN.supabase);
+  sb=window.supabase.createClient(SB_URL,SB_ANON);
+  return sb;
+}
+async function entrar(){
+  const perfil=$('#gPerfil').value, pin=$('#gPin').value.trim();
+  const err=$('#gErr'), btn=$('#gBtn');
+  if(!pin){err.textContent='Digite o código.';return;}
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; err.textContent='';
+  try{
+    await bootSupabase();
+    const {data,error}=await sb.rpc('verificar_acesso',{p_perfil:perfil,p_codigo:pin});
+    if(error) throw error;
+    if(data===true){
+      sessionStorage.setItem('sgo_perfil',perfil);
+      $('#gate').style.display='none';
+      mostrarPerfil(perfil);
+      iniciarApp();
+    }else{ err.textContent='Código incorreto para este perfil.'; }
+  }catch(e){ err.textContent='Falha de conexão. Tente novamente.'; }
+  finally{ btn.disabled=false; btn.textContent='Entrar'; }
+}
+function mostrarPerfil(p){
+  const c=$('#perfilChip'); c.style.display='inline-block';
+  c.textContent={equipe:'Equipe',gestor:'Gestor',admin:'Admin',excel:'Relatórios'}[p]||p;
+}
+
+/* =====================================================================
+   INICIALIZAÇÃO
+===================================================================== */
+async function iniciarApp(){
+  $('#inHora').value=agoraHHMM();
+  $('#painelData').textContent=new Date().toLocaleDateString('pt-BR',{timeZone:TZ});
+  $('#fData').value=hojeLocal();
+  preencherSlots();
+  atualizarStatusHora();
+  await carregarEfetivo();
+  flushFila();
+}
+function preencherSlots(){
+  const sel=$('#selSlot');
+  sel.innerHTML='<option value="">— Avulso / fora de horário —</option>'+
+    HORARIOS.map(s=>`<option value="${s.hora}">${s.hora} · ${s.periodo}</option>`).join('');
+  const prox=slotMaisProximo(agoraHHMM()); if(prox) sel.value=prox.hora;
+}
+function atualizarStatusHora(){
+  const hora=$('#inHora').value||agoraHHMM(), slot=$('#selSlot').value;
+  const st=calcStatus(hora,slot), box=$('#statusHr');
+  const cores={no_horario:'var(--green)',adiantado:'var(--blue)',atrasado:'var(--amber)',fora_horario:'var(--red)'};
+  box.style.color=cores[st]; box.textContent='● '+fmtStatus(st);
+  const slotObj=HORARIOS.find(s=>s.hora===slot);
+  if(slotObj) $('#selTurno').dataset.periodo=slotObj.periodo;
+}
+async function carregarEfetivo(){
+  try{
+    const {data,error}=await sb.from('efetivo').select('id,nome,turno,funcao,status')
+      .eq('status','ativo').order('turno').order('nome');
+    if(error) throw error;
+    EFETIVO=data||[];
+    const grupos={};
+    EFETIVO.forEach(e=>{const t=e.turno?('Turno '+e.turno):'Administrativo';(grupos[t]=grupos[t]||[]).push(e);});
+    const opts=Object.entries(grupos).map(([g,arr])=>
+      `<optgroup label="${g}">`+arr.map(e=>`<option value="${e.id}" data-turno="${e.turno||'ADM'}">${e.nome} · ${e.funcao||''}</option>`).join('')+`</optgroup>`).join('');
+    $('#selBombeiro').innerHTML='<option value="">Selecione…</option>'+opts;
+    $('#fBombeiro').innerHTML='<option value="">Todos os bombeiros</option>'+
+      EFETIVO.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('');
+  }catch(e){ $('#selBombeiro').innerHTML='<option value="">Erro ao carregar efetivo</option>'; }
+}
+
+/* =====================================================================
+   REGISTRAR TESTE
+===================================================================== */
+function getGPS(){
+  return new Promise(res=>{
+    if(!$('#ckGps').checked || !navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p=>res({latitude:p.coords.latitude,longitude:p.coords.longitude,gps_precisao:p.coords.accuracy}),
+      ()=>res(null),{enableHighAccuracy:true,timeout:6000,maximumAge:30000});
+  });
+}
+async function salvarTeste(){
+  const bastao=$('#chBastao .chip.on')?.dataset.v;
+  const sel=$('#selBombeiro'), respId=sel.value;
+  const respNome=respId?sel.options[sel.selectedIndex].text.split(' · ')[0]:null;
+  const hora=$('#inHora').value||agoraHHMM();
+  const slot=$('#selSlot').value||null;
+  if(!bastao){toast('Escolha o bastão.',true);return;}
+  if(!respId){toast('Selecione o bombeiro.',true);return;}
+
+  const btn=$('#btnSalvar'); btn.disabled=true; const txt=btn.textContent; btn.innerHTML='<span class="spin"></span> Salvando…';
+
+  const slotObj=HORARIOS.find(s=>s.hora===slot);
+  const periodo=slotObj?slotObj.periodo:periodoPorHora(hora);
+  const [hh,mm]=hora.split(':');
+  const execLocal=`${hojeLocal()}T${hh}:${mm}:00-03:00`; // -03:00 = America/Belem
+  const gps=await getGPS();
+
+  const payload={
+    executado_em:execLocal, data:hojeLocal(), bastao,
+    responsavel_id:respId, responsavel_nome:respNome,
+    turno:$('#selTurno').value, periodo, slot_previsto:slot,
+    status_horario:calcStatus(hora,slot),
+    observacoes:$('#inObs').value.trim()||null,
+    ...(gps||{})
+  };
+
+  try{
+    if(!navigator.onLine) throw {offline:true};
+    const {data,error}=await sb.from('testes_bastao').insert(payload).select('id').single();
+    if(error) throw error;
+    if(FOTO){
+      const url=await enviarFoto(data.id);
+      if(url) await sb.from('testes_bastao').update({evidencia_url:url}).eq('id',data.id);
+    }
+    toast('✓ Teste registrado');
+    resetForm();
+  }catch(e){
+    if(e.offline || !navigator.onLine){
+      enfileirar({payload,fotoData:FOTO?await fileToDataURL(FOTO):null});
+      toast('Sem conexão — salvo na fila');
+      resetForm();
+    }else{
+      toast('Erro ao salvar. Tente novamente.',true);
+    }
+  }finally{ btn.disabled=false; btn.textContent=txt; }
+}
+function periodoPorHora(hhmm){const m=minutos(hhmm);
+  if(m<540) return 'Madrugada'; if(m<720) return 'Manhã'; if(m<1110) return 'Tarde'; return 'Noite';}
+async function enviarFoto(id){
+  try{
+    const path=`bastao/${hojeLocal()}/${id}.jpg`;
+    const {error}=await sb.storage.from(BUCKET).upload(path,FOTO,{upsert:true,contentType:FOTO.type});
+    if(error) throw error;
+    return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }catch(e){ return null; }
+}
+function resetForm(){
+  FOTO=null; $('#inFoto').value=''; $('#fotoNome').textContent='Nenhuma foto selecionada';
+  $('#phPrev').innerHTML='📷'; $('#inObs').value=''; $('#inHora').value=agoraHHMM();
+  preencherSlots(); atualizarStatusHora();
+}
+function fileToDataURL(f){return new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result);x.readAsDataURL(f);});}
+
+/* ---------- fila offline ---------- */
+function enfileirar(item){ const f=JSON.parse(localStorage.getItem(FILA_KEY)||'[]'); f.push(item); localStorage.setItem(FILA_KEY,JSON.stringify(f)); atualizarOff(); }
+async function flushFila(){
+  if(!navigator.onLine || !sb) return;
+  let f=JSON.parse(localStorage.getItem(FILA_KEY)||'[]'); if(!f.length) return;
+  const resto=[];
+  for(const it of f){
+    try{
+      const {data,error}=await sb.from('testes_bastao').insert(it.payload).select('id').single();
+      if(error) throw error;
+      if(it.fotoData){
+        const blob=await (await fetch(it.fotoData)).blob();
+        const path=`bastao/${it.payload.data}/${data.id}.jpg`;
+        await sb.storage.from(BUCKET).upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+        const url=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+        await sb.from('testes_bastao').update({evidencia_url:url}).eq('id',data.id);
+      }
+    }catch(e){ resto.push(it); }
+  }
+  localStorage.setItem(FILA_KEY,JSON.stringify(resto));
+  if(f.length>resto.length) toast(`${f.length-resto.length} registro(s) sincronizado(s)`);
+  atualizarOff();
+}
+function atualizarOff(){
+  const f=JSON.parse(localStorage.getItem(FILA_KEY)||'[]');
+  $('#offBar').classList.toggle('on', !navigator.onLine || f.length>0);
+  if(!navigator.onLine) $('#offBar').textContent='⚠ Sem conexão — registros serão sincronizados ao reconectar';
+  else if(f.length) $('#offBar').textContent=`⏳ ${f.length} registro(s) aguardando sincronização`;
+}
+
+/* =====================================================================
+   PAINEL
+===================================================================== */
+async function carregarPainel(){
+  const data=hojeLocal();
+  let rows=[];
+  try{
+    const {data:d,error}=await sb.from('testes_bastao').select('*').eq('data',data).order('executado_em');
+    if(error) throw error; rows=d||[];
+  }catch(e){ toast('Erro ao carregar painel',true); return; }
+
+  const horaAgora=agoraHHMM();
+  const slotsPassados=HORARIOS.filter(s=>minutos(s.hora)<=minutos(horaAgora)).length;
+  const previstos=slotsPassados*BASTOES.length;
+  const bastaoRows=rows.filter(r=>!r.is_contraprova);
+  const realizados=bastaoRows.length;
+  const contraprovas=rows.filter(r=>r.is_contraprova).length;
+  const pendentes=Math.max(0,previstos-realizados);
+  const atrasos=rows.filter(r=>r.status_horario==='atrasado').length;
+  const fora=rows.filter(r=>r.status_horario==='fora_horario').length;
+  const comEv=rows.filter(r=>r.evidencia_url).length;
+  const semEv=rows.length-comEv;
+  const pctConf=previstos?Math.round(realizados/previstos*100):0;
+
+  // bombeiro mais produtivo
+  const cont={};
+  rows.forEach(r=>{if(r.responsavel_nome)cont[r.responsavel_nome]=(cont[r.responsavel_nome]||0)+1;});
+  const top=Object.entries(cont).sort((a,b)=>b[1]-a[1])[0];
+
+  // tempo médio entre testes
+  let tmedio='—';
+  if(rows.length>1){let soma=0;for(let i=1;i<rows.length;i++){soma+=(new Date(rows[i].executado_em)-new Date(rows[i-1].executado_em))/60000;}
+    tmedio=Math.round(soma/(rows.length-1))+' min';}
+
+  $('#kpis').innerHTML=`
+    ${card('g',realizados,'Realizados hoje','testes de bastão')}
+    ${card('b',previstos,'Previstos até agora',slotsPassados+' horários')}
+    ${card('a',pendentes,'Pendentes','')}
+    ${card('r',atrasos,'Em atraso','')}
+    ${card('n',comEv,'Com evidência',semEv+' sem foto')}
+    ${card('',contraprovas,'Contraprovas','')}
+    ${cardWide('Conformidade geral',pctConf+'%',pctConf)}
+    ${card('b',tmedio,'Tempo médio','entre testes')}
+    ${card('g',top?top[0].split(' ')[0]:'—','Mais produtivo',top?top[1]+' testes':'')}
+  `;
+  renderAlertas({pendentes,atrasos,semEv,contraprovas,slotsPassados});
+  renderPasse(rows);
+  renderTimeline(rows);
+  renderChart(rows);
+}
+function card(cls,v,l,sub){return `<div class="kpi ${cls}"><div class="v">${v}</div><div class="l">${l}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;}
+function cardWide(l,v,pct){return `<div class="kpi wide n"><div class="v">${v}</div><div class="l">${l}</div><div class="bar"><i style="width:${pct}%"></i></div></div>`;}
+
+function renderAlertas(k){
+  const a=[];
+  if(k.atrasos>0) a.push(['warn','⏰',`${k.atrasos} teste(s) realizados com atraso hoje.`]);
+  if(k.pendentes>0) a.push(['warn','📍',`${k.pendentes} teste(s) previstos ainda não realizados.`]);
+  if(k.semEv>0) a.push(['warn','📷',`${k.semEv} registro(s) sem evidência anexada.`]);
+  if(k.slotsPassados>=1 && k.contraprovas===0) a.push(['crit','⚠','Nenhuma contraprova executada hoje.']);
+  $('#alertas').innerHTML = a.length ? a.map(([c,i,t])=>`<div class="alert ${c}">${i}<span>${t}</span></div>`).join('')
+    : `<div class="alert ok">✓<span>Tudo em dia até agora. Nenhuma pendência crítica.</span></div>`;
+}
+function renderPasse(rows){
+  const horaAgora=minutos(agoraHHMM());
+  // mostra resumo do noturno a partir das 08:00
+  if(horaAgora<480){ $('#passeBox').style.display='none'; return; }
+  const noturno=HORARIOS.filter(s=>s.periodo==='Madrugada'||s.hora==='08:30');
+  const prev=noturno.length*BASTOES.length;
+  const exec=rows.filter(r=>!r.is_contraprova && ['Madrugada','Manhã'].includes(r.periodo)).length;
+  const pct=prev?Math.round(exec/prev*100):0;
+  $('#passeBox').style.display='block';
+  $('#paRealiz').textContent=exec; $('#paPrev').textContent=prev; $('#paPct').textContent=pct+'%';
+  const feitos=[...new Set(rows.filter(r=>['Madrugada','Manhã'].includes(r.periodo)).map(r=>r.slot_previsto).filter(Boolean))];
+  const pend=noturno.map(s=>s.hora).filter(h=>!feitos.includes(h));
+  $('#paDet').innerHTML=`Executados: <b>${feitos.join(', ')||'—'}</b>${pend.length?` · Pendentes: <b>${pend.join(', ')}</b>`:''}`;
+}
+function renderTimeline(rows){
+  const el=$('#timeline');
+  if(!rows.length){el.innerHTML='<div class="empty">Sem testes registrados hoje.</div>';return;}
+  el.innerHTML=rows.slice().reverse().map(r=>{
+    const hr=new Date(r.executado_em).toLocaleTimeString('pt-BR',{timeZone:TZ,hour:'2-digit',minute:'2-digit'});
+    const cls=r.is_contraprova?'cp':(r.status_horario==='atrasado'?'atr':(r.status_horario==='fora_horario'?'fora':''));
+    const bast=r.is_contraprova?'Contraprova':r.bastao.replace('BASTAO','Bastão');
+    return `<div class="item"><span class="dot ${cls}"></span>
+      <div class="meta"><b>${bast}</b><small>${r.responsavel_nome||'—'} · Turno ${r.turno||'—'} · ${fmtStatus(r.status_horario)}</small></div>
+      ${r.evidencia_url?'<span class="tag ev">📷</span>':''}
+      <span class="hr">${hr}</span></div>`;
+  }).join('');
+}
+async function renderChart(rows){
+  try{ if(!window.Chart) await loadScript(CDN.chart);}catch(e){return;}
+  const labels=HORARIOS.map(s=>s.hora);
+  const real=labels.map(h=>rows.filter(r=>r.slot_previsto===h && !r.is_contraprova).length);
+  const meta=labels.map(()=>BASTOES.length);
+  if(chartH) chartH.destroy();
+  chartH=new Chart($('#chartHorario'),{type:'bar',
+    data:{labels,datasets:[
+      {label:'Realizados',data:real,backgroundColor:'#007B6E',borderRadius:5},
+      {label:'Previsto',data:meta,backgroundColor:'#e4e8ef',borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1,precision:0}},x:{grid:{display:false}}}}});
+}
+
+/* =====================================================================
+   HISTÓRICO
+===================================================================== */
+async function filtrarHistorico(){
+  const el=$('#histLista'); el.innerHTML='<div class="empty">Buscando…</div>';
+  let q=sb.from('testes_bastao').select('*').order('executado_em',{ascending:false}).limit(300);
+  if($('#fData').value) q=q.eq('data',$('#fData').value);
+  if($('#fBombeiro').value) q=q.eq('responsavel_id',$('#fBombeiro').value);
+  if($('#fTurno').value) q=q.eq('turno',$('#fTurno').value);
+  const tipo=$('#fTipo').value;
+  if(tipo==='bastao') q=q.eq('is_contraprova',false);
+  if(tipo==='cp') q=q.eq('is_contraprova',true);
+  const conf=$('#fConf').value;
+  if(conf==='ok') q=q.eq('status_horario','no_horario');
+  if(conf==='atrasado') q=q.eq('status_horario','atrasado');
+  if(conf==='fora_horario') q=q.eq('status_horario','fora_horario');
+  if(conf==='sem_ev') q=q.is('evidencia_url',null);
+  try{
+    const {data,error}=await q; if(error) throw error;
+    if(!data.length){el.innerHTML='<div class="empty">Nenhum registro para esses filtros.</div>';return;}
+    el.innerHTML=data.map(r=>{
+      const dt=new Date(r.executado_em);
+      const d=dt.toLocaleDateString('pt-BR',{timeZone:TZ,day:'2-digit',month:'2-digit'});
+      const hr=dt.toLocaleTimeString('pt-BR',{timeZone:TZ,hour:'2-digit',minute:'2-digit'});
+      const cls=r.is_contraprova?'cp':(r.status_horario==='atrasado'?'atr':(r.status_horario==='fora_horario'?'fora':''));
+      const bast=r.is_contraprova?'Contraprova':r.bastao.replace('BASTAO','Bastão');
+      return `<div class="item"><span class="dot ${cls}"></span>
+        <div class="meta"><b>${bast} · ${r.responsavel_nome||'—'}</b>
+        <small>${d} ${hr} · Turno ${r.turno||'—'} · ${fmtStatus(r.status_horario)}</small></div>
+        ${r.evidencia_url?`<a class="tag ev" href="${r.evidencia_url}" target="_blank">📷</a>`:'<span class="tag">s/ foto</span>'}</div>`;
+    }).join('');
+  }catch(e){ el.innerHTML='<div class="empty">Erro ao buscar histórico.</div>'; }
+}
+
+/* =====================================================================
+   RELATÓRIOS (PDF + Excel)
+===================================================================== */
+async function buscarPeriodo(){
+  const de=$('#rDe').value, ate=$('#rAte').value;
+  if(!de||!ate){toast('Defina o período.',true);return null;}
+  const {data,error}=await sb.from('testes_bastao').select('*').gte('data',de).lte('data',ate).order('executado_em');
+  if(error){toast('Erro ao buscar dados.',true);return null;}
+  return {de,ate,rows:data||[]};
+}
+function resumo(rows){
+  const bast=rows.filter(r=>!r.is_contraprova).length;
+  const cp=rows.filter(r=>r.is_contraprova).length;
+  const atr=rows.filter(r=>r.status_horario==='atrasado').length;
+  const fora=rows.filter(r=>r.status_horario==='fora_horario').length;
+  const ev=rows.filter(r=>r.evidencia_url).length;
+  const rank={};
+  rows.forEach(r=>{if(r.responsavel_nome){const k=r.responsavel_nome;rank[k]=rank[k]||{t:0,a:0,e:0};rank[k].t++;if(r.status_horario==='atrasado')rank[k].a++;if(r.evidencia_url)rank[k].e++;}});
+  const ranking=Object.entries(rank).map(([n,v])=>[n,v.t,v.a,v.e]).sort((a,b)=>b[1]-a[1]);
+  return {total:rows.length,bast,cp,atr,fora,ev,semEv:rows.length-ev,ranking};
+}
+async function gerarPDF(){
+  const p=await buscarPeriodo(); if(!p)return;
+  toast('Gerando PDF…');
+  try{
+    if(!window.jspdf) await loadScript(CDN.jspdf);
+    if(!window.jspdf.jsPDF.API.autoTable) await loadScript(CDN.autotable);
+  }catch(e){toast('Falha ao carregar gerador.',true);return;}
+  const {jsPDF}=window.jspdf; const doc=new jsPDF();
+  const r=resumo(p.rows);
+  doc.setFillColor(10,34,64); doc.rect(0,0,210,26,'F');
+  doc.setTextColor(255); doc.setFontSize(15); doc.text('Relatório de Produtividade — Testes de Bastão',14,12);
+  doc.setFontSize(9); doc.setTextColor(180,200,230);
+  doc.text(`Terminal Parauapebas (ETP) · Período: ${fmtBR(p.de)} a ${fmtBR(p.ate)}`,14,19);
+  doc.setTextColor(30);
+  doc.autoTable({startY:32,head:[['Indicador','Valor']],theme:'grid',headStyles:{fillColor:[0,123,110]},
+    body:[['Total de testes',r.total],['Testes de bastão',r.bast],['Contraprovas',r.cp],
+          ['Atrasos',r.atr],['Fora de horário',r.fora],['Com evidência',r.ev],['Sem evidência',r.semEv],
+          ['Conformidade no horário',`${r.total?Math.round((r.total-r.atr-r.fora)/r.total*100):0}%`]]});
+  doc.autoTable({startY:doc.lastAutoTable.finalY+8,head:[['#','Bombeiro','Testes','Atrasos','C/ evidência']],
+    headStyles:{fillColor:[10,34,64]},
+    body:r.ranking.map((x,i)=>[i+1,x[0],x[1],x[2],x[3]])});
+  doc.save(`produtividade_bastao_${p.de}_${p.ate}.pdf`);
+  registrarRelatorio('PDF');
+}
+async function gerarXLS(){
+  const p=await buscarPeriodo(); if(!p)return;
+  toast('Gerando Excel…');
+  try{ if(!window.XLSX) await loadScript(CDN.xlsx);}catch(e){toast('Falha ao carregar gerador.',true);return;}
+  const r=resumo(p.rows);
+  const reg=p.rows.map(x=>({Data:x.data,Hora:new Date(x.executado_em).toLocaleTimeString('pt-BR',{timeZone:TZ}),
+    Bastao:x.bastao,Contraprova:x.is_contraprova?'Sim':'Não',Bombeiro:x.responsavel_nome,Turno:x.turno,
+    Previsto:x.slot_previsto||'',Status:fmtStatus(x.status_horario),Evidencia:x.evidencia_url?'Sim':'Não',Obs:x.observacoes||''}));
+  const ind=[{Indicador:'Total',Valor:r.total},{Indicador:'Bastões',Valor:r.bast},{Indicador:'Contraprovas',Valor:r.cp},
+    {Indicador:'Atrasos',Valor:r.atr},{Indicador:'Fora de horário',Valor:r.fora},{Indicador:'Com evidência',Valor:r.ev}];
+  const rank=r.ranking.map((x,i)=>({Posicao:i+1,Bombeiro:x[0],Testes:x[1],Atrasos:x[2],ComEvidencia:x[3]}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ind),'Indicadores');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rank),'Ranking');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(reg),'Registros');
+  XLSX.writeFile(wb,`produtividade_bastao_${p.de}_${p.ate}.xlsx`);
+  registrarRelatorio('Excel');
+}
+function fmtBR(d){const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}
+async function registrarRelatorio(tipo){
+  try{await sb.from('relatorios_historico').insert({tipo:'produtividade_'+tipo,gerado_por:sessionStorage.getItem('sgo_perfil')});}catch(e){}
+}
+function setPeriodoRel(p){
+  const hoje=hojeLocal(); const d=new Date(hoje+'T12:00');
+  let de=hoje;
+  if(p==='semana'){const x=new Date(d);x.setDate(x.getDate()-6);de=x.toISOString().slice(0,10);}
+  if(p==='mes'){const x=new Date(d);x.setDate(x.getDate()-29);de=x.toISOString().slice(0,10);}
+  $('#rDe').value=de; $('#rAte').value=hoje;
+}
+
+/* =====================================================================
+   NAVEGAÇÃO + EVENTOS
+===================================================================== */
+$$('.tabs button').forEach(b=>b.onclick=()=>{
+  $$('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const t=b.dataset.t; $$('.view').forEach(v=>v.classList.remove('on')); $('#v-'+t).classList.add('on');
+  window.scrollTo(0,0);
+  if(t==='painel') carregarPainel();
+});
+$('#chBastao').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;$$('#chBastao .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');};
+$('#chPeriodo').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;$$('#chPeriodo .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');setPeriodoRel(c.dataset.p);};
+$('#selBombeiro').onchange=e=>{const o=e.target.selectedOptions[0];if(o&&o.dataset.turno)$('#selTurno').value=o.dataset.turno;};
+$('#inHora').onchange=atualizarStatusHora; $('#selSlot').onchange=atualizarStatusHora;
+$('#btnFoto').onclick=()=>$('#inFoto').click();
+$('#inFoto').onchange=e=>{const f=e.target.files[0];if(!f)return;FOTO=f;$('#fotoNome').textContent=f.name;
+  const u=URL.createObjectURL(f);$('#phPrev').innerHTML=`<img src="${u}">`;};
+$('#btnSalvar').onclick=salvarTeste;
+$('#btnReload').onclick=carregarPainel;
+$('#btnFiltrar').onclick=filtrarHistorico;
+$('#btnPDF').onclick=gerarPDF; $('#btnXLS').onclick=gerarXLS;
+$('#gBtn').onclick=entrar;
+$('#gPin').onkeydown=e=>{if(e.key==='Enter')entrar();};
+window.addEventListener('online',()=>{atualizarOff();flushFila();});
+window.addEventListener('offline',atualizarOff);
+
+/* PWA */
+if('serviceWorker' in navigator){try{navigator.serviceWorker.register('./sw.js').catch(()=>{});}catch(e){}}
+
+/* auto-login se já autenticado nesta sessão */
+(async function(){
+  setPeriodoRel('dia'); atualizarOff();
+  const p=sessionStorage.getItem('sgo_perfil');
+  if(p){ $('#gPerfil').value=p; await bootSupabase(); $('#gate').style.display='none'; mostrarPerfil(p); iniciarApp(); }
+})();
+</script>
+</body>
+</html>
