@@ -314,7 +314,10 @@
     <div class="field" style="text-align:left">
       <label>Perfil</label>
       <select id="gPerfil">
-        <option value="equipe">Equipe (registro)</option>
+        <option value="equipe" data-turno="A" data-team="Alfa">Time Alfa (registro)</option>
+        <option value="equipe" data-turno="B" data-team="Bravo">Time Bravo (registro)</option>
+        <option value="equipe" data-turno="C" data-team="Charlie">Time Charlie (registro)</option>
+        <option value="equipe" data-turno="D" data-team="Delta">Time Delta (registro)</option>
         <option value="gestor">Gestor</option>
         <option value="admin">Administrador</option>
         <option value="excel">Relatórios</option>
@@ -421,6 +424,9 @@ async function entrar(){
     if(error) throw error;
     if(data===true){
       sessionStorage.setItem('sgo_perfil',perfil);
+      const opt=$('#gPerfil').options[$('#gPerfil').selectedIndex];
+      sessionStorage.setItem('sgo_team', opt.dataset.team||'');
+      sessionStorage.setItem('sgo_team_turno', opt.dataset.turno||'');
       $('#gate').style.display='none';
       mostrarPerfil(perfil);
       iniciarApp();
@@ -430,7 +436,11 @@ async function entrar(){
 }
 function mostrarPerfil(p){
   const c=$('#perfilChip'); c.style.display='inline-block';
-  c.textContent={equipe:'Equipe',gestor:'Gestor',admin:'Admin',excel:'Relatórios'}[p]||p;
+  if(p==='equipe'){ c.textContent='Time '+(sessionStorage.getItem('sgo_team')||''); }
+  else c.textContent={gestor:'Gestor',admin:'Admin',excel:'Relatórios'}[p]||p;
+  // Equipe não acessa Relatórios (PDF/Excel)
+  const rel=document.querySelector('nav.tabs button[data-t="relatorios"]');
+  if(rel) rel.style.display = (p==='equipe') ? 'none' : '';
 }
 
 /* =====================================================================
@@ -443,6 +453,8 @@ async function iniciarApp(){
   preencherSlots();
   atualizarStatusHora();
   await carregarEfetivo();
+  const _perfil=sessionStorage.getItem('sgo_perfil'), _tt=sessionStorage.getItem('sgo_team_turno');
+  if(_perfil==='equipe' && _tt){ const st=$('#selTurno'); if(st){ st.value=_tt; st.disabled=true; } }
   flushFila();
 }
 function preencherSlots(){
@@ -468,7 +480,7 @@ async function carregarEfetivo(){
     const grupos={};
     EFETIVO.forEach(e=>{const t=e.turno?('Turno '+e.turno):'Administrativo';(grupos[t]=grupos[t]||[]).push(e);});
     const opts=Object.entries(grupos).map(([g,arr])=>
-      `<optgroup label="${g}">`+arr.map(e=>`<option value="${e.id}" data-turno="${e.turno||'ADM'}">${e.nome} · ${e.funcao||''}</option>`).join('')+`</optgroup>`).join('');
+      `<optgroup label="${g}">`+arr.map(e=>`<option value="${e.id}" data-turno="${e.turno||'ADM'}">${e.nome}</option>`).join('')+`</optgroup>`).join('');
     $('#selBombeiro').innerHTML='<option value="">Selecione…</option>'+opts;
     $('#fBombeiro').innerHTML='<option value="">Todos os bombeiros</option>'+
       EFETIVO.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('');
